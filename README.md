@@ -5,7 +5,8 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 ## 项目状态
 
 当前处于需求、宪法、实施计划与任务阶段，尚未创建应用代码。功能 001 定义个人知识库，
-功能 002 定义 AI 点数计费与 Waffo 支付；真实收费在 P0/P1 门禁通过前保持关闭。
+功能 002 定义 AI 点数计费与 Waffo 支付，功能 003 定义手机和平板网页访问；真实收费在
+P0/P1 门禁通过前保持关闭。
 
 ## 核心文档
 
@@ -25,6 +26,7 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 - [Waffo 桥接契约](specs/002-ai-credit-billing/contracts/waffo-bridge.yaml)
 - [付费验收指南](specs/002-ai-credit-billing/quickstart.md)
 - [付费任务表](specs/002-ai-credit-billing/tasks.md)
+- [移动端网页规格](specs/003-mobile-web-access/spec.md)
 
 ## 交互原型
 
