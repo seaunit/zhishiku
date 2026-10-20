@@ -10,12 +10,23 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 
 - [项目协作约定](AGENTS.md)
 - [项目宪法](.specify/memory/constitution.md)
+- [交互原型](prototype/index.html)
 - [功能规格](specs/001-ai-personal-knowledge-base/spec.md)
 - [实施计划](specs/001-ai-personal-knowledge-base/plan.md)
 - [数据模型](specs/001-ai-personal-knowledge-base/data-model.md)
 - [部署共存方案](specs/001-ai-personal-knowledge-base/deployment.md)
 - [验证指南](specs/001-ai-personal-knowledge-base/quickstart.md)
 - [OpenAPI 契约](specs/001-ai-personal-knowledge-base/contracts/openapi.yaml)
+
+## 交互原型
+
+“识海”前端原型位于 [prototype/index.html](prototype/index.html)，可直接打开，也可在仓库根目录运行：
+
+```powershell
+python -m http.server 8088 --bind 127.0.0.1 --directory prototype
+```
+
+然后访问 `http://127.0.0.1:8088/`。
 
 ## 开发流程
 

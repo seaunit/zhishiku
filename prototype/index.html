@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="识海：自动归类、标签与检索的个人 AI 知识库交互原型"
+    />
+    <title>识海 · 个人 AI 知识库</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <svg class="icon-sprite" aria-hidden="true">
+      <symbol id="icon-home" viewBox="0 0 24 24">
+        <path d="M3 10.5 12 3l9 7.5" />
+        <path d="M5 9.5V21h14V9.5" />
+        <path d="M9 21v-6h6v6" />
+      </symbol>
+      <symbol id="icon-library" viewBox="0 0 24 24">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14" />
+      </symbol>
+      <symbol id="icon-inbox" viewBox="0 0 24 24">
+        <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+        <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z" />
+      </symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24">
+        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+      </symbol>
+      <symbol id="icon-settings" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.5 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.35.3.7.6 1 .3.28.7.42 1.1.42H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z" />
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.35-4.35" />
+      </symbol>
+      <symbol id="icon-sparkles" viewBox="0 0 24 24">
+        <path d="m12 3-1.2 3.2L7.5 7.5l3.3 1.3L12 12l1.2-3.2 3.3-1.3-3.3-1.3L12 3Z" />
+        <path d="m19 14-.7 1.8-1.8.7 1.8.7L19 19l.7-1.8 1.8-.7-1.8-.7L19 14Z" />
+        <path d="m5 14-.7 1.8-1.8.7 1.8.7L5 19l.7-1.8 1.8-.7-1.8-.7L5 14Z" />
+      </symbol>
+      <symbol id="icon-globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" />
+      </symbol>
+      <symbol id="icon-link" viewBox="0 0 24 24">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </symbol>
+      <symbol id="icon-file" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+        <path d="M14 2v6h6M8 13h8M8 17h6" />
+      </symbol>
+      <symbol id="icon-image" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <path d="m21 15-5-5L5 21" />
+      </symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24">
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24">
+        <path d="m9 18 6-6-6-6" />
+      </symbol>
+      <symbol id="icon-external" viewBox="0 0 24 24">
+        <path d="M15 3h6v6M10 14 21 3" />
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      </symbol>
+      <symbol id="icon-x" viewBox="0 0 24 24">
+        <path d="M18 6 6 18M6 6l12 12" />
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path d="m20 6-11 11-5-5" />
+      </symbol>
+      <symbol id="icon-retry" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+        <path d="M3 3v5h5" />
+      </symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </symbol>
+      <symbol id="icon-lock" viewBox="0 0 24 24">
+        <rect x="4" y="10" width="16" height="11" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      </symbol>
+      <symbol id="icon-layers" viewBox="0 0 24 24">
+        <path d="m12 2 9 5-9 5-9-5 9-5Z" />
+        <path d="m3 12 9 5 9-5M3 17l9 5 9-5" />
+      </symbol>
+    </svg>
+
+    <div class="app-shell">
+      <aside class="rail" aria-label="主导航">
+        <button class="brand-mark" data-view="home" aria-label="识海首页">
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <path d="M8 13c4-3 8-3 12 0s7 3 10 0" />
+            <path d="M8 18c4-3 8-3 12 0s7 3 10 0" />
+            <path d="M8 23c4-3 8-3 12 0s7 3 10 0" />
+          </svg>
+        </button>
+        <nav class="rail-nav">
+          <button class="rail-item is-active" data-view="home" aria-label="首页" data-tooltip="首页">
+            <svg><use href="#icon-home"></use></svg>
+            <span>首页</span>
+          </button>
+          <button class="rail-item" data-view="library" aria-label="知识库" data-tooltip="知识库">
+            <svg><use href="#icon-library"></use></svg>
+            <span>知识库</span>
+          </button>
+          <button class="rail-item" data-view="capture" aria-label="采集" data-tooltip="采集">
+            <svg><use href="#icon-plus"></use></svg>
+            <span>采集</span>
+          </button>
+          <button class="rail-item" data-view="processing" aria-label="待处理" data-tooltip="待处理">
+            <svg><use href="#icon-inbox"></use></svg>
+            <span>待处理</span>
+            <b class="nav-count" id="navPendingCount">4</b>
+          </button>
+          <button class="rail-item" data-view="trash" aria-label="回收站" data-tooltip="回收站">
+            <svg><use href="#icon-trash"></use></svg>
+            <span>回收站</span>
+          </button>
+        </nav>
+        <div class="rail-bottom">
+          <button class="rail-item" data-view="settings" aria-label="设置" data-tooltip="设置">
+            <svg><use href="#icon-settings"></use></svg>
+            <span>设置</span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <div class="scope-line">
+            <span class="scope-mark" aria-hidden="true">S</span>
+            <div>
+              <p class="scope-label" data-i18n="scopeLabel">个人知识域</p>
+              <p class="scope-name">识海</p>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <span class="sync-state"><i></i><span data-i18n="synced">已同步</span></span>
+            <button class="language-toggle" id="languageToggle" aria-label="切换语言">
+              <svg><use href="#icon-globe"></use></svg>
+              <span id="languageLabel">EN</span>
+            </button>
+            <button class="avatar-button" aria-label="个人账户">L</button>
+          </div>
+        </header>
+
+        <main class="canvas">
+          <section class="view" id="view-home">
+            <div class="title-row">
+              <div>
+                <h1>识海</h1>
+                <p class="title-subtitle" data-i18n="homeSubtitle">
+                  把收藏、网页与文档沉入同一片可检索的深度。
+                </p>
+              </div>
+              <button class="primary-button" data-open-capture>
+                <svg><use href="#icon-plus"></use></svg>
+                <span data-i18n="capture">采集知识</span>
+              </button>
+            </div>
+
+            <form class="search-shell" id="searchForm" role="search">
+              <div class="search-field">
+                <svg class="search-icon"><use href="#icon-search"></use></svg>
+                <input
+                  id="searchInput"
+                  type="search"
+                  autocomplete="off"
+                  placeholder="搜索标题、正文、标签、分类……"
+                  aria-label="搜索个人知识"
+                />
+                <kbd>Enter</kbd>
+              </div>
+              <button class="search-action" type="submit">
+                <span data-i18n="searchAction">潜入检索</span>
+                <svg><use href="#icon-arrow"></use></svg>
+              </button>
+            </form>
+            <div class="search-context">
+              <span class="local-first"><i></i><span data-i18n="localFirst">先检索我的知识</span></span>
+              <span data-i18n="searchHint">只有一个搜索框，标题、正文、标签与分类同时命中。</span>
+            </div>
+
+            <div class="stats-strip" aria-label="知识概况">
+              <div class="stat-cell">
+                <span data-i18n="allKnowledge">全部知识</span>
+                <strong class="num" id="allItemsCount">12</strong>
+              </div>
+              <div class="stat-cell">
+                <span data-i18n="autoCategories">自动分类</span>
+                <strong class="num" id="categoryCount">5</strong>
+              </div>
+              <div class="stat-cell">
+                <span data-i18n="pendingReview">待整理</span>
+                <strong class="num" id="homePendingCount">4</strong>
+              </div>
+              <div class="stat-cell">
+                <span data-i18n="lastIndexed">最近入海</span>
+                <strong class="num">08:42</strong>
+              </div>
+            </div>
+
+            <div class="home-grid">
+              <section class="panel results-panel" aria-labelledby="localResultsTitle">
+                <div class="panel-heading">
+                  <div>
+                    <h2 id="localResultsTitle" data-i18n="localResults">我的知识</h2>
+                    <p id="resultSummary">最近更新的 5 条知识</p>
+                  </div>
+                  <button class="text-link" data-view="library" data-i18n="viewAll">查看全部</button>
+                </div>
+                <div class="result-list" id="localResults"></div>
+                <button class="internet-trigger" id="internetTrigger" type="button" hidden>
+                  <span>
+                    <strong data-i18n="internetSearch">继续搜索互联网</strong>
+                    <small data-i18n="internetSearchHint">只发送搜索词，不会携带知识正文</small>
+                  </span>
+                  <svg><use href="#icon-arrow"></use></svg>
+                </button>
+                <div class="external-results" id="externalResults" hidden></div>
+              </section>
+
+              <aside class="right-rail">
+                <section class="panel depth-panel" aria-labelledby="depthTitle">
+                  <div class="panel-heading compact">
+                    <div>
+                      <h2 id="depthTitle">知识海图</h2>
+                      <p data-i18n="depthHint">自动分类在深度中的分布</p>
+                    </div>
+                    <svg class="panel-icon"><use href="#icon-layers"></use></svg>
+                  </div>
+                  <div class="depth-map" id="depthMap" aria-label="可交互知识分类海图"></div>
+                  <div class="depth-legend">
+                    <span><i class="surface"></i>表层</span>
+                    <span><i class="middle"></i>中层</span>
+                    <span><i class="deep"></i>深海</span>
+                  </div>
+                </section>
+
+                <section class="panel queue-panel" aria-labelledby="queueTitle">
+                  <div class="panel-heading compact">
+                    <div>
+                      <h2 id="queueTitle" data-i18n="processingQueue">待处理</h2>
+                      <p data-i18n="processingHint">AI 正在识别与归类</p>
+                    </div>
+                    <button class="text-link" data-view="processing" data-i18n="openQueue">打开队列</button>
+                  </div>
+                  <div class="queue-list" id="queuePreview"></div>
+                </section>
+              </aside>
+            </div>
+          </section>
+
+          <section class="view" id="view-library" hidden>
+            <div class="title-row">
+              <div>
+                <h1 data-i18n="libraryTitle">知识库</h1>
+                <p class="title-subtitle" data-i18n="librarySubtitle">
+                  分类与标签由系统自动生成，你只需要纠正结果。
+                </p>
+              </div>
+              <button class="primary-button" data-open-capture>
+                <svg><use href="#icon-plus"></use></svg>
+                <span data-i18n="capture">采集知识</span>
+              </button>
+            </div>
+            <div class="view-toolbar">
+              <div class="filter-row" id="libraryFilters">
+                <button class="filter-chip is-active" data-filter="all">全部 <span id="filterAllCount">12</span></button>
+                <button class="filter-chip" data-filter="webpage">网页 <span id="filterWebCount">4</span></button>
+                <button class="filter-chip" data-filter="document">文档 <span id="filterDocCount">3</span></button>
+                <button class="filter-chip" data-filter="screenshot">截图 <span id="filterShotCount">2</span></button>
+                <button class="filter-chip" data-filter="manual">手动 <span id="filterManualCount">3</span></button>
+              </div>
+              <span class="freshness" id="libraryFreshness">最后整理：刚刚</span>
+            </div>
+            <section class="panel library-panel">
+              <div class="knowledge-table" id="knowledgeTable"></div>
+            </section>
+          </section>
+
+          <section class="view" id="view-detail" hidden>
+            <div class="detail-topline">
+              <button class="back-button" id="detailBack" type="button">
+                <svg><use href="#icon-arrow"></use></svg>
+                <span data-i18n="backToLibrary">返回知识库</span>
+              </button>
+              <button class="outline-button" id="reanalyzeButton" type="button">
+                <svg><use href="#icon-sparkles"></use></svg>
+                <span data-i18n="reanalyze">重新分析</span>
+              </button>
+            </div>
+            <article class="detail-layout" id="detailContent"></article>
+          </section>
+
+          <section class="view" id="view-capture" hidden>
+            <div class="title-row">
+              <div>
+                <h1 data-i18n="captureTitle">采集</h1>
+                <p class="title-subtitle" data-i18n="captureSubtitle">
+                  文字、网页、文档与截图都会先经过安全检查，再进入自动归类。
+                </p>
+              </div>
+            </div>
+            <section class="panel capture-workbench">
+              <div class="capture-tabs" role="tablist" aria-label="采集方式">
+                <button class="capture-tab is-active" data-capture-mode="manual" role="tab">手动录入</button>
+                <button class="capture-tab" data-capture-mode="webpage" role="tab">网页链接</button>
+                <button class="capture-tab" data-capture-mode="document" role="tab">文档</button>
+                <button class="capture-tab" data-capture-mode="screenshot" role="tab">截图</button>
+              </div>
+              <div class="capture-content" id="captureContent"></div>
+            </section>
+          </section>
+
+          <section class="view" id="view-processing" hidden>
+            <div class="title-row">
+              <div>
+                <h1 data-i18n="processingTitle">待处理</h1>
+                <p class="title-subtitle" data-i18n="processingSubtitle">
+                  低置信度会以暂定结果保存，不会阻塞检索。
+                </p>
+              </div>
+            </div>
+            <section class="panel processing-panel">
+              <div class="processing-list" id="processingList"></div>
+            </section>
+          </section>
+
+          <section class="view" id="view-trash" hidden>
+            <div class="title-row">
+              <div>
+                <h1 data-i18n="trashTitle">回收站</h1>
+                <p class="title-subtitle" data-i18n="trashSubtitle">
+                  删除后立即退出检索，30 天后永久清理。
+                </p>
+              </div>
+            </div>
+            <section class="panel trash-panel">
+              <div class="trash-list" id="trashList"></div>
+            </section>
+          </section>
+
+          <section class="view" id="view-settings" hidden>
+            <div class="title-row">
+              <div>
+                <h1 data-i18n="settingsTitle">设置</h1>
+                <p class="title-subtitle" data-i18n="settingsSubtitle">
+                  AI 只在授权的服务与内容类型内处理你的知识。
+                </p>
+              </div>
+            </div>
+            <section class="settings-layout">
+              <aside class="settings-index">
+                <button class="settings-link is-active" data-i18n="settingsAiNav">AI 与外发</button>
+                <button class="settings-link" data-i18n="settingsLanguageNav">语言与显示</button>
+                <button class="settings-link" data-i18n="settingsPrivacyNav">隐私与保留</button>
+              </aside>
+              <section class="panel settings-panel">
+                <div class="settings-section">
+                  <div class="settings-copy">
+                    <h2 data-i18n="settingsAuthTitle">AI 处理授权</h2>
+                    <p data-i18n="settingsAuthDesc">同一服务、同一内容类型可自动处理；切换范围需要重新确认。</p>
+                  </div>
+                  <div class="authorization-list">
+                    <label class="authorization-row">
+                      <span>
+                        <strong data-i18n="authTextTitle">DeepSeek 分类 · 文本</strong>
+                        <small data-i18n="authTextDesc">标题、正文、备注与粘贴文字</small>
+                      </span>
+                      <input type="checkbox" checked />
+                    </label>
+                    <label class="authorization-row">
+                      <span>
+                        <strong data-i18n="authVisionTitle">DeepSeek Vision · 截图</strong>
+                        <small data-i18n="authVisionDesc">网页渲染图与用户上传截图</small>
+                      </span>
+                      <input type="checkbox" checked />
+                    </label>
+                    <label class="authorization-row">
+                      <span>
+                        <strong data-i18n="authSearchTitle">DeepSeek Search · 查询</strong>
+                        <small data-i18n="authSearchDesc">仅在你主动继续互联网搜索时发送查询词</small>
+                      </span>
+                      <input type="checkbox" />
+                    </label>
+                  </div>
+                </div>
+                <div class="settings-section compact-setting">
+                  <div class="settings-copy">
+                    <h2 data-i18n="settingsLanguageTitle">默认语言</h2>
+                    <p data-i18n="settingsLanguageDesc">界面默认中文，用户内容不会被自动翻译。</p>
+                  </div>
+                  <div class="setting-control">
+                    <select id="defaultLanguage">
+                      <option value="zh" selected data-i18n="languageChinese">中文</option>
+                      <option value="en" data-i18n="languageEnglish">English</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="settings-section compact-setting">
+                  <div class="settings-copy">
+                    <h2 data-i18n="settingsRetentionTitle">回收站保留</h2>
+                    <p data-i18n="settingsRetentionDesc">删除后 30 天永久清理，备份会按声明周期淘汰。</p>
+                  </div>
+                  <div class="setting-value" data-i18n="retentionValue">30 天</div>
+                </div>
+              </section>
+            </section>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <dialog class="capture-dialog" id="captureDialog">
+      <form method="dialog" class="dialog-frame" id="captureForm" data-capture-form="dialog">
+        <div class="dialog-heading">
+          <div>
+            <h2 data-i18n="captureDialogTitle">采集一条知识</h2>
+          </div>
+          <button class="icon-button" value="cancel" aria-label="关闭">
+            <svg><use href="#icon-x"></use></svg>
+          </button>
+        </div>
+        <div class="dialog-tabs">
+          <button type="button" class="is-active" data-dialog-mode="manual">文字</button>
+          <button type="button" data-dialog-mode="webpage">网页</button>
+          <button type="button" data-dialog-mode="document">文档</button>
+          <button type="button" data-dialog-mode="screenshot">截图</button>
+        </div>
+        <div class="dialog-fields" id="dialogFields"></div>
+        <div class="dialog-safety">
+          <svg><use href="#icon-lock"></use></svg>
+          <span data-i18n="safetyNote">提交前会扫描密钥；无法完整扫描的文件会被拒绝。</span>
+        </div>
+        <div class="dialog-actions">
+          <button class="ghost-button" value="cancel" data-i18n="cancel">取消</button>
+          <button class="primary-button" type="submit" value="default" data-i18n="saveAuto">保存并自动整理</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

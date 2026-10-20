@@ -29,9 +29,7 @@ tmp/
 # Test and tool artifacts
 playwright-report/
 test-results/
-.taste-skill/inspect/
-.taste-skill/before/
-.taste-skill/after/
+.taste-skill/
 
 # OS and editor files
 .DS_Store
