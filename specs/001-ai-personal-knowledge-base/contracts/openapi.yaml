@@ -1,0 +1,1077 @@
+openapi: 3.1.0
+info:
+  title: Zhishiku Personal Knowledge API
+  version: 1.0.0
+  description: >
+    Internal HTTP contract for the single-owner AI personal knowledge base.
+    The authoritative data store is private; internet search and AI calls require
+    an explicit user action and matching authorization.
+servers:
+  - url: http://localhost:3000
+    description: Local implementation
+security:
+  - sessionCookie: []
+tags:
+  - name: Search
+  - name: Knowledge
+  - name: Imports
+  - name: Jobs
+  - name: Authorizations
+  - name: Trash
+  - name: Health
+paths:
+  /health:
+    get:
+      tags: [Health]
+      security: []
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service health and feature availability.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /api/v1/search:
+    get:
+      tags: [Search]
+      operationId: searchPersonalKnowledge
+      summary: Search the personal knowledge base with one query string.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 300
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Personal results only. Internet search is a separate call.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/search/external:
+    post:
+      tags: [Search]
+      operationId: searchInternet
+      summary: Send only the query to an authorized internet search provider.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExternalSearchRequest"
+      responses:
+        "200":
+          description: Transient internet candidates.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalSearchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/search/external/{candidateId}/save:
+    post:
+      tags: [Search, Knowledge]
+      operationId: saveExternalCandidate
+      parameters:
+        - $ref: "#/components/parameters/CandidateId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: An active knowledge item was created from the candidate.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          description: The transient candidate has expired.
+  /api/v1/knowledge-items:
+    get:
+      tags: [Knowledge]
+      operationId: listKnowledgeItems
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ProcessingStatus"
+        - name: source
+          in: query
+          schema:
+            $ref: "#/components/schemas/SourceKind"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Active knowledge items.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItemPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Knowledge]
+      operationId: createKnowledgeItem
+      summary: Create an active and immediately searchable manual item.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateKnowledgeItemRequest"
+      responses:
+        "201":
+          description: Item created. Processing may still be pending.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/knowledge-items/{itemId}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [Knowledge]
+      operationId: getKnowledgeItem
+      responses:
+        "200":
+          description: Complete active item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Knowledge]
+      operationId: updateKnowledgeItem
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateKnowledgeItemRequest"
+      responses:
+        "200":
+          description: Updated item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Knowledge, Trash]
+      operationId: moveKnowledgeItemToTrash
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: Item is no longer active or searchable.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/knowledge-items/{itemId}/classifications:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    patch:
+      tags: [Knowledge]
+      operationId: updateClassifications
+      summary: Correct classifications; edited item fields become locked.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClassificationsRequest"
+      responses:
+        "200":
+          description: Locked assignments returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassificationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/knowledge-items/{itemId}/reanalyze:
+    post:
+      tags: [Knowledge, Jobs]
+      operationId: reanalyzeKnowledgeItem
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Re-analysis accepted. New authorization may be required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/imports/text:
+    post:
+      tags: [Imports]
+      operationId: importText
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TextImportRequest"
+      responses:
+        "202":
+          description: Active item and background job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/imports/webpage:
+    post:
+      tags: [Imports]
+      operationId: importWebpage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebpageImportRequest"
+      responses:
+        "202":
+          description: Active item and single-page capture job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/imports/upload:
+    post:
+      tags: [Imports]
+      operationId: uploadKnowledgeAttachment
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                sourceType:
+                  type: string
+                  enum: [document, screenshot]
+                note:
+                  type: string
+                  maxLength: 20000
+      responses:
+        "202":
+          description: Upload accepted only after the complete security scan passes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          description: File exceeds the configured upload limit.
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/jobs/{jobId}:
+    get:
+      tags: [Jobs]
+      operationId: getJob
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Current job state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/jobs/{jobId}/retry:
+    post:
+      tags: [Jobs]
+      operationId: retryJob
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Retry accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/ai-authorizations:
+    get:
+      tags: [Authorizations]
+      operationId: listAIAuthorizations
+      responses:
+        "200":
+          description: Active and revoked authorization history.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AIAuthorization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Authorizations]
+      operationId: grantAIAuthorization
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIAuthorizationRequest"
+      responses:
+        "201":
+          description: Authorization granted for one service and content type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIAuthorization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/ai-authorizations/{authorizationId}:
+    delete:
+      tags: [Authorizations]
+      operationId: revokeAIAuthorization
+      parameters:
+        - name: authorizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: Future transmissions for this scope are disabled.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/trash:
+    get:
+      tags: [Trash]
+      operationId: listTrash
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Recycled items only.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItemPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/trash/{itemId}/restore:
+    post:
+      tags: [Trash]
+      operationId: restoreKnowledgeItem
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Restored active item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/trash/{itemId}:
+    delete:
+      tags: [Trash]
+      operationId: permanentlyDeleteKnowledgeItem
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Permanent purge accepted and idempotent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: better-auth.session_token
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CandidateId:
+      name: candidateId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Unauthorized:
+      description: Authentication is required.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Required authorization scope is missing.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource does not exist or is not owned by the current owner.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Version conflict or duplicate idempotency key.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: Request validation failed without echoing sensitive content.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: Provider or local rate limit reached.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    ProcessingStatus:
+      type: string
+      enum:
+        - not_requested
+        - awaiting_authorization
+        - pending
+        - running
+        - partial
+        - succeeded
+        - failed
+        - cancelled
+    LifecycleState:
+      type: string
+      enum: [active, recycled, purging]
+    SourceKind:
+      type: string
+      enum: [manual, pasted_text, webpage, document, screenshot, internet_search]
+    ContentType:
+      type: string
+      enum: [text, document, image, webpage, internet_result]
+    ClassificationStatus:
+      type: string
+      enum: [provisional, applied, locked, superseded]
+    ClassificationOrigin:
+      type: string
+      enum: [ai, user, system]
+    HealthResponse:
+      type: object
+      required: [status, features]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        features:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [available, unavailable, degraded]
+    ErrorResponse:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+        retryable:
+          type: boolean
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+    Source:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          $ref: "#/components/schemas/SourceKind"
+        url:
+          type:
+            - string
+            - "null"
+          format: uri
+        provider:
+          type:
+            - string
+            - "null"
+        capturedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+    ClassificationAssignment:
+      type: object
+      required: [id, name, status, origin]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          $ref: "#/components/schemas/ClassificationStatus"
+        origin:
+          $ref: "#/components/schemas/ClassificationOrigin"
+        confidence:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          maximum: 1
+        lockedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+    AttachmentSummary:
+      type: object
+      required: [id, kind, mediaType, scanState, redactionState]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [document, image, screenshot, derived_redacted_image]
+        mediaType:
+          type: string
+        sizeBytes:
+          type: integer
+          minimum: 0
+        scanState:
+          type: string
+          enum: [pending, clean, rejected]
+        redactionState:
+          type: string
+          enum: [none, redacted, not_required, rejected]
+    KnowledgeItem:
+      type: object
+      required:
+        - id
+        - title
+        - body
+        - note
+        - processingStatus
+        - lifecycleState
+        - redactionApplied
+        - source
+        - category
+        - tags
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+        note:
+          type: string
+        summary:
+          type:
+            - string
+            - "null"
+        processingStatus:
+          $ref: "#/components/schemas/ProcessingStatus"
+        lifecycleState:
+          $ref: "#/components/schemas/LifecycleState"
+        processingErrorCode:
+          type:
+            - string
+            - "null"
+        redactionApplied:
+          type: boolean
+        source:
+          $ref: "#/components/schemas/Source"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttachmentSummary"
+        category:
+          oneOf:
+            - $ref: "#/components/schemas/ClassificationAssignment"
+            - type: "null"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassificationAssignment"
+        purgeAfter:
+          type:
+            - string
+            - "null"
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    KnowledgeItemPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeItem"
+        nextCursor:
+          type:
+            - string
+            - "null"
+    CreateKnowledgeItemRequest:
+      type: object
+      required: [title, body]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        body:
+          type: string
+          maxLength: 200000
+        note:
+          type: string
+          maxLength: 20000
+        sourceUrl:
+          type:
+            - string
+            - "null"
+          format: uri
+    UpdateKnowledgeItemRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        body:
+          type: string
+          maxLength: 200000
+        note:
+          type: string
+          maxLength: 20000
+        sourceUrl:
+          type:
+            - string
+            - "null"
+          format: uri
+    UpdateClassificationsRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+        categoryName:
+          type:
+            - string
+            - "null"
+          maxLength: 120
+        tagNames:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+      description: Every submitted classification field becomes a user-locked assignment.
+    ClassificationResponse:
+      type: object
+      required: [itemId, category, tags, version]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        category:
+          oneOf:
+            - $ref: "#/components/schemas/ClassificationAssignment"
+            - type: "null"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassificationAssignment"
+        version:
+          type: integer
+    SearchHit:
+      type: object
+      required: [item, matchedFields, highlights]
+      properties:
+        item:
+          $ref: "#/components/schemas/KnowledgeItem"
+        matchedFields:
+          type: array
+          items:
+            type: string
+            enum: [title, body, note, category, tag]
+        highlights:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    SearchResponse:
+      type: object
+      required: [items, nextCursor, degraded]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchHit"
+        nextCursor:
+          type:
+            - string
+            - "null"
+        degraded:
+          type: boolean
+          description: True when the bounded PostgreSQL fallback served the request.
+    ExternalSearchRequest:
+      type: object
+      required: [query, explicitConsent]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 300
+        explicitConsent:
+          type: boolean
+          const: true
+    ExternalSearchCandidate:
+      type: object
+      required: [candidateId, title, url, snippet, provider]
+      properties:
+        candidateId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        snippet:
+          type: string
+        provider:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    ExternalSearchResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExternalSearchCandidate"
+    AIAuthorizationRequest:
+      type: object
+      required: [serviceCode, contentType, purpose, consentTextVersion]
+      properties:
+        serviceCode:
+          type: string
+          enum:
+            - deepseek-classification
+            - deepseek-search
+            - deepseek-fetch
+            - deepseek-vision
+        contentType:
+          $ref: "#/components/schemas/ContentType"
+        purpose:
+          type: string
+          enum: [classify, search, fetch, vision]
+        consentTextVersion:
+          type: string
+    AIAuthorization:
+      type: object
+      required:
+        - id
+        - serviceCode
+        - contentType
+        - purpose
+        - grantedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        serviceCode:
+          type: string
+        contentType:
+          $ref: "#/components/schemas/ContentType"
+        purpose:
+          type: string
+        consentTextVersion:
+          type: string
+        grantedAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+    TextImportRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 200000
+        note:
+          type: string
+          maxLength: 20000
+    WebpageImportRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+        note:
+          type: string
+          maxLength: 20000
+      description: The browser worker may open only this single URL, subject to SSRF checks.
+    ImportAccepted:
+      type: object
+      required: [itemId, jobId, status]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        jobId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ProcessingStatus"
+    JobAccepted:
+      type: object
+      required: [jobId, status]
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, running, blocked_authorization, succeeded, failed, cancelled]
+    Job:
+      type: object
+      required: [id, kind, status, attemptCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, blocked_authorization, succeeded, failed, cancelled]
+        attemptCount:
+          type: integer
+          minimum: 0
+        errorCode:
+          type:
+            - string
+            - "null"
+        scheduledAt:
+          type: string
+          format: date-time
+        startedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        finishedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

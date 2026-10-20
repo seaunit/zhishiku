@@ -1,0 +1,44 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dependencies and build output
+node_modules/
+.pnpm-store/
+.next/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Runtime data and logs
+data/
+uploads/
+tmp/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Test and tool artifacts
+playwright-report/
+test-results/
+.taste-skill/inspect/
+.taste-skill/before/
+.taste-skill/after/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.swp
+
+# Local agent state that may contain credentials or machine-specific data
+.codex/
