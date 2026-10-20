@@ -1,87 +1,80 @@
-# Deployment Coexistence Plan: seaunit.site
+# 部署共存计划：seaunit.site
 
-**Feature**: `001-ai-personal-knowledge-base`
+**功能**：`001-ai-personal-knowledge-base`
 
-**Inspected**: 2026-10-21
+**检查日期**：2026-10-21
 
-**Status**: Inspection and design only; no production changes were made
+**状态**：仅为检查与设计；未进行任何生产变更
 
-## Current Server Baseline
+## 当前服务器基线
 
-| Item | Observed |
+| 项目 | 观察结果 |
 |------|----------|
-| Host | `8.210.73.129` |
-| Domain | `https://seaunit.site/` and `https://www.seaunit.site/` |
-| OS | Ubuntu 24.04.2 LTS |
-| Resources | 2 vCPU, 3.4 GiB RAM, no swap, 49 GiB disk, about 1.8 GiB currently available |
-| Docker | Not installed |
-| Web entry | Native Nginx 1.24.0 on ports 80 and 443 |
-| Runtime | Native systemd services |
-| DNS/CDN | Cloudflare edge |
+| 主机 | `8.210.73.129` |
+| 域名 | `https://seaunit.site/` 和 `https://www.seaunit.site/` |
+| 操作系统 | Ubuntu 24.04.2 LTS |
+| 资源 | 2 vCPU、3.4 GiB RAM、无 swap、49 GiB 磁盘、当前约 1.8 GiB 可用 |
+| Docker | 未安装 |
+| Web 入口 | 原生 Nginx 1.24.0，使用 80 和 443 端口 |
+| 运行时 | 原生 systemd 服务 |
+| DNS/CDN | Cloudflare 边缘节点 |
 
-The current host serves an existing application named “拾题”. The application is not a
-Docker deployment.
+当前主机为名为“拾题”的现有应用提供服务。该应用并非 Docker 部署。
 
-## Existing Process Topology
+## 现有进程拓扑
 
-| Component | Runtime | Binding |
+| 组件 | 运行时 | 绑定 |
 |-----------|---------|---------|
-| Spring Boot backend | `systemd: shuati.service` | `*:8080` |
-| Payment sidecar | `systemd: shuati-payments.service` | `127.0.0.1:8090` |
-| MySQL | system package | `127.0.0.1:3306` |
-| Redis | system package | `127.0.0.1:6379` |
-| Nginx | system package | `0.0.0.0:80`, `0.0.0.0:443` |
-| SSH | system service | port 22 |
-| Cloudflare Tunnel helper | manually running `cloudflared` process | local `127.0.0.1:20241` |
+| Spring Boot 后端 | `systemd: shuati.service` | `*:8080` |
+| 支付 sidecar | `systemd: shuati-payments.service` | `127.0.0.1:8090` |
+| MySQL | 系统软件包 | `127.0.0.1:3306` |
+| Redis | 系统软件包 | `127.0.0.1:6379` |
+| Nginx | 系统软件包 | `0.0.0.0:80`、`0.0.0.0:443` |
+| SSH | 系统服务 | 端口 22 |
+| Cloudflare Tunnel 辅助进程 | 手动运行的 `cloudflared` 进程 | 本地 `127.0.0.1:20241` |
 
-`cloudflared.service` is currently inactive; the running tunnel process is not managed by the
-active systemd unit. This should be reviewed separately before relying on it for production
-availability.
+`cloudflared.service` 当前处于 inactive 状态；正在运行的隧道进程不由活动的 systemd unit 管理。在依赖它保障生产可用性之前，应单独审查此问题。
 
-## Existing Files and Services
+## 现有文件与服务
 
-| Path or service | Purpose |
+| 路径或服务 | 用途 |
 |-----------------|---------|
-| `/opt/shuati/` | Application root |
-| `/opt/shuati/shuati-backend.jar` | Spring Boot backend |
-| `/opt/shuati/frontend/` | Existing SPA and static files |
-| `/opt/shuati/payments/` | Payment sidecar |
-| `/opt/shuati/deploy/` | Nginx, systemd, and deployment scripts |
-| `/etc/shuati/env` | Existing backend environment file |
-| `/etc/shuati/payments.env` | Existing payment environment file |
-| `/etc/nginx/conf.d/shuati.conf` | Active Nginx site configuration |
-| `/etc/systemd/system/shuati.service` | Existing backend unit |
-| `/etc/systemd/system/shuati-payments.service` | Existing payment unit |
+| `/opt/shuati/` | 应用根目录 |
+| `/opt/shuati/shuati-backend.jar` | Spring Boot 后端 |
+| `/opt/shuati/frontend/` | 现有 SPA 和静态文件 |
+| `/opt/shuati/payments/` | 支付 sidecar |
+| `/opt/shuati/deploy/` | Nginx、systemd 和部署脚本 |
+| `/etc/shuati/env` | 现有后端环境变量文件 |
+| `/etc/shuati/payments.env` | 现有支付环境变量文件 |
+| `/etc/nginx/conf.d/shuati.conf` | 活动的 Nginx 站点配置 |
+| `/etc/systemd/system/shuati.service` | 现有后端 unit |
+| `/etc/systemd/system/shuati-payments.service` | 现有支付 unit |
 
-Deployment scripts in `/opt/shuati/deploy/scripts/deploy.sh` upload the jar, frontend,
-payment sidecar, and `deploy/` directory, restart the two systemd units, validate Nginx, and
-reload it. Nginx source templates must therefore be updated in both:
+`/opt/shuati/deploy/scripts/deploy.sh` 中的部署脚本会上传 JAR 文件、前端、支付 sidecar 和 `deploy/` 目录，重启两个 systemd unit，验证 Nginx 并重新加载。因此，必须在以下两个位置同时更新 Nginx 源模板：
 
 - `/opt/shuati/deploy/nginx/shuati.conf`
 - `/opt/shuati/deploy/nginx/shuati-prod.conf`
 
-Updating only `/etc/nginx/conf.d/shuati.conf` is fragile because a future deployment or
-configuration refresh may regenerate it.
+仅更新 `/etc/nginx/conf.d/shuati.conf` 并不可靠，因为未来的部署或配置刷新可能会重新生成该文件。
 
-## Current HTTP Routing
+## 当前 HTTP 路由
 
-| Path | Upstream or file |
+| 路径 | 上游或文件 |
 |------|------------------|
-| `/` | Spring Boot landing page at `127.0.0.1:8080` |
-| `/app/**` | Existing SPA from `/opt/shuati/frontend` |
-| `/api/**` | Spring Boot at `127.0.0.1:8080` |
-| `/api/auth/**` | Spring Boot auth routes with stricter rate limiting |
-| `/bank/**` | Spring Boot public bank pages |
+| `/` | `127.0.0.1:8080` 上的 Spring Boot 落地页 |
+| `/app/**` | 来自 `/opt/shuati/frontend` 的现有 SPA |
+| `/api/**` | `127.0.0.1:8080` 上的 Spring Boot |
+| `/api/auth/**` | 带更严格限流的 Spring Boot 认证路由 |
+| `/bank/**` | Spring Boot 公开题库页面 |
 | `/sitemap.xml` | Spring Boot |
 | `/actuator/health` | Spring Boot |
-| `/pay/webhooks/**` | Payment sidecar at `127.0.0.1:8090` |
+| `/pay/webhooks/**` | `127.0.0.1:8090` 上的支付 sidecar |
 | `/apk/**` | `/opt/shuati/apk` |
-| `/assets/**` | Existing SPA asset cache |
+| `/assets/**` | 现有 SPA 资源缓存 |
 
-Both `/` and `/app` currently return `200`. `/` is a backend-rendered landing page and `/app`
-is the SPA.
+当前 `/` 和 `/app` 均返回 `200`。`/` 是由后端渲染的落地页，`/app` 是 SPA。
 
-## Target URL Layout
+## 目标 URL 布局
 
 ```text
 https://seaunit.site/
@@ -105,7 +98,7 @@ https://seaunit.site/pay/webhooks/...
   -> existing payment sidecar, unchanged
 ```
 
-The knowledge base must use `basePath=/kb`. Its routes and API are therefore:
+知识库必须使用 `basePath=/kb`。因此其路由和 API 如下：
 
 ```text
 /kb
@@ -119,28 +112,25 @@ The knowledge base must use `basePath=/kb`. Its routes and API are therefore:
 /kb/_next/...
 ```
 
-The new application must not reuse the existing `/api`, `/auth`, `/assets`, or `/app` route
-prefixes.
+新应用不得复用现有的 `/api`、`/auth`、`/assets` 或 `/app` 路由前缀。
 
-## Nginx Coexistence Rules
+## Nginx 共存规则
 
-1. Preserve all existing `/api`, `/api/auth`, `/bank`, `/sitemap.xml`, `/actuator`, `/pay`,
-   `/apk`, and `/app` behavior.
-2. Add an exact `location = /` for the new two-product portal.
-3. Add `/kb` before the SPA catch-all and preserve the `/kb` prefix when proxying.
-4. Bind the knowledge base application to `127.0.0.1:3000`; do not expose port 3000 publicly.
-5. Cache hashed `_next/static` assets aggressively, but do not cache HTML or search responses.
-6. Use a separate session cookie name and path scoped to `/kb`; the existing application's
-   cookies must not be replaced.
-7. Set `client_max_body_size` only for `/kb` to the approved upload limit.
-8. Keep Nginx validation and rollback in the deployment process:
+1. 保留所有现有的 `/api`、`/api/auth`、`/bank`、`/sitemap.xml`、`/actuator`、`/pay`、`/apk` 和 `/app` 行为。
+2. 为新的双产品门户添加精确匹配的 `location = /`。
+3. 在 SPA catch-all 规则之前添加 `/kb`，并在代理时保留 `/kb` 前缀。
+4. 将知识库应用绑定到 `127.0.0.1:3000`；不得公开暴露 3000 端口。
+5. 积极缓存带哈希的 `_next/static` 资源，但不得缓存 HTML 或搜索响应。
+6. 使用独立的 session cookie 名称和限定于 `/kb` 的路径；不得替换现有应用的 cookie。
+7. 仅针对 `/kb` 将 `client_max_body_size` 设置为已批准的上传限制。
+8. 在部署流程中保留 Nginx 验证与回滚步骤：
 
 ```bash
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-Illustrative route shape:
+路由形态示例：
 
 ```nginx
 location = / {
@@ -172,73 +162,62 @@ location /kb/ {
 }
 ```
 
-The final configuration must be tested against the actual existing `shuati.conf`; this
-snippet is a design guide, not a configuration to apply blindly.
+最终配置必须基于实际现有 `shuati.conf` 进行测试；此片段是设计指南，不可不经核对直接应用。
 
-## Portal Home Page
+## 门户首页
 
-Create a separate static portal at:
+在以下位置创建独立的静态门户：
 
 ```text
 /opt/seaunit-portal/index.html
 ```
 
-The portal should:
+门户应：
 
-- Identify the site and present two clear application entries.
-- Link “拾题” to `/app` and “知识库” to `/kb`.
-- Keep the existing public question-bank and SEO routes reachable.
-- Avoid JavaScript and external dependencies so it remains stable during application deploys.
-- Include Chinese as the default language with an English option if the portal itself is
-  localized.
+- 标明站点身份，并提供两个清晰的应用入口。
+- 将“拾题”链接到 `/app`，将“知识库”链接到 `/kb`。
+- 保持现有公开题库和 SEO 路由可访问。
+- 避免使用 JavaScript 和外部依赖，以便在应用部署期间保持稳定。
+- 如果门户本身已本地化，则默认使用中文，并提供英文选项。
 
-The current backend-rendered `/` landing page remains available at a separate path during
-migration, such as `/shuati`, if its SEO content must be retained temporarily.
+如果必须临时保留当前由后端渲染的 `/` 落地页的 SEO 内容，则迁移期间应通过单独路径提供该页面，例如 `/shuati`。
 
-## Resource Constraint and Deployment Profile
+## 资源约束与部署配置
 
-The existing server currently has only about 1.8 GiB RAM available and no swap. Running the
-full knowledge-base stack on this host would add:
+现有服务器当前仅有约 1.8 GiB RAM 可用，且没有 swap。在此主机上运行完整知识库技术栈将新增：
 
 - PostgreSQL
 - Meilisearch
-- S3-compatible object storage or a local equivalent
-- Web/API process
-- Background worker
-- Browser capture worker
+- S3 兼容对象存储或等效的本地方案
+- Web/API 进程
+- 后台 worker
+- 浏览器截图 worker
 
-This is a high memory-pressure profile on a 3.4 GiB host alongside the existing Spring Boot,
-MySQL, Redis, and payment sidecar. It is not recommended to deploy the full stack without a
-capacity review.
+在 3.4 GiB 主机上，与现有 Spring Boot、MySQL、Redis 和支付 sidecar 同时运行该配置会造成较高的内存压力。未经容量审查，不建议部署完整技术栈。
 
-### Recommended production profile
+### 推荐的生产配置
 
-- Upgrade the host to at least 4 vCPU / 8 GiB RAM, or place the knowledge base on a separate
-  host.
-- Keep Nginx on the existing host and route `/kb` to the knowledge-base service.
-- Use Docker Compose only for the knowledge-base stack if Docker is installed and resource
-  limits are enforced.
-- Keep the existing 拾题 services native and unchanged.
-- Bind all new services to loopback and expose only Nginx.
+- 将主机升级到至少 4 vCPU / 8 GiB RAM，或将知识库部署到单独主机。
+- 将 Nginx 保留在现有主机上，并将 `/kb` 路由到知识库服务。
+- 如果已安装 Docker 且强制实施资源限制，则仅对知识库技术栈使用 Docker Compose。
+- 保持现有拾题服务为原生方式且不做更改。
+- 将所有新服务绑定到 loopback，并且仅暴露 Nginx。
 
-### Current-host constrained profile
+### 当前主机受限配置
 
-If the same host must be used immediately:
+如果必须立即使用同一主机：
 
-- Add swap and explicit memory limits before starting the new stack.
-- Do not deploy a full Meilisearch + object-storage + browser stack without measuring idle and
-  screenshot-burst memory.
-- Prefer the smallest possible deployment profile and disable optional AI integrations until
-  the provider and resource PoCs pass.
-- Keep the browser worker isolated and cap concurrent capture jobs to one.
-- Define a maintenance window and rollback path for the portal and Nginx changes.
+- 启动新技术栈前添加 swap 和明确的内存限制。
+- 在未测量空闲状态和截图突发期间内存的情况下，不得部署完整的 Meilisearch + 对象存储 + 浏览器技术栈。
+- 优先采用尽可能小的部署配置，并禁用可选 AI 集成，直到提供商和资源 PoC 通过。
+- 保持 browser worker 隔离，并将并发截图任务上限设为 1。
+- 为门户和 Nginx 变更定义维护窗口与回滚路径。
 
-The current host, as inspected, does not have enough headroom to promise the 100,000-item
-search target while the existing application remains under load.
+根据检查结果，在现有应用仍承受负载时，当前主机没有足够余量来保证 100,000 项搜索目标。
 
-## Knowledge-Base Runtime Layout on the Current Host
+## 当前主机上的知识库运行时布局
 
-If native systemd deployment is selected instead of Docker:
+如果选择原生 systemd 部署而非 Docker：
 
 ```text
 /opt/zhishiku/                 application release
@@ -247,7 +226,7 @@ If native systemd deployment is selected instead of Docker:
 /var/log/zhishiku/             optional log directory; journald preferred
 ```
 
-Suggested units:
+建议的 unit：
 
 ```text
 zhishiku-web.service
@@ -255,21 +234,18 @@ zhishiku-worker.service
 zhishiku-browser-worker.service
 ```
 
-The web service should bind only to `127.0.0.1:3000`. Worker services should not expose public
-ports. The existing Node.js 20 installation is not sufficient for the planned Node.js 24
-runtime; install a separate Node 24 runtime or use a container image.
+Web 服务应仅绑定到 `127.0.0.1:3000`。Worker 服务不得公开暴露端口。现有的 Node.js 20 安装不满足计划中的 Node.js 24 运行时；请安装独立的 Node 24 运行时或使用容器镜像。
 
-## Environment and Secret Rules
+## 环境变量与密钥规则
 
-- Do not append knowledge-base secrets to `/etc/shuati/env`.
-- Create a separate environment file at `/etc/zhishiku/kb.env` with mode `600`.
-- Use separate credentials and, where possible, separate DeepSeek keys from the existing app.
-- Never place real keys in the repository, Nginx config, systemd unit files, logs, or this
-  document.
-- Startup validation may print missing variable names but never values.
-- The knowledge-base session cookie must use a distinct name and path from the existing app.
+- 不得将知识库密钥追加到 `/etc/shuati/env`。
+- 在 `/etc/zhishiku/kb.env` 创建独立的环境变量文件，模式为 `600`。
+- 使用独立凭据，并在可能的情况下使用与现有应用不同的 DeepSeek 密钥。
+- 绝不将真实密钥放入仓库、Nginx 配置、systemd unit 文件、日志或本文档。
+- 启动验证可以打印缺失的变量名，但绝不能打印变量值。
+- 知识库 session cookie 必须使用与现有应用不同的名称和路径。
 
-Expected new variable names include:
+预期新增的变量名包括：
 
 ```text
 APP_BASE_URL
@@ -290,30 +266,30 @@ MAX_UPLOAD_BYTES
 LOG_LEVEL
 ```
 
-## Deployment Order
+## 部署顺序
 
-1. Record a release snapshot of the existing Nginx config and services.
-2. Verify current health endpoints.
-3. Deploy the knowledge-base runtime on `127.0.0.1:3000` without public routing.
-4. Verify `/kb` locally through Nginx.
-5. Add the portal and root exact location.
-6. Run `nginx -t`; on failure, restore the previous config.
-7. Verify `/`, `/app`, `/kb`, `/api/*`, `/bank/*`, and `/pay/*`.
-8. Check cookies, login/logout, search, uploads, AI authorization, and recycle bin.
-9. Monitor memory, disk, Nginx errors, and systemd restarts for at least one day.
+1. 记录现有 Nginx 配置和服务的发布快照。
+2. 验证当前的健康检查端点。
+3. 在 `127.0.0.1:3000` 上部署知识库运行时，不配置公共路由。
+4. 通过 Nginx 在本地验证 `/kb`。
+5. 添加门户和根路径精确匹配 location。
+6. 运行 `nginx -t`；如果失败，恢复之前的配置。
+7. 验证 `/`、`/app`、`/kb`、`/api/*`、`/bank/*` 和 `/pay/*`。
+8. 检查 cookie、登录/退出、搜索、上传、AI 授权和回收站。
+9. 至少监控内存、磁盘、Nginx 错误和 systemd 重启一天。
 
-## Rollback
+## 回滚
 
-- Keep timestamped Nginx backups.
-- Revert the root portal location and `/kb` route together.
-- Stop and disable the knowledge-base units or containers.
-- Do not delete knowledge-base data during an application rollback.
-- Re-check the existing app's `/`, `/app`, `/api`, `/bank`, and payment routes.
+- 保留带时间戳的 Nginx 备份。
+- 同时回退根门户 location 和 `/kb` 路由。
+- 停止并禁用知识库 unit 或容器。
+- 应用回滚期间不得删除知识库数据。
+- 重新检查现有应用的 `/`、`/app`、`/api`、`/bank` 和支付路由。
 
-## Explicitly Out of Scope Until a Separate Change
+## 在单独变更前明确不在范围内
 
-- Modifying the existing 拾题 application code.
-- Changing existing MySQL or Redis data.
-- Changing the existing payment webhook path.
-- Replacing existing TLS certificates.
-- Installing Docker or changing server packages.
+- 修改现有拾题应用代码。
+- 更改现有 MySQL 或 Redis 数据。
+- 更改现有支付 webhook 路径。
+- 替换现有 TLS 证书。
+- 安装 Docker 或更改服务器软件包。

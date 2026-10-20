@@ -1,75 +1,68 @@
-# Phase 0 Research: AI 个人知识库
+# 阶段 0 研究：AI 个人知识库
 
-**Feature**: `001-ai-personal-knowledge-base`
+**功能**：`001-ai-personal-knowledge-base`
 
-**Date**: 2026-10-21
+**日期**：2026-10-21
 
-**Status**: Complete; no unresolved clarification markers
+**状态**：已完成；没有未解决的澄清标记
 
-## Decision 1: Modular monolith with isolated runtime roles
+## 决策 1：模块化单体与隔离的运行时角色
 
-**Decision**: Use one TypeScript codebase with three runtime roles:
+**决策**：使用一套 TypeScript 代码库，包含三个运行时角色：
 
-- `web`: Next.js App Router UI and short-lived HTTP handlers.
-- `worker`: extraction, AI classification, indexing, cleanup, and periodic jobs.
-- `browser-worker`: one-page Playwright rendering with no direct public network access.
+- `web`：Next.js App Router UI 与短时 HTTP 处理器。
+- `worker`：提取、AI 分类、索引、清理与周期任务。
+- `browser-worker`：单页 Playwright 渲染，不直接访问公共网络。
 
-**Rationale**: The product serves one owner and does not justify microservices. A modular
-monolith keeps transactions and domain rules shared, while process isolation prevents
-untrusted page rendering, OCR, and AI calls from occupying the web request process.
+**理由**：该产品仅服务一个所有者，没有采用微服务的必要。模块化单体让事务和领域规则
+保持共享，而进程隔离可防止不受信任的页面渲染、OCR 和 AI 调用占用 Web 请求进程。
 
-**Alternatives considered**:
+**已考虑的备选方案**：
 
-- Next.js-only process with in-request work: rejected because long extraction, OCR, and AI
-  tasks would be fragile and difficult to retry.
-- Microservices or Kubernetes: rejected because the operational burden is disproportionate
-  for one user.
+- 仅使用 Next.js 进程并在请求内执行工作：不予采用，因为长时间提取、OCR 和 AI 任务
+  会变得脆弱且难以重试。
+- 微服务或 Kubernetes：不予采用，因为对单个用户而言运维负担不相称。
 
-## Decision 2: PostgreSQL is authoritative; Meilisearch is derived
+## 决策 2：PostgreSQL 为权威数据源；Meilisearch 为派生索引
 
-**Decision**: Store all authoritative knowledge, sources, attachments, jobs, AI analyses,
-authorizations, vocabulary, assignments, sessions, and lifecycle metadata in PostgreSQL.
-Meilisearch stores a searchable projection only.
+**决策**：将所有权威知识、来源、附件、任务、AI 分析、授权、词表、分配、会话和生命周期
+元数据存储在 PostgreSQL 中。Meilisearch 仅存储可搜索投影。
 
-**Rationale**: PostgreSQL provides transactions, constraints, optimistic concurrency, durable
-task state, and a reliable recovery source. Meilisearch provides fast typo-tolerant,
-highlightable search for Chinese, English, and mixed queries without adding Redis.
+**理由**：PostgreSQL 提供事务、约束、乐观并发、持久化任务状态和可靠的恢复来源。
+Meilisearch 可为中文、英文和混合查询提供快速、容忍拼写错误且支持高亮的结果，同时
+无需引入 Redis。
 
-**Alternatives considered**:
+**已考虑的备选方案**：
 
-- PostgreSQL full-text search only: viable fallback, but Chinese segmentation, typo tolerance,
-  ranking controls, and result highlighting need extra extensions and validation.
-- Typesense: retained as the primary alternative if Meilisearch fails the Chinese benchmark.
-- OpenSearch: rejected for V1 because it is operationally heavy for a single-owner product.
+- 仅使用 PostgreSQL 全文搜索：可作为回退方案，但中文分词、拼写容错、排序控制和结果
+  高亮需要额外扩展与验证。
+- Typesense：保留为 Meilisearch 未通过中文基准时的首选替代方案。
+- OpenSearch：在 V1 中不予采用，因为对单所有者产品而言运维过重。
 
-## Decision 3: Guarantee immediate searchability with a fallback path
+## 决策 3：通过回退路径保证即时可搜索性
 
-**Decision**: On acceptance, create the item as `active` and write its base searchable fields
-in the same PostgreSQL transaction. Submit a revisioned Meilisearch upsert best-effort. If
-Meilisearch is delayed or unavailable, the search API uses a bounded PostgreSQL fallback and
-hydrates all hits from PostgreSQL before returning them.
+**决策**：接受条目时，将其创建为 `active`，并在同一 PostgreSQL 事务中写入其基础可搜索
+字段。以尽力而为（best-effort）方式提交带修订版的 Meilisearch upsert。若 Meilisearch
+延迟或不可用，搜索 API 使用有界 PostgreSQL 回退，并在返回前从 PostgreSQL 补全所有命中
+数据。
 
-**Rationale**: Search availability must not depend on AI completion, authorization, or a
-background index. The derived index can lag without making a newly accepted item invisible.
+**理由**：搜索可用性不得依赖 AI 完成、授权或后台索引。派生索引可以滞后，但不能因此
+使新接受的条目不可见。
 
-**Consistency rules**:
+**一致性规则**：
 
-- A stale Meilisearch hit is removed during PostgreSQL hydration if the item is not `active`.
-- Delete and recycle operations set the database lifecycle first and remove the Meili document
-  immediately or through an idempotent job.
-- Search fallback is intentionally limited and reports a degraded-search state. It is not the
-  normal 100,000-item path.
+- 在 PostgreSQL 数据补全期间，如果条目不是 `active`，则移除陈旧的 Meilisearch 命中。
+- 删除与回收操作先设置数据库生命周期，然后立即移除 Meili 文档，或通过幂等任务移除。
+- 搜索回退被有意限制，并会报告降级搜索状态。它不是常规的 100,000 条目路径。
 
-**Alternatives considered**:
+**已考虑的备选方案**：
 
-- Returning before indexing without fallback: rejected because it violates immediate
-  searchability.
-- Blocking all saves until Meilisearch acknowledges: rejected because search downtime would
-  prevent saving.
+- 在索引前返回且不提供回退：不予采用，因为违反即时可搜索性要求。
+- 阻塞所有保存直到 Meilisearch 确认：不予采用，因为搜索停机将阻止保存。
 
-## Decision 4: Meilisearch index design and benchmark gate
+## 决策 4：Meilisearch 索引设计与基准门禁
 
-**Decision**: Use one index alias per schema version. Indexed fields and priorities:
+**决策**：每个 schema 版本使用一个索引别名。索引字段及优先级如下：
 
 1. `title`
 2. `category_names`
@@ -78,164 +71,153 @@ background index. The derived index can lag without making a newly accepted item
 5. `note`
 6. `body`
 
-Also index stable identifiers, source type, lifecycle marker, language hints, and an index
-revision. Attachments, raw secrets, and authorization records are never indexed.
+同时索引稳定标识符、来源类型、生命周期标记、语言提示和索引修订版。附件、原始密钥和
+授权记录绝不建立索引。
 
-**Rationale**: Field weighting matches user expectations while preserving the “one search
-box” rule. Search always queries all supported fields together.
+**理由**：字段权重符合用户预期，同时保留“单一搜索框”规则。搜索始终同时查询所有受支持
+的字段。
 
-**Release gate**:
+**发布门禁**：
 
-- 100,000 synthetic items.
-- 500 benchmark queries with expected results.
-- 95% of queries render at least 20 personal results within 2 seconds.
-- Chinese, English, mixed-language, short-query, tag, title, body, note, and zero-result cases.
-- The implementation must prove this with a real browser, not only an API microbenchmark.
+- 100,000 条合成条目。
+- 500 条带预期结果的基准查询。
+- 95% 的查询在 2 秒内渲染至少 20 条个人结果。
+- 覆盖中文、英文、混合语言、短查询、标签、标题、正文、备注和零结果场景。
+- 实施必须通过真实浏览器证明这一点，而不能仅依赖 API 微基准测试。
 
-**Alternatives considered**:
+**已考虑的备选方案**：
 
-- Index only title and tags: rejected because the specification requires content retrieval.
-- Semantic embedding search in V1: rejected as out of scope until keyword benchmark and data
-  model are stable.
+- 仅索引标题和标签：不予采用，因为规格要求检索内容。
+- 在 V1 中使用语义嵌入搜索：在关键词基准和数据模型稳定前，作为范围外事项不予采用。
 
-## Decision 5: Durable jobs in PostgreSQL
+## 决策 5：在 PostgreSQL 中运行持久化任务
 
-**Decision**: Use pg-boss for classification, extraction, index synchronization, browser
-capture, retry, recycle purge, reconciliation, and backup checks.
+**决策**：使用 pg-boss 执行分类、提取、索引同步、浏览器采集、重试、回收站清除、
+核对和备份检查。
 
-**Rationale**: pg-boss uses PostgreSQL locking and removes Redis from the operational surface.
-It supports durable retries, scheduled work, and dead-letter handling.
+**理由**：pg-boss 使用 PostgreSQL 锁定，并从运维面移除 Redis。它支持持久化重试、
+计划任务和死信处理。
 
-**Retry policy defaults**:
+**重试策略默认值**：
 
-- AI classification: up to 5 attempts with exponential backoff and jitter.
-- Search/Fetch and browser capture: up to 2 retries for timeout, 429, and 5xx only.
-- Permanent security or policy failures: no retry.
-- One idempotency key per `(item revision, job type)`; a late result for an old revision is
-  discarded.
+- AI 分类：最多尝试 5 次，采用指数退避与抖动。
+- Search/Fetch 与浏览器采集：仅对超时、429 和 5xx 最多重试 2 次。
+- 永久性的安全或策略失败：不重试。
+- 每个 `(item revision, job type)` 使用一个幂等键；旧修订版的迟到结果会被丢弃。
 
-**Alternatives considered**:
+**已考虑的备选方案**：
 
-- Redis/BullMQ: rejected because it adds a stateful service without solving a V1 problem.
-- Kafka, Temporal: rejected as excessive for one owner.
+- Redis/BullMQ：不予采用，因为它会增加一个状态化服务，却无法解决 V1 中的问题。
+- Kafka、Temporal：对单个所有者而言过重，不予采用。
 
-## Decision 6: Single-owner authentication and closed registration
+## 决策 6：单所有者认证与封闭注册
 
-**Decision**: Use Better Auth with database sessions and a one-time bootstrap token. After the
-owner account exists, public registration is disabled.
+**决策**：使用 Better Auth、数据库会话和一次性 bootstrap token。所有者账户创建后，
+禁用公开注册。
 
-**Rationale**: The product is private by default and should not expose a second account path.
-Database sessions allow explicit revocation and fit the server-side authority model.
+**理由**：该产品默认私有，不应暴露第二条账户路径。数据库会话支持显式撤销，并符合
+服务端权威模型。
 
-**Rules**:
+**规则**：
 
-- Session tokens are stored only as hashes.
-- All protected routes verify `owner_id`.
-- Password reset and session lifetime are configuration values, not user-authored secrets.
-- No keys or auth secrets are ever returned to the browser.
+- 会话令牌仅以哈希形式存储。
+- 所有受保护路由都会验证 `owner_id`。
+- 密码重置与会话有效期是配置值，不是用户编写的密钥。
+- 绝不向浏览器返回密钥或认证密钥。
 
-## Decision 7: DeepSeek through narrow provider adapters
+## 决策 7：通过窄范围 Provider 适配器接入 DeepSeek
 
-**Decision**: Define separate adapters for:
+**决策**：为以下能力定义独立适配器：
 
-- AI summarization/classification.
-- DeepSeek Search.
-- DeepSeek Fetch.
-- Optional vision analysis where required by the selected model.
+- AI 摘要/分类。
+- DeepSeek Search。
+- DeepSeek Fetch。
+- 所选模型需要时启用的可选视觉分析。
 
-Each adapter has its own service code, timeout, retry policy, input schema, output schema, and
-authorization scope.
+每个适配器都有各自的服务代码、超时、重试策略、输入 schema、输出 schema 和授权范围。
 
-**Rationale**: Search, Fetch, and classification have different privacy and failure semantics.
-A single broad “AI service” permission would violate the accepted per-service authorization
-decision.
+**理由**：Search、Fetch 和分类具有不同的隐私与失败语义。使用单一宽泛的“AI 服务”权限
+会违反已接受的按服务授权决策。
 
-**Provider gate**:
+**Provider 门禁**：
 
-- Validate model IDs, structured output support, data handling terms, rate limits, and error
-  formats in Phase 0 of implementation.
-- Fetch may be disabled if it cannot be limited to one explicit public URL.
-- A disabled provider must not disable manual entry, local search, recycle bin, or settings.
+- 在实施的阶段 0 验证模型 ID、结构化输出支持、数据处理条款、速率限制和错误格式。
+- 若 Fetch 无法限制为一个明确指定的公共 URL，则可以将其禁用。
+- 禁用某个 Provider 不得导致手动录入、本地搜索、回收站或设置不可用。
 
-## Decision 8: Single-page browser capture is not crawling
+## 决策 8：单页浏览器采集不是爬虫
 
-**Decision**: A user explicitly submits one URL. A dedicated browser worker may render that
-one page and capture a bounded screenshot. It may load subresources required for rendering,
-but it must not:
+**决策**：用户明确提交一个 URL。专用 browser worker 可以渲染该页面并采集有界截图。
+它可以加载渲染所需子资源，但不得：
 
-- discover or follow links;
-- enumerate URLs or sitemaps;
-- prefetch pages;
-- perform automatic infinite scrolling;
-- create multi-page capture jobs;
-- retain cookies, login state, downloads, popups, WebRTC, Service Workers, or persistent
-  browser profiles.
+- 发现或跟随链接；
+- 枚举 URL 或 sitemap；
+- 预取页面；
+- 执行自动无限滚动；
+- 创建多页采集任务；
+- 保留 cookie、登录状态、下载内容、弹窗、WebRTC、Service Workers 或持久化浏览器配置。
 
-**Capture limits**:
+**采集限制**：
 
-- Initial page only.
-- At most three redirects, each revalidated.
-- Only HTTP/HTTPS on ports 80 and 443.
-- Reject loopback, private, link-local, CGNAT, IPv6 ULA, cloud metadata, and reserved address
-  ranges.
-- Validate DNS at connection time in the egress proxy to prevent rebinding.
-- On login, CAPTCHA, policy denial, or capture failure, ask the user to upload a screenshot.
+- 仅初始页面。
+- 最多三次重定向，每次均重新验证。
+- 仅允许端口 80 和 443 上的 HTTP/HTTPS。
+- 拒绝 loopback、私有地址、链路本地地址、CGNAT、IPv6 ULA、云元数据和保留地址范围。
+- 在出站代理中于连接时验证 DNS，以防 DNS 重绑定。
+- 遇到登录、CAPTCHA、策略拒绝或采集失败时，要求用户上传截图。
 
-**Rationale**: The user explicitly asked for AI screenshot analysis, not web crawling. The
-constitution prohibits crawling and unauthorised automatic traversal.
+**理由**：用户明确要求的是 AI 截图分析，而非网络爬取。章程禁止爬取和未经授权的自动
+遍历。
 
-## Decision 9: Secret scanning and redaction are fail-closed
+## 决策 9：密钥扫描与脱敏采用 fail-closed（失败即拒绝）
 
-**Decision**: Run scanning before persistence and before any external request.
+**决策**：在持久化前以及任何外部请求前运行扫描。
 
-**Text and extracted documents**:
+**文本与提取后的文档**：
 
-- Apply high-confidence provider patterns, credential formats, and entropy checks.
-- Remove matched values from persisted text and replace them with a safe marker.
-- Preserve the rest of the content and show a generic redaction notice.
+- 应用高置信度 Provider 模式、凭据格式和熵检查。
+- 从持久化文本中移除匹配值，并以安全标记替换。
+- 保留其余内容，并显示通用脱敏提示。
 
-**Screenshots and images**:
+**截图与图像**：
 
-- OCR must produce text and bounding boxes.
-- Detect secrets and redact corresponding pixels into a derived image.
-- If OCR, region mapping, or redaction completeness is uncertain, reject the entire
-  submission and remove temporary artifacts.
+- OCR 必须生成文本和边界框。
+- 检测密钥，并在派生图像中脱敏对应像素。
+- 若无法确定 OCR、区域映射或脱敏完整性，则拒绝整个提交并删除临时制品。
 
-**Documents and PDFs**:
+**文档与 PDF**：
 
-- Extract every supported content surface before persistence.
-- If any required surface cannot be scanned, reject rather than storing an unscanned original.
+- 在持久化前提取所有受支持的内容表面。
+- 若任何必需内容表面无法扫描，则拒绝保存，而不是存储未扫描的原始内容。
 
-**Alternatives considered**:
+**已考虑的备选方案**：
 
-- Scan after storage: rejected because it creates a secret exposure window.
-- Block only external transmission: rejected by the constitution and spec.
+- 存储后再扫描：不予采用，因为会产生密钥暴露窗口。
+- 仅阻止外发：不予采用，因为违反章程和规格。
 
-## Decision 10: Data lifecycle and retention defaults
+## 决策 10：数据生命周期与保留期限默认值
 
-**Decision**:
+**决策**：
 
-| Data | Default |
+| 数据 | 默认值 |
 |------|---------|
-| Active knowledge | Kept until user deletes |
-| Recycle bin | 30 days, then permanent purge |
-| Daily backups | 30 days |
-| WAL/PITR | 7 days |
-| Internet candidate TTL | 15 minutes |
-| Audit events | 365 days, metadata only |
-| AI authorization history | Account lifetime |
+| 活跃知识 | 保留至用户删除 |
+| 回收站 | 30 天，之后永久清除 |
+| 每日备份 | 30 天 |
+| WAL/PITR | 7 天 |
+| 互联网候选 TTL | 15 分钟 |
+| 审计事件 | 365 天，仅元数据 |
+| AI 授权历史 | 账户生命周期 |
 
-All values are configuration-backed and disclosed in the UI. The record deletion flow removes
-object storage data before the final relational purge and never restores expired knowledge
-from an old backup.
+所有值均由配置支持，并在 UI 中披露。记录删除流程会在最终关系数据库清除前移除对象存储
+数据，且绝不从旧备份恢复已过期知识。
 
-## Decision 11: UI and localization
+## 决策 11：UI 与本地化
 
-**Decision**: Build the application shell as a quiet, dense working interface, not a marketing
-page. Use one search input on the home page only; no search inputs in library, processing, or
-trash views.
+**决策**：将应用外壳构建为安静、密集的工作界面，而非营销页面。仅首页使用一个搜索
+输入框；知识库、处理和回收站视图中不提供搜索输入框。
 
-**Routes**:
+**路由**：
 
 - `/`
 - `/library`
@@ -245,102 +227,97 @@ trash views.
 - `/trash`
 - `/settings`
 - `/settings/authorizations`
-- `/setup` and `/login`
+- `/setup` 与 `/login`
 
-**Localization**:
+**本地化**：
 
-- `next-intl` with `zh-CN` default and `en`.
-- User-entered content is never auto-translated.
-- AI summary/classification output follows the interface language unless the user selects the
-  source language.
-- UI implementation must use the Taste skill and real-browser checks at 1440, 768, and 390 px.
+- `next-intl` 以 `zh-CN` 为默认语言，并提供 `en`。
+- 用户输入的内容绝不自动翻译。
+- 除非用户选择来源语言，AI 摘要/分类输出遵循界面语言。
+- UI 实施必须使用 Taste 技能，并在 1440、768 和 390 px 下进行真实浏览器检查。
 
-## Decision 12: Test and operations baseline
+## 决策 12：测试与运维基线
 
-**Decision**:
+**决策**：
 
-- Vitest and fast-check for unit/property tests.
-- Testcontainers for PostgreSQL, pg-boss, Meilisearch, and object storage.
-- Playwright and axe-core for E2E/accessibility.
-- Schemathesis for OpenAPI contracts.
-- k6 for diagnostic load; Playwright is the final visible-result timing authority.
-- Semgrep, Gitleaks, Trivy, and OWASP ZAP for security gates.
-- Pino JSON logs and OpenTelemetry metrics/traces.
-- pgBackRest for PostgreSQL/WAL and restic for object storage; run restore drills.
+- 使用 Vitest 和 fast-check 进行单元/属性测试。
+- 使用 Testcontainers 验证 PostgreSQL、pg-boss、Meilisearch 和对象存储。
+- 使用 Playwright 和 axe-core 进行端到端/可访问性测试。
+- 使用 Schemathesis 验证 OpenAPI 契约。
+- 使用 k6 进行诊断性负载测试；Playwright 是最终可见结果计时的权威依据。
+- 使用 Semgrep、Gitleaks、Trivy 和 OWASP ZAP 作为安全门禁。
+- 使用 Pino JSON 日志和 OpenTelemetry 指标/追踪。
+- 使用 pgBackRest 处理 PostgreSQL/WAL，使用 restic 处理对象存储；运行恢复演练。
 
-**Logging rule**: Do not log user content, filenames, query strings, cookies, provider request
-bodies, provider responses, or secret-bearing errors. Use request/trace IDs and safe error
-codes.
+**日志规则**：不得记录用户内容、文件名、查询字符串、cookie、Provider 请求体、
+Provider 响应或包含密钥的错误。使用请求/追踪 ID 和安全错误码。
 
-## Decision 13: Release benchmark contract
+## 决策 13：发布基准契约
 
-**Corpus**:
+**语料集**：
 
-- 100,000 synthetic items with fixed seed and manifest hash.
-- 70% Chinese, 20% English, 10% mixed.
-- About 100 categories and 5,000 tags with Zipf-like distribution.
-- Body median 2 KiB, P95 20 KiB.
+- 100,000 条合成条目，使用固定随机种子和清单哈希。
+- 70% 中文、20% 英文、10% 混合语言。
+- 约 100 个分类和 5,000 个标签，采用类似 Zipf 的分布。
+- `body` 中位数为 2 KiB，P95 为 20 KiB。
 
-**Query set**:
+**查询集**：
 
-- 500 performance queries with verified expected results.
-- Field mix: title 20%, body 30%, note 15%, category 10%, tag 15%, mixed 10%.
-- Result-count mix: 20–49 (35%), 50–199 (45%), 200+ (20%).
-- Separate 100 correctness queries for zero results, single results, misspellings, and synonyms.
+- 500 条性能查询，均带有已验证的预期结果。
+- 字段组合：`title` 20%、`body` 30%、`note` 15%、`category` 10%、`tag` 15%、`mixed` 10%。
+- 结果数量组合：20–49（35%）、50–199（45%）、200+（20%）。
+- 另设 100 条正确性查询，覆盖零结果、单结果、拼写错误和同义词。
 
-**Reference environment**:
+**参考环境**：
 
-- Linux x86_64, 8 vCPU, 32 GiB RAM, NVMe.
-- App containers limited to 4 vCPU/8 GiB.
-- Fixed image digests and browser version.
+- Linux x86_64、8 vCPU、32 GiB RAM、NVMe。
+- 应用容器限制为 4 vCPU/8 GiB。
+- 固定镜像摘要和浏览器版本。
 
-**Measurement**:
+**测量方式**：
 
-- From search submission until at least 20 result cards are visible and loading ends.
-- Includes HTTP, search, ranking, serialization, and browser rendering.
-- C2 formal concurrency: 2 browser sessions plus 2 background jobs.
-- C3 diagnostic load: 4 concurrent searches for 60 seconds.
-- Cold-query and warm-cache runs both must meet 95% within 2 seconds; cold process start is
-  reported separately.
+- 从提交搜索开始，直到至少 20 张结果卡片可见且加载结束。
+- 包含 HTTP、搜索、排序、序列化和浏览器渲染。
+- C2 正式并发：2 个浏览器会话加 2 个后台任务。
+- C3 诊断性负载：4 个并发搜索持续 60 秒。
+- 冷查询和热缓存运行均须在 2 秒内达到 95%；冷进程启动时间单独报告。
 
-## Decision 14: Coexist with the existing non-Docker production application
+## 决策 14：与现有非 Docker 生产应用共存
 
-**Decision**: Treat the existing `seaunit.site` application as an immutable native systemd
-deployment during this feature. Publish the knowledge base at `/kb`, proxy it through the
-existing Nginx, and replace only the exact root landing route with a two-application portal.
+**决策**：在本功能中，将现有 `seaunit.site` 应用视为不可变的原生 systemd 部署。在 `/kb`
+发布知识库，通过现有 Nginx 代理，并且仅将精确匹配的根落地路由替换为双应用门户。
 
-**Observed baseline**:
+**观测到的基线**：
 
-- No Docker installation on the production host.
-- Spring Boot and payment sidecar run as systemd units.
-- MySQL, Redis, Nginx, and Cloudflare tooling run on the same host.
-- The host has 2 vCPU, 3.4 GiB RAM, and about 1.8 GiB currently available.
+- 生产主机未安装 Docker。
+- Spring Boot 与支付 sidecar 作为 systemd 单元运行。
+- MySQL、Redis、Nginx 和 Cloudflare 工具运行于同一主机。
+- 主机为 2 vCPU、3.4 GiB RAM，当前约 1.8 GiB 可用。
 
-**Rationale**: The existing application already owns `/api`, `/app`, `/bank`, `/pay`, and
-authentication cookies. Path-prefixed routing is the lowest-risk integration. The current
-memory headroom is insufficient to assume the complete new stack can run alongside the
-existing application without limits and load testing.
+**理由**：现有应用已占用 `/api`、`/app`、`/bank`、`/pay` 和认证 cookie。带路径前缀的
+路由是风险最低的集成方式。当前内存余量不足以假定完整新技术栈无需限制和负载测试即可
+与现有应用并行运行。
 
-**Deployment consequences**:
+**部署影响**：
 
-- The web process binds to `127.0.0.1:3000`.
-- Next.js uses `basePath=/kb` and a cookie name/path separate from the existing app.
-- Nginx source templates and the active configuration must change together.
-- The portal is a static exact-`/` route; `/app` and existing business routes remain intact.
-- Full-stack deployment requires a memory upgrade, a separate host, or a measured constrained
-  profile with swap and concurrency limits.
+- Web 进程绑定到 `127.0.0.1:3000`。
+- Next.js 使用 `basePath=/kb`，并使用与现有应用分离的 cookie 名称/路径。
+- Nginx 源模板与当前生效配置必须一同变更。
+- 门户是静态的精确匹配 `/` 路由；`/app` 和现有业务路由保持不变。
+- 完整技术栈部署需要升级内存、使用独立主机，或采用经过测量并配置 swap 与并发限制的
+  受约束配置。
 
-## Resolved Unknowns
+## 已解决的未知项
 
-- Application stack: TypeScript and Node.js 24 LTS.
-- Authoritative data store: PostgreSQL.
-- Search: Meilisearch with a PostgreSQL fallback; exact Chinese relevance is a release gate.
-- Task queue: pg-boss.
-- Attachment storage: S3-compatible private object storage.
-- Authentication: Better Auth, one owner, closed registration.
-- Browser capture: isolated Playwright worker, single user-requested page only.
-- AI/search integration: separate DeepSeek adapters and authorization scopes.
-- Recycle-bin/backup defaults: 30-day recycle bin, 30-day daily backup, 7-day WAL.
-- Localization: Chinese default, complete English coverage.
-- Performance target: 100,000 items, 95% of 500 queries, 2 seconds, 20 visible results.
-- Production coexistence: native Nginx/systemd host with `/kb` path and a two-entry root portal.
+- 应用技术栈：TypeScript 与 Node.js 24 LTS。
+- 权威数据存储：PostgreSQL。
+- 搜索：Meilisearch 配合 PostgreSQL 回退方案；准确的中文相关性是发布门禁。
+- 任务队列：pg-boss。
+- 附件存储：S3 兼容私有对象存储。
+- 认证：Better Auth、单所有者、封闭注册。
+- 浏览器采集：隔离的 Playwright worker，仅处理用户请求的单个页面。
+- AI/搜索集成：独立的 DeepSeek 适配器与授权范围。
+- 回收站/备份默认值：回收站 30 天、每日备份 30 天、WAL 7 天。
+- 本地化：默认中文，完整覆盖英文。
+- 性能目标：100,000 条目、500 条查询中 95%、2 秒、20 条可见结果。
+- 生产共存：原生 Nginx/systemd 主机、`/kb` 路径和双入口根门户。

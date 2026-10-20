@@ -1,319 +1,315 @@
-# Tasks: AI 个人知识库
+# 任务：AI 个人知识库
 
-**Input**: Design documents from `specs/001-ai-personal-knowledge-base/`
+**输入**：设计文档位于 `specs/001-ai-personal-knowledge-base/`
 
-**Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md),
-[data-model.md](data-model.md), [contracts/openapi.yaml](contracts/openapi.yaml),
+**前置条件**：[plan.md](plan.md)、[spec.md](spec.md)、[research.md](research.md)、
+[data-model.md](data-model.md)、[contracts/openapi.yaml](contracts/openapi.yaml)、
 [quickstart.md](quickstart.md)
 
-**Tests**: Included because the project constitution requires independently verified acceptance
-criteria and release gates.
+**测试**：已纳入，因为项目章程要求对验收标准进行独立验证，
+并设置发布门禁。
 
-**Organization**: Tasks are grouped by user story so each story can be implemented and validated
-independently. Every task also carries an implementation priority.
+**组织方式**：任务按用户故事分组，使每个故事都能独立实现和验证。
+每个任务还带有实施优先级。
 
-## Priority Levels
+## 优先级
 
-- **P0 — MVP Core (must ship first)**: Minimum secure end-to-end product: setup, private
-  authentication, manual knowledge capture, secret scanning, automatic category/tag generation,
-  single-box local retrieval, immediate searchability, processing visibility, core tests, and the
-  minimum UI.
-- **P1 — Core Expansion**: Multi-modal import, internet search, full bilingual coverage, full
-  recycle-bin flow, safe production routing, and GitHub one-click deployment.
-- **P2 — Scale and Release Hardening**: Large-library benchmark, classification/import quality
-  benchmarks, manual accessibility and usability study, backup restore drill, and final
-  success-criteria evidence.
+- **P0 — MVP 核心（必须优先交付）**：最小可用的安全端到端产品：环境搭建、私有
+  身份验证、手动知识采集、密钥扫描、自动生成分类/标签、
+  单框本地检索、即时可搜索性、处理进度可见、核心测试以及
+  最小 UI。
+- **P1 — 核心扩展**：多模态导入、互联网搜索、完整双语覆盖、完整
+  回收站流程、安全的生产路由以及 GitHub 一键部署。
+- **P2 — 规模与发布加固**：大型知识库基准测试、分类/导入质量
+  基准测试、人工可访问性与可用性研究、备份恢复演练以及最终的
+  成功标准证据。
 
-P0 is the MVP scope. P1 and P2 remain required for the complete release, but are not implemented
-before the P0 checkpoint is validated.
+P0 是 MVP 范围。完整发布仍需要 P1 和 P2，但在 P0 检查点通过验证前
+不得实施。
 
-### P0 MVP Definition of Done
+### P0 MVP 完成定义
 
-- Private single-owner setup, login, session, and logout work.
-- Manual text knowledge can be saved, opened, edited, soft-deleted, and found immediately.
-- Automatic summary, category, and tags are generated; low confidence is provisional and editable.
-- User corrections lock the current item fields without affecting other items.
-- The single search input covers title, body, note, category, and tags.
-- Secret scanning/redaction and environment-only credential handling pass core canary tests.
-- Chinese is the default interface; essential controls remain usable in English.
-- Core CRUD, search, classification, security, and Taste checks pass.
-- P1 multi-modal import, internet search, full bilingual coverage, and production deployment are not
-  required to finish the P0 checkpoint.
+- 私有单所有者设置、登录、会话和退出功能可用。
+- 手动文本知识可以保存、打开、编辑、软删除并立即被找到。
+- 自动生成摘要、分类和标签；低置信度结果作为暂定值且可编辑。
+- 用户更正会锁定当前项目的字段，且不影响其他项目。
+- 单一搜索输入覆盖标题、正文、备注、分类和标签。
+- 密钥扫描/脱敏以及仅在环境中处理凭据的机制通过核心金丝雀测试。
+- 中文是默认界面；必要控件在英文下仍可使用。
+- 核心 CRUD、搜索、分类、安全和 Taste 检查通过。
+- 完成 P0 检查点不要求实现 P1 多模态导入、互联网搜索、完整双语覆盖和生产部署。
 
-## Format: `[ID] [Priority] [P?] [Story] Description`
+## 格式：`[ID] [Priority] [P?] [Story] 描述`
 
-- **[Priority]**: `[P0]`, `[P1]`, or `[P2]`.
-- **[P]**: Can run in parallel with other marked tasks once its prerequisites are complete.
-- **[Story]**: Maps a task to `US1`, `US2`, `US3`, `US4`, or `US5`.
-- Every task includes at least one exact repository-relative file path.
+- **[Priority]**：`[P0]`、`[P1]` 或 `[P2]`。
+- **[P]**：先决条件完成后，可与其他已标记任务并行运行。
+- **[Story]**：将任务映射到 `US1`、`US2`、`US3`、`US4` 或 `US5`。
+- 每个任务至少包含一个精确的仓库相对文件路径。
 
-## Phase 0: Feasibility and Governance Gates (self-contained)
+## 阶段 0：可行性与治理门禁（自包含）
 
-**Purpose**: Resolve the technical risks that would otherwise invalidate later implementation
-choices. PoC scripts use Node 24 built-ins and throwaway containers, so they do not depend on the
-project workspace created later.
+**目的**：解决那些否则会使后续实施选择失效的技术风险。PoC 脚本使用 Node 24 内置模块和
+一次性容器，因此不依赖稍后创建的项目工作区。
 
-- [ ] T001 [P1] Prepare the independent root-portal governance amendment with rationale, impact, migration, version/date, and explicit product approval in `specs/001-ai-personal-knowledge-base/root-portal-exception.md`, then apply the approved amendment to `.specify/memory/constitution.md`, `plan.md`, and `deployment.md`; T124 and T127 are blocked until this task is approved
-- [ ] T002 [P1] [P] Add DeepSeek Search/Fetch contract fixtures for timeout, 429, malformed response, single-URL behavior, and disabled-provider fallback in `tests/poc/deepseek-contract.test.ts`
-- [ ] T003 [P2] [P] Create the fixed-seed 100,000-item corpus, 500-query performance set, 100-query correctness set, and manifest hash for Meilisearch Chinese/English/mixed relevance in `scripts/poc/meili-benchmark.ts` and `tests/poc/meili-benchmark.test.ts`
-- [ ] T004 [P1] [P] Validate single-page screenshot success, OCR completeness, and redaction failure behavior in `tests/poc/page-capture.test.ts`
-- [ ] T005 [P0] [P] Validate high-confidence secret detection, redaction, and unscannable fail-closed behavior in `tests/poc/secret-safety.test.ts`
-- [ ] T006 [P1] Record provider/search PoC results, chosen fallbacks, and unresolved operational risks in `specs/001-ai-personal-knowledge-base/research.md` and `specs/001-ai-personal-knowledge-base/plan.md`
+- [ ] T001 [P1] 在 `specs/001-ai-personal-knowledge-base/root-portal-exception.md` 中准备独立的根门户治理修订，包含理由、影响、迁移、版本/日期和明确的产品批准，然后将获批修订应用到 `.specify/memory/constitution.md`、`plan.md` 和 `deployment.md`；在此任务获批前，T124 和 T127 受阻
+- [ ] T002 [P1] [P] 在 `tests/poc/deepseek-contract.test.ts` 中为超时、429、格式错误响应、单 URL 行为以及禁用提供方时的回退添加 DeepSeek Search/Fetch 契约测试夹具
+- [ ] T003 [P2] [P] 在 `scripts/poc/meili-benchmark.ts` 和 `tests/poc/meili-benchmark.test.ts` 中为 Meilisearch 中文/英文/混合相关性创建固定种子的 100,000 条项目语料库、500 条查询性能集、100 条查询正确性集以及清单哈希
+- [ ] T004 [P1] [P] 在 `tests/poc/page-capture.test.ts` 中验证单页截图成功、OCR 完整性和脱敏失败行为
+- [ ] T005 [P0] [P] 在 `tests/poc/secret-safety.test.ts` 中验证高置信度密钥检测、脱敏以及无法扫描时的失败关闭行为
+- [ ] T006 [P1] 在 `specs/001-ai-personal-knowledge-base/research.md` 和 `specs/001-ai-personal-knowledge-base/plan.md` 中记录提供方/搜索 PoC 结果、选定的回退方案以及未解决的操作风险
 
-**Checkpoint**: No production implementation proceeds with an unverified search, screenshot, OCR,
-or provider path.
+**检查点**：搜索、截图、OCR 或提供方路径未经核验时，不得继续任何生产实施。
 
 ---
 
-## Phase 1: Setup (Shared Infrastructure)
+## 阶段 1：环境搭建（共享基础设施）
 
-**Purpose**: Initialize the pnpm workspace, runtime shells, local infrastructure, and delivery
-baseline.
+**目的**：初始化 pnpm 工作区、运行时外壳、本地基础设施和交付
+基线。
 
-- [ ] T007 [P0] Create the pnpm workspace with Node engine and package manager pins, app manifests, tsconfigs, root scripts, and common metadata in `package.json`, `pnpm-workspace.yaml`, `turbo.json`, `apps/web/package.json`, `apps/worker/package.json`, and `apps/web/tsconfig.json`
-- [ ] T008 [P0] [P] Create shared TypeScript base configuration in `tsconfig.base.json`, `packages/config/tsconfig.json`, and `packages/domain/tsconfig.json`
-- [ ] T009 [P0] [P] Scaffold the Next.js web app with `basePath=/kb` in `apps/web/next.config.ts`, `apps/web/src/app/layout.tsx`, and `apps/web/src/app/page.tsx`
-- [ ] T010 [P0] [P] Scaffold the background and single-page browser runtimes in `apps/worker/src/index.ts`, `apps/browser-worker/src/index.ts`, and `apps/browser-worker/package.json`
-- [ ] T011 [P0] [P] Create shared package boundaries for config, database, domain, providers, contracts, and UI under `packages/*/package.json`
-- [ ] T012 [P0] [P] Configure lint, formatting, unit, contract, E2E, accessibility, performance, and security runners in `eslint.config.mjs`, `.prettierrc.json`, `vitest.config.ts`, `playwright.config.ts`, `schemathesis.toml`, and `k6/search.js`
-- [ ] T013 [P0] [P] Create the local PostgreSQL, Meilisearch, MinIO, OCR, and browser-worker stack with bucket initialization and health checks in `infra/compose.yml`, `infra/compose.env.example`, and `infra/minio/init.sh`
-- [ ] T014 [P0] [P] Create baseline GitHub Actions quality gates in `.github/workflows/ci.yml`
-- [ ] T015 [P0] [P] Create knowledge-base Nginx, systemd, and egress-proxy templates in `infra/nginx/zhishiku.conf`, `infra/systemd/zhishiku-web.service`, `infra/systemd/zhishiku-worker.service`, `infra/systemd/zhishiku-browser-worker.service`, and `infra/proxy/egress-proxy.ts`
-- [ ] T016 [P0] [P] Create the complete non-secret environment template and startup documentation in `.env.example` and `README.md`
-
----
-
-## Phase 2: Foundational (Blocking Prerequisites)
-
-**Purpose**: Build shared persistence, security, queue, search, observability, and authentication
-infrastructure required by every user story.
-
-**CRITICAL**: No user story implementation starts until this phase passes its integration tests.
-
-- [ ] T017 [P0] Implement Zod environment validation that reports variable names only in `packages/config/src/env.ts` and `packages/config/src/env.test.ts`
-- [ ] T018 [P0] Configure Drizzle, PostgreSQL pooling, and migration execution in `packages/db/src/client.ts`, `packages/db/src/migrate.ts`, and `packages/db/drizzle.config.ts`
-- [ ] T019 [P0] Implement Better Auth single-owner bootstrap, database sessions, closed registration, and `instance_key=1` uniqueness in `packages/db/src/schema/auth.ts`, `apps/web/src/server/auth/auth.ts`, and `packages/domain/src/auth/owner.ts`
-- [ ] T020 [P0] Create `knowledge_item`, `source`, and `attachment` schema with required `title` length `1–300`, unique `UNIQUE(item_id)` source, `UNIQUE(storage_key)` attachment, lifecycle/state enums, timestamps, and `version` in `packages/db/src/schema/knowledge.ts`
-- [ ] T021 [P0] Create `capture_job`, `processing_job`, and `ai_analysis` schema with non-negative attempt counts, safe errors, nullable completion timestamps, and `UNIQUE(owner_id, idempotency_key)` in `packages/db/src/schema/jobs.ts`
-- [ ] T022 [P0] Create `category`, `tag`, `category_assignment`, `tag_assignment`, and `tag_merge_suggestion` schema with `UNIQUE(item_id) WHERE superseded_at IS NULL`, `UNIQUE(item_id, tag_id) WHERE superseded_at IS NULL`, and locked/provisional states in `packages/db/src/schema/classification.ts`
-- [ ] T023 [P0] Create `ai_processing_authorization`, `external_search_candidate`, `request_idempotency`, and `audit_event` schema with active-scope uniqueness, candidate expiry, idempotency uniqueness, and metadata-only audit fields in `packages/db/src/schema/governance.ts`
-- [ ] T024 [P0] Generate the migration from all Drizzle schemas and add the indexes from `data-model.md`, including current assignments, job leasing, purge scheduling, attachment lookup, and audit lookup in `packages/db/migrations/0001_foundation.sql`
-- [ ] T025 [P0] Implement shared domain errors, result types, and lifecycle/state transition guards in `packages/domain/src/shared/errors.ts` and `packages/domain/src/shared/state-machines.ts`
-- [ ] T026 [P0] Configure pg-boss queues for extraction, classification, indexing, browser capture, purge, and reconciliation with retry/backoff and worker registration in `packages/providers/src/queue/boss.ts` and `apps/worker/src/queues.ts`
-- [ ] T027 [P1] Implement the private S3 object-store adapter with staging, promotion, deletion, and signed access in `packages/providers/src/storage/s3.ts`
-- [ ] T028 [P0] Implement high-confidence secret detection, safe redaction notices, and text redaction in `packages/domain/src/security/secret-scanner.ts` and `packages/domain/src/security/secret-scanner.test.ts`
-- [ ] T029 [P0] Implement the Meilisearch adapter, index schema, revisioned upsert/delete, and index alias switching in `packages/providers/src/search/meilisearch.ts` and `packages/domain/src/search/index-document.ts`
-- [ ] T030 [P0] Implement structured Pino logging and OpenTelemetry request/job correlation without content logging in `packages/config/src/logger.ts` and `packages/config/src/telemetry.ts`
-- [ ] T031 [P0] Implement authenticated API middleware, request fingerprinting, idempotency response replay, JSON validation, CSRF protection, rate limits, and safe error envelopes in `apps/web/src/server/api/middleware.ts` and `apps/web/src/server/api/idempotency.ts`
-- [ ] T032 [P0] Generate Zod contract types from the OpenAPI document and add drift detection in `packages/contracts/src/generated.ts` and `scripts/check-openapi.ts`
-- [ ] T033 [P0] Configure Testcontainers helpers for PostgreSQL, pg-boss, Meilisearch, and MinIO in `tests/integration/containers.ts`
-- [ ] T034 [P0] Create the bilingual Next.js application shell and language preference provider in `apps/web/src/app/layout.tsx`, `apps/web/src/messages/zh-CN.json`, and `apps/web/src/messages/en.json`
-- [ ] T035 [P0] Create a fail-closed deployment preflight script that checks existing app health, systemd/MySQL/Redis state, port conflicts, disk, memory thresholds, and Nginx routing in `deploy/scripts/preflight-existing-app.sh`
-- [ ] T036 [P0] Create the local test fixture factory for owners, items, assignments, jobs, and candidates in `tests/fixtures/factories.ts`
-- [ ] T037 [P0] Implement Better Auth route handlers, one-time setup API, logout/session endpoints, and auth integration tests in `apps/web/src/app/api/auth/[...all]/route.ts`, `apps/web/src/app/api/setup/route.ts`, and `tests/integration/auth.test.ts`
-- [ ] T038 [P0] Implement persisted idempotency conflict handling, response replay, and expiry cleanup with tests in `packages/domain/src/shared/idempotency.ts` and `tests/integration/idempotency.test.ts`
-- [ ] T039 [P0] Verify empty-database migration, forward migration, and schema drift checks in `packages/db/migrations/0001_foundation.sql` and `tests/integration/migrations.test.ts`
-- [ ] T040 [P0] Implement index producer, index worker, delete/restore indexing, full rebuild, and revision reconciliation in `apps/worker/src/jobs/index-knowledge.ts` and `packages/domain/src/search/index-reconciler.ts`
-- [ ] T041 [P1] Implement periodic candidate expiry, recycle purge, failed-classification retry, index reconciliation, and staging cleanup jobs in `apps/worker/src/jobs/periodic.ts`
-- [ ] T042 [P1] Implement the DNS-revalidating egress proxy with destination IP, port, redirect, and DNS-rebinding checks in `infra/proxy/egress-proxy.ts`
-- [ ] T043 [P0] Add the health endpoint and execute the foundational integration smoke suite for migrations, auth, pg-boss, S3, Meilisearch, and bilingual startup in `apps/web/src/app/health/route.ts` and `tests/integration/foundation-smoke.test.ts`
-
-**Checkpoint**: Database, auth, queue, storage, search, security, i18n, and deployment preflight are
-ready.
+- [ ] T007 [P0] 在 `package.json`、`pnpm-workspace.yaml`、`turbo.json`、`apps/web/package.json`、`apps/worker/package.json` 和 `apps/web/tsconfig.json` 中创建 pnpm 工作区，包含 Node 引擎和包管理器版本固定、应用清单、tsconfig、根脚本和通用元数据
+- [ ] T008 [P0] [P] 在 `tsconfig.base.json`、`packages/config/tsconfig.json` 和 `packages/domain/tsconfig.json` 中创建共享 TypeScript 基础配置
+- [ ] T009 [P0] [P] 在 `apps/web/next.config.ts`、`apps/web/src/app/layout.tsx` 和 `apps/web/src/app/page.tsx` 中搭建使用 `basePath=/kb` 的 Next.js Web 应用
+- [ ] T010 [P0] [P] 在 `apps/worker/src/index.ts`、`apps/browser-worker/src/index.ts` 和 `apps/browser-worker/package.json` 中搭建后台运行时和单页浏览器运行时
+- [ ] T011 [P0] [P] 在 `packages/*/package.json` 下为 config、database、domain、providers、contracts 和 UI 创建共享包边界
+- [ ] T012 [P0] [P] 在 `eslint.config.mjs`、`.prettierrc.json`、`vitest.config.ts`、`playwright.config.ts`、`schemathesis.toml` 和 `k6/search.js` 中配置 lint、格式化、单元、契约、E2E、可访问性、性能和安全运行器
+- [ ] T013 [P0] [P] 在 `infra/compose.yml`、`infra/compose.env.example` 和 `infra/minio/init.sh` 中创建包含存储桶初始化和健康检查的本地 PostgreSQL、Meilisearch、MinIO、OCR 和 browser-worker 技术栈
+- [ ] T014 [P0] [P] 在 `.github/workflows/ci.yml` 中创建基线 GitHub Actions 质量门禁
+- [ ] T015 [P0] [P] 在 `infra/nginx/zhishiku.conf`、`infra/systemd/zhishiku-web.service`、`infra/systemd/zhishiku-worker.service`、`infra/systemd/zhishiku-browser-worker.service` 和 `infra/proxy/egress-proxy.ts` 中创建知识库 Nginx、systemd 和出站代理模板
+- [ ] T016 [P0] [P] 在 `.env.example` 和 `README.md` 中创建完整的不含真实密钥的环境模板和启动文档
 
 ---
 
-## Phase 3: User Story 1 - 手动收藏并找回知识 (Priority: P1)
+## 阶段 2：基础能力（阻塞性先决条件）
 
-**Goal**: A private owner can create, open, edit, soft-delete, and immediately retrieve manual
-knowledge through the single home search box.
+**目的**：构建每个用户故事都需要的共享持久化、安全、队列、搜索、可观测性和身份验证
+基础设施。
 
-**Independent Test**: With AI providers disabled, create a manual item and retrieve it by values
-from its title, body, note, category, and tags.
+**关键**：在此阶段通过其集成测试前，不得开始任何用户故事的实施。
 
-### Tests for User Story 1
+- [ ] T017 [P0] 在 `packages/config/src/env.ts` 和 `packages/config/src/env.test.ts` 中实现仅报告变量名称的 Zod 环境校验
+- [ ] T018 [P0] 在 `packages/db/src/client.ts`、`packages/db/src/migrate.ts` 和 `packages/db/drizzle.config.ts` 中配置 Drizzle、PostgreSQL 连接池和迁移执行
+- [ ] T019 [P0] 在 `packages/db/src/schema/auth.ts`、`apps/web/src/server/auth/auth.ts` 和 `packages/domain/src/auth/owner.ts` 中实现 Better Auth 单所有者引导、数据库会话、关闭注册以及 `instance_key=1` 唯一性
+- [ ] T020 [P0] 在 `packages/db/src/schema/knowledge.ts` 中创建 `knowledge_item`、`source` 和 `attachment` 模式，包含必填 `title` 长度 `1–300`、唯一 `UNIQUE(item_id)` 来源约束、唯一 `UNIQUE(storage_key)` 附件约束、生命周期/状态枚举、时间戳和 `version`
+- [ ] T021 [P0] 在 `packages/db/src/schema/jobs.ts` 中创建 `capture_job`、`processing_job` 和 `ai_analysis` 模式，包含非负尝试次数、安全错误、可空完成时间戳和 `UNIQUE(owner_id, idempotency_key)` 唯一约束
+- [ ] T022 [P0] 在 `packages/db/src/schema/classification.ts` 中创建 `category`、`tag`、`category_assignment`、`tag_assignment` 和 `tag_merge_suggestion` 模式，包含 `UNIQUE(item_id) WHERE superseded_at IS NULL`、`UNIQUE(item_id, tag_id) WHERE superseded_at IS NULL` 以及锁定/暂定状态
+- [ ] T023 [P0] 在 `packages/db/src/schema/governance.ts` 中创建 `ai_processing_authorization`、`external_search_candidate`、`request_idempotency` 和 `audit_event` 模式，包含活动范围唯一性、候选项过期、幂等唯一性和仅含元数据的审计字段
+- [ ] T024 [P0] 根据所有 Drizzle 模式生成迁移，并在 `packages/db/migrations/0001_foundation.sql` 中添加 `data-model.md` 中的索引，包括当前分配、任务租用、清除调度、附件查找和审计查找
+- [ ] T025 [P0] 在 `packages/domain/src/shared/errors.ts` 和 `packages/domain/src/shared/state-machines.ts` 中实现共享领域错误、结果类型以及生命周期/状态转换防护
+- [ ] T026 [P0] 在 `packages/providers/src/queue/boss.ts` 和 `apps/worker/src/queues.ts` 中为提取、分类、索引、浏览器采集、清除和核对配置 pg-boss 队列，包含重试/退避和 worker 注册
+- [ ] T027 [P1] 在 `packages/providers/src/storage/s3.ts` 中实现私有 S3 对象存储适配器，包含暂存、提升、删除和签名访问
+- [ ] T028 [P0] 在 `packages/domain/src/security/secret-scanner.ts` 和 `packages/domain/src/security/secret-scanner.test.ts` 中实现高置信度密钥检测、安全脱敏提示和文本脱敏
+- [ ] T029 [P0] 在 `packages/providers/src/search/meilisearch.ts` 和 `packages/domain/src/search/index-document.ts` 中实现 Meilisearch 适配器、索引模式、带修订版本的更新插入/删除以及索引别名切换
+- [ ] T030 [P0] 在 `packages/config/src/logger.ts` 和 `packages/config/src/telemetry.ts` 中实现结构化 Pino 日志以及 OpenTelemetry 请求/任务关联，且不记录内容日志
+- [ ] T031 [P0] 在 `apps/web/src/server/api/middleware.ts` 和 `apps/web/src/server/api/idempotency.ts` 中实现经过身份验证的 API 中间件、请求指纹、幂等响应重放、JSON 校验、CSRF 防护、速率限制和安全错误封装
+- [ ] T032 [P0] 在 `packages/contracts/src/generated.ts` 和 `scripts/check-openapi.ts` 中根据 OpenAPI 文档生成 Zod 契约类型并添加漂移检测
+- [ ] T033 [P0] 在 `tests/integration/containers.ts` 中为 PostgreSQL、pg-boss、Meilisearch 和 MinIO 配置 Testcontainers 辅助工具
+- [ ] T034 [P0] 在 `apps/web/src/app/layout.tsx`、`apps/web/src/messages/zh-CN.json` 和 `apps/web/src/messages/en.json` 中创建双语 Next.js 应用外壳和语言偏好提供程序
+- [ ] T035 [P0] 在 `deploy/scripts/preflight-existing-app.sh` 中创建一个失败关闭的部署预检脚本，用于检查现有应用健康状况、systemd/MySQL/Redis 状态、端口冲突、磁盘、内存阈值和 Nginx 路由
+- [ ] T036 [P0] 在 `tests/fixtures/factories.ts` 中为所有者、项目、分配、任务和候选项创建本地测试夹具工厂
+- [ ] T037 [P0] 在 `apps/web/src/app/api/auth/[...all]/route.ts`、`apps/web/src/app/api/setup/route.ts` 和 `tests/integration/auth.test.ts` 中实现 Better Auth 路由处理器、一次性设置 API、退出/会话端点以及身份验证集成测试
+- [ ] T038 [P0] 在 `packages/domain/src/shared/idempotency.ts` 和 `tests/integration/idempotency.test.ts` 中实现持久化幂等冲突处理、响应重放和过期清理，并添加测试
+- [ ] T039 [P0] 在 `packages/db/migrations/0001_foundation.sql` 和 `tests/integration/migrations.test.ts` 中验证空数据库迁移、向前迁移和模式漂移检查
+- [ ] T040 [P0] 在 `apps/worker/src/jobs/index-knowledge.ts` 和 `packages/domain/src/search/index-reconciler.ts` 中实现索引生产者、索引 worker、删除/恢复索引、完整重建和修订核对
+- [ ] T041 [P1] 在 `apps/worker/src/jobs/periodic.ts` 中实现定期候选项过期、回收站清除、失败分类重试、索引核对和暂存清理任务
+- [ ] T042 [P1] 在 `infra/proxy/egress-proxy.ts` 中实现会重新校验 DNS 的出站代理，包含目标 IP、端口、重定向和 DNS 重绑定检查
+- [ ] T043 [P0] 在 `apps/web/src/app/health/route.ts` 和 `tests/integration/foundation-smoke.test.ts` 中添加健康端点，并执行针对迁移、auth、pg-boss、S3、Meilisearch 和双语启动的基础集成冒烟测试套件
 
-- [ ] T044 [P0] [P] [US1] Add OpenAPI contract tests for knowledge CRUD and personal search in `tests/contract/knowledge.test.ts`
-- [ ] T045 [P0] [P] [US1] Add integration tests for manual save, immediate searchability, source uniqueness, and optimistic versions in `tests/integration/manual-knowledge.test.ts`
-- [ ] T046 [P0] [P] [US1] Add unit tests for title constraints `1–300`, lifecycle transitions, and version conflicts in `packages/domain/src/knowledge/knowledge-item.test.ts`
-
-### Implementation for User Story 1
-
-- [ ] T047 [P0] [US1] Implement knowledge item and source repositories with transactional create/update and lifecycle filtering in `packages/domain/src/knowledge/repository.ts`
-- [ ] T048 [P0] [US1] Implement manual create, list, read, update, recycle, and initial classification-job enqueue use cases in `packages/domain/src/knowledge/service.ts`
-- [ ] T049 [P0] [US1] Implement the PostgreSQL search fallback across title, body, note, category, and tag in `packages/domain/src/search/postgres-fallback.ts`
-- [ ] T050 [P0] [US1] Implement the knowledge collection, item, and personal search route handlers in `apps/web/src/app/api/v1/knowledge-items/route.ts`, `apps/web/src/app/api/v1/knowledge-items/[itemId]/route.ts`, and `apps/web/src/app/api/v1/search/route.ts`
-- [ ] T051 [P0] [P] [US1] Build the manual entry form with pre-save secret scanning and the safe redaction/rejection notice in `apps/web/src/components/knowledge/manual-entry-form.tsx` and `apps/web/src/components/security/secret-notice.tsx`
-- [ ] T052 [P0] [P] [US1] Build and compose the single home search input, result list, match indicators, and internet-search entry point in `apps/web/src/components/search/personal-search.tsx` and `apps/web/src/app/page.tsx`
-- [ ] T053 [P0] [US1] Build the knowledge library and item detail/edit routes in `apps/web/src/app/library/page.tsx` and `apps/web/src/app/library/[id]/page.tsx`
-- [ ] T054 [P0] [US1] Apply `design-taste-frontend` with screenshot evidence, manual critique, fixes, and 1440/768/390 checks for P1 screens in `tests/e2e/taste-us1.spec.ts`
-- [ ] T055 [P0] [US1] Add P1 end-to-end tests for authentication, manual save, source type display, all five searchable fields, pending processing visibility, and exactly one search input in `tests/e2e/manual-knowledge.spec.ts`
-- [ ] T056 [P0] [US1] Build minimal setup/login routes and the protected private workspace shell over the Better Auth endpoints in `apps/web/src/app/setup/page.tsx`, `apps/web/src/app/login/page.tsx`, and `apps/web/src/components/app-shell.tsx`
-- [ ] T057 [P0] [US1] Implement minimal soft-delete and recycle-bin restore behavior for the P1 deletion flow in `apps/web/src/app/api/v1/trash/route.ts` and `apps/web/src/app/trash/page.tsx`
-- [ ] T058 [P0] [US1] Implement and validate the `/kb` route only through a loopback staging proxy without modifying production Nginx in `deploy/nginx/kb-staging.conf` and `tests/integration/nginx-staging.test.ts`
-
-**Checkpoint**: US1 is a standalone MVP and remains fully usable when AI and internet services are
-unavailable.
-
----
-
-## Phase 4: User Story 2 - AI 自动归类并生成标签 (Priority: P2)
-
-**Goal**: Every successful item receives an automatic category and tag set; low-confidence values
-are applied provisionally, and user corrections lock item fields.
-
-**Independent Test**: Save unclassified text without manual taxonomy, verify automatic
-classification/tagging, then lock an edited value and prove re-analysis cannot overwrite it.
-
-### Tests for User Story 2
-
-- [ ] T059 [P0] [P] [US2] Add unit tests for provisional/applied/locked assignment precedence in `packages/domain/src/classification/assignment.test.ts`
-- [ ] T060 [P0] [P] [US2] Add provider contract tests for valid, malformed, timed-out, and rate-limited AI output in `tests/contract/ai-provider.test.ts`
-- [ ] T061 [P0] [P] [US2] Add integration tests for classification jobs, retries, stale revisions, and locked field preservation in `tests/integration/classification.test.ts`
-
-### Implementation for User Story 2
-
-- [ ] T062 [P0] [US2] Implement scoped AI processing authorization checks by `service_code` and `content_type`, including data-scope/provider/purpose disclosure and revoke behavior in `packages/domain/src/ai/authorization-service.ts`
-- [ ] T063 [P0] [US2] Implement the DeepSeek classification adapter with strict structured output validation and related-item suggestions in `packages/providers/src/ai/deepseek-classification.ts`
-- [ ] T064 [P0] [US2] Implement category/tag assignment repositories and item-field lock updates in `packages/domain/src/classification/repository.ts`
-- [ ] T065 [P0] [US2] Implement the classification worker with provisional fallback, revision checks, and bounded retries in `apps/worker/src/jobs/classify-item.ts`
-- [ ] T066 [P0] [US2] Implement automatic tag normalization and merge suggestions for unlocked values in `packages/domain/src/classification/tag-normalization.ts`
-- [ ] T067 [P0] [US2] Implement grant/list/revoke authorization, re-analysis, and classification-correction endpoints in `apps/web/src/app/api/v1/ai-authorizations/route.ts`, `apps/web/src/app/api/v1/ai-authorizations/[authorizationId]/route.ts`, `apps/web/src/app/api/v1/knowledge-items/[id]/classifications/route.ts`, and `apps/web/src/app/api/v1/knowledge-items/[id]/reanalyze/route.ts`
-- [ ] T068 [P0] [P] [US2] Build the AI authorization matrix with data scope, provider, content type, purpose, revoke, and re-consent behavior in `apps/web/src/components/settings/ai-authorization-matrix.tsx` and `apps/web/src/app/settings/authorizations/page.tsx`
-- [ ] T069 [P0] [P] [US2] Build provisional, locked, corrected, related-item, source-type, and merge-suggestion classification controls in `apps/web/src/components/knowledge/classification-editor.tsx`
-- [ ] T070 [P0] [US2] Build pending, running, awaiting-authorization, failed, and provisional item states in `apps/web/src/components/knowledge/processing-status.tsx`
-- [ ] T071 [P0] [US2] Add US2 end-to-end tests for automatic classification, auth-scope refusal, revoke-without-future-transmission, lock preservation, cross-item lock isolation, and retry in `tests/e2e/classification.spec.ts`
-- [ ] T072 [P0] [US2] Add prompt-injection tests for classification, related-item output, and malicious imported content in `tests/security/prompt-injection.test.ts`
-- [ ] T073 [P0] [US2] Apply `design-taste-frontend` with screenshot evidence, manual critique, fixes, and 1440/768/390 checks for authorization and classification screens in `tests/e2e/taste-us2.spec.ts`
-- [ ] T074 [P2] [US2] Add the 100-item labeled classification quality and automatic category/tag coverage benchmark for SC-003 and SC-010 in `tests/performance/classification-quality.test.ts`
-
-**Checkpoint**: US2 works on top of US1 and never blocks saving or search.
+**检查点**：数据库、身份验证、队列、存储、搜索、安全、i18n 和部署预检均已
+就绪。
 
 ---
 
-## Phase 5: User Story 3 - 通过网页、文档和截图采集知识 (Priority: P3)
+## 阶段 3：用户故事 1 - 手动收藏并找回知识（优先级：P1）
 
-**Goal**: Accepted text, document, screenshot, and single-page URL imports create searchable
-items immediately and complete extraction safely in the background.
+**目标**：私有所有者可以通过单一首页搜索框创建、打开、编辑、软删除并立即找回手动
+知识。
 
-**Independent Test**: Import one document, one screenshot, and one local/public webpage; verify
-immediate searchability, source retention, secret scanning, and no link traversal.
+**独立测试**：在 AI 提供方禁用的情况下，创建一个手动项目，并通过其标题、正文、备注、
+分类和标签中的值找回该项目。
 
-### Tests for User Story 3
+### 用户故事 1 的测试
 
-- [ ] T075 [P1] [P] [US3] Add OpenAPI contract tests for text, webpage, and upload import endpoints in `tests/contract/imports.test.ts`
-- [ ] T076 [P1] [P] [US3] Add integration tests for staging rejection, document extraction, OCR, redacted images, and retry idempotency in `tests/integration/import-safety.test.ts`
-- [ ] T077 [P1] [P] [US3] Add browser-worker E2E security tests for loopback/private/CGNAT/IPv6 ULA/metadata/reserved IPs, DNS rebinding, credential URLs, 80/443 enforcement, at most three revalidated redirects, sitemap/prefetch/infinite-scroll/multi-page prohibition, single top-level request graph, and no persistent cookies/Service Workers/popups/downloads in `tests/security/page-capture.test.ts`
+- [ ] T044 [P0] [P] [US1] 在 `tests/contract/knowledge.test.ts` 中为知识 CRUD 和个人搜索添加 OpenAPI 契约测试
+- [ ] T045 [P0] [P] [US1] 在 `tests/integration/manual-knowledge.test.ts` 中为手动保存、即时可搜索性、来源唯一性和乐观版本添加集成测试
+- [ ] T046 [P0] [P] [US1] 在 `packages/domain/src/knowledge/knowledge-item.test.ts` 中为标题约束 `1–300`、生命周期转换和版本冲突添加单元测试
 
-### Implementation for User Story 3
+### 用户故事 1 的实施
 
-- [ ] T078 [P1] [US3] Implement secure upload staging, MIME detection, size limits, and cleanup in `packages/domain/src/import/staging-service.ts`
-- [ ] T079 [P1] [P] [US3] Implement supported MIME validation, document extraction, and bounded OCR with language packs and completeness status in `packages/providers/src/extraction/document-ocr.ts` and `packages/config/src/upload.ts`
-- [ ] T080 [P1] [P] [US3] Implement image secret-region redaction and redacted-derivative persistence in `packages/domain/src/security/image-redactor.ts`
-- [ ] T081 [P1] [P] [US3] Implement URL validation, connection-time DNS/IP rejection, redirect limits, and egress-proxy integration in `packages/domain/src/import/url-safety.ts` and `infra/proxy/egress-proxy.ts`
-- [ ] T082 [P1] [US3] Implement the isolated Playwright single-page capture worker and its dedicated pg-boss capture consumer with no link discovery or persistent session in `apps/browser-worker/src/capture-page.ts` and `apps/browser-worker/src/queues.ts`
-- [ ] T083 [P1] [US3] Implement text, webpage, and upload import creation plus job status, retry, and cancel route handlers in `apps/web/src/app/api/v1/imports/text/route.ts`, `apps/web/src/app/api/v1/imports/webpage/route.ts`, `apps/web/src/app/api/v1/imports/upload/route.ts`, `apps/web/src/app/api/v1/jobs/[jobId]/route.ts`, `apps/web/src/app/api/v1/jobs/[jobId]/retry/route.ts`, and `apps/web/src/app/api/v1/jobs/[jobId]/cancel/route.ts`
-- [ ] T084 [P1] [US3] Implement extraction, OCR, redaction, processing jobs, and classification-job enqueue for accepted imports in `apps/worker/src/jobs/process-import.ts`
-- [ ] T085 [P1] [P] [US3] Build text, URL, document, and screenshot import forms in `apps/web/src/components/import/import-panel.tsx` and `apps/web/src/app/capture/page.tsx`
-- [ ] T086 [P1] [P] [US3] Build import scan, rejection, pending, retry, screenshot-fallback, and processing-queue states in `apps/web/src/components/import/import-status.tsx` and `apps/web/src/app/processing/page.tsx`
-- [ ] T087 [P1] [US3] Add US3 end-to-end tests for all import modes and immediate searchability in `tests/e2e/imports.spec.ts`
-- [ ] T088 [P1] [US3] Apply `design-taste-frontend` with screenshot evidence, manual critique, fixes, and 1440/768/390 checks for import and processing screens in `tests/e2e/taste-us3.spec.ts`
-- [ ] T089 [P1] [US3] Add prompt-injection tests for document text, OCR text, webpage captures, and search summaries in `tests/security/import-injection.test.ts`
-- [ ] T090 [P1] [US3] Add a text/document/screenshot import benchmark for SC-004, SC-005, and immediate-search criteria in `tests/performance/import-quality.test.ts`
+- [ ] T047 [P0] [US1] 在 `packages/domain/src/knowledge/repository.ts` 中实现知识项目和来源仓库，包含事务性创建/更新和生命周期过滤
+- [ ] T048 [P0] [US1] 在 `packages/domain/src/knowledge/service.ts` 中实现手动创建、列出、读取、更新、回收以及初始分类任务入队用例
+- [ ] T049 [P0] [US1] 在 `packages/domain/src/search/postgres-fallback.ts` 中实现跨标题、正文、备注、分类和标签的 PostgreSQL 搜索回退
+- [ ] T050 [P0] [US1] 在 `apps/web/src/app/api/v1/knowledge-items/route.ts`、`apps/web/src/app/api/v1/knowledge-items/[itemId]/route.ts` 和 `apps/web/src/app/api/v1/search/route.ts` 中实现知识集合、项目和个人搜索路由处理器
+- [ ] T051 [P0] [P] [US1] 在 `apps/web/src/components/knowledge/manual-entry-form.tsx` 和 `apps/web/src/components/security/secret-notice.tsx` 中构建包含保存前密钥扫描以及安全脱敏/拒绝提示的手动录入表单
+- [ ] T052 [P0] [P] [US1] 在 `apps/web/src/components/search/personal-search.tsx` 和 `apps/web/src/app/page.tsx` 中构建并组合单一首页搜索输入、结果列表、匹配指示器和互联网搜索入口
+- [ ] T053 [P0] [US1] 在 `apps/web/src/app/library/page.tsx` 和 `apps/web/src/app/library/[id]/page.tsx` 中构建知识库以及项目详情/编辑路由
+- [ ] T054 [P0] [US1] 在 `tests/e2e/taste-us1.spec.ts` 中为 P1 页面应用 `design-taste-frontend`，包含截图证据、人工评审、修复以及 1440/768/390 检查
+- [ ] T055 [P0] [US1] 在 `tests/e2e/manual-knowledge.spec.ts` 中添加 P1 端到端测试，覆盖身份验证、手动保存、来源类型显示、全部五个可搜索字段、待处理状态可见性以及恰好一个搜索输入
+- [ ] T056 [P0] [US1] 在 `apps/web/src/app/setup/page.tsx`、`apps/web/src/app/login/page.tsx` 和 `apps/web/src/components/app-shell.tsx` 中基于 Better Auth 端点构建最小设置/登录路由以及受保护的私有工作区外壳
+- [ ] T057 [P0] [US1] 在 `apps/web/src/app/api/v1/trash/route.ts` 和 `apps/web/src/app/trash/page.tsx` 中为 P1 删除流程实现最小软删除和回收站恢复行为
+- [ ] T058 [P0] [US1] 在不修改生产 Nginx 的前提下，仅在 `deploy/nginx/kb-staging.conf` 和 `tests/integration/nginx-staging.test.ts` 中通过回环暂存代理实现并验证 `/kb` 路由
 
-**Checkpoint**: US3 extends capture without weakening US1 or US2.
-
----
-
-## Phase 6: User Story 4 - 单框本地优先混合检索 (Priority: P4)
-
-**Goal**: The single search box always returns personal results first, and internet search occurs
-only after explicit consent; confirmed internet candidates become searchable items.
-
-**Independent Test**: Search a term with local and internet matches, verify personal-first order,
-confirm only the query is transmitted, and save one transient candidate into the library.
-
-### Tests for User Story 4
-
-- [ ] T091 [P1] [P] [US4] Add OpenAPI contract tests for external search and candidate save in `tests/contract/external-search.test.ts`
-- [ ] T092 [P1] [P] [US4] Add integration tests for explicit consent, transient candidate expiry, and no item before confirmation in `tests/integration/external-search.test.ts`
-- [ ] T093 [P1] [P] [US4] Add browser E2E tests for personal-first ordering and external failure isolation in `tests/e2e/hybrid-search.spec.ts`
-
-### Implementation for User Story 4
-
-- [ ] T094 [P1] [P] [US4] Implement the DeepSeek Search adapter with timeouts, retries, and provider error mapping in `packages/providers/src/search/deepseek-search.ts`
-- [ ] T095 [P1] [P] [US4] Implement the 15-minute external candidate cache and expiry purge in `packages/domain/src/search/external-candidate-service.ts`
-- [ ] T096 [P1] [US4] Implement explicit-consent external search and idempotent candidate-save API handlers in `apps/web/src/app/api/v1/search/external/route.ts` and `apps/web/src/app/api/v1/search/external/[candidateId]/save/route.ts`
-- [ ] T097 [P1] [US4] Implement candidate confirmation as a PostgreSQL transaction that atomically claims `saved_item_id`, creates item/source, and enqueues classification and best-effort index jobs in `packages/domain/src/search/save-candidate.ts`
-- [ ] T098 [P1] [P] [US4] Build external-search consent, provider disclosure, result grouping, and save controls in `apps/web/src/components/search/external-search.tsx`
-- [ ] T099 [P1] [US4] Implement local-results preservation during external loading, timeout, no-result, partial-failure, and retry in `apps/web/src/components/search/search-page.tsx`
-- [ ] T100 [P1] [US4] Add US4 acceptance automation for local-first ordering and candidate save in `tests/e2e/external-search-flow.spec.ts`
-- [ ] T101 [P1] [US4] Apply `design-taste-frontend` with screenshot evidence, manual critique, fixes, and 1440/768/390 checks for hybrid search in `tests/e2e/taste-us4.spec.ts`
-- [ ] T102 [P1] [US4] Add network-level tests proving only the query is sent, personal body/notes/attachments are not sent, and revoked scope produces no future external request in `tests/security/external-transmission.test.ts`
-- [ ] T103 [P1] [US4] Add the 100-query single-input retrieval benchmark for SC-011 and local-first result ordering in `tests/performance/single-box-search.test.ts`
-
-**Checkpoint**: US4 preserves personal search while adding opt-in internet retrieval.
+**检查点**：US1 是独立的 MVP，并且在 AI 和互联网服务不可用时仍完全可用。
 
 ---
 
-## Phase 7: User Story 5 - 双语且安全的个人使用 (Priority: P5)
+## 阶段 4：用户故事 2 - AI 自动归类并生成标签（优先级：P2）
 
-**Goal**: The owner can use complete Chinese and English experiences, manage policy states, and
-recover deleted items without exposing credentials or changing user content.
+**目标**：每个成功项目都会获得自动分类和标签集；低置信度值以暂定方式应用，用户更正会
+锁定项目字段。
 
-**Independent Test**: Switch languages across all primary flows, verify English coverage, inspect
-secret canaries, and restore/delete items through the recycle bin.
+**独立测试**：在没有手动分类体系的情况下保存未分类文本，验证自动分类/标签，然后锁定
+一个已编辑值，并证明重新分析无法覆盖它。
 
-### Tests for User Story 5
+### 用户故事 2 的测试
 
-- [ ] T104 [P1] [P] [US5] Add ICU/message completeness tests for Chinese and English keys in `tests/unit/i18n-messages.test.ts`
-- [ ] T105 [P0] [P] [US5] Add unique canary tests across source-controlled files, configuration, documents, tests, logs, screenshots, build artifacts, version-control fixtures, diagnostics, DOM, API, database, Meilisearch, S3, and telemetry in `tests/security/secret-canaries.test.ts`
-- [ ] T106 [P1] [P] [US5] Add recycle-bin lifecycle and expiry tests with a fake clock in `tests/integration/recycle-bin.test.ts`
+- [ ] T059 [P0] [P] [US2] 在 `packages/domain/src/classification/assignment.test.ts` 中为暂定/已应用/已锁定分配优先级添加单元测试
+- [ ] T060 [P0] [P] [US2] 在 `tests/contract/ai-provider.test.ts` 中为有效、格式错误、超时和限流 AI 输出添加提供方契约测试
+- [ ] T061 [P0] [P] [US2] 在 `tests/integration/classification.test.ts` 中为分类任务、重试、过期修订和锁定字段保留添加集成测试
 
-### Implementation for User Story 5
+### 用户故事 2 的实施
 
-- [ ] T107 [P1] [US5] Complete Chinese and English messages for every primary route, error, security notice, destructive action, and processing state in `apps/web/src/messages/zh-CN.json` and `apps/web/src/messages/en.json`
-- [ ] T108 [P1] [US5] Implement persisted language selection, AI output-language preference, and non-translation of user content in `apps/web/src/server/preferences/language.ts`
-- [ ] T109 [P0] [US5] Complete setup/login/logout/session integration with `/kb`-scoped cookie behavior and session recovery in `apps/web/src/app/login/page.tsx` and `apps/web/src/app/setup/page.tsx`
-- [ ] T110 [P0] [P] [US5] Build safe secret-redaction and rejection notices without displaying matched values in `apps/web/src/components/security/secret-notice.tsx`
-- [ ] T111 [P1] [US5] Implement recycle-bin list, restore, permanent purge, and disclosed expiry route handlers in `apps/web/src/app/api/v1/trash/route.ts`, `apps/web/src/app/api/v1/trash/[itemId]/restore/route.ts`, and `apps/web/src/app/api/v1/trash/[itemId]/route.ts`
-- [ ] T112 [P1] [P] [US5] Build recycle-bin and settings/privacy screens in `apps/web/src/app/trash/page.tsx` and `apps/web/src/app/settings/page.tsx`
-- [ ] T113 [P1] [US5] Add bilingual and recycle-bin E2E coverage for default Chinese, every route/state, unchanged user content, AI output language, and expiry messaging in `tests/e2e/bilingual-security.spec.ts`
-- [ ] T114 [P2] [US5] Apply `design-taste-frontend` with screenshot evidence, manual critique, fixes, and 1440/768/390 checks for login, settings, security, and trash screens in `tests/e2e/taste-us5.spec.ts`
-- [ ] T115 [P1] [US5] Add manual WCAG 2.2 AA checks for focus order, dialogs, labels, status announcements, contrast, reflow, target size, and screen-reader semantics in `tests/accessibility/manual-checklist.md`
-- [ ] T116 [P2] [US5] Execute facilitated usability studies for SC-001 and SC-009 with 10 participants and record observations, pass counts, and results in `tests/usability/protocol.md` and `artifacts/usability/results.md`
-- [ ] T117 [P1] [US5] Add full recycle-bin cascade assertions for immediate search removal, source/attachment/analysis/index cleanup, restore, and permanent purge in `tests/integration/recycle-cascade.test.ts`
+- [ ] T062 [P0] [US2] 在 `packages/domain/src/ai/authorization-service.ts` 中按 `service_code` 和 `content_type` 实现范围受限的 AI 处理授权检查，包括数据范围/提供方/用途披露以及撤销行为
+- [ ] T063 [P0] [US2] 在 `packages/providers/src/ai/deepseek-classification.ts` 中实现具有严格结构化输出校验和相关项目建议的 DeepSeek 分类适配器
+- [ ] T064 [P0] [US2] 在 `packages/domain/src/classification/repository.ts` 中实现分类/标签分配仓库和项目字段锁定更新
+- [ ] T065 [P0] [US2] 在 `apps/worker/src/jobs/classify-item.ts` 中实现包含暂定回退、修订检查和有界重试的分类 worker
+- [ ] T066 [P0] [US2] 在 `packages/domain/src/classification/tag-normalization.ts` 中为未锁定值实现自动标签规范化与合并建议
+- [ ] T067 [P0] [US2] 在 `apps/web/src/app/api/v1/ai-authorizations/route.ts`、`apps/web/src/app/api/v1/ai-authorizations/[authorizationId]/route.ts`、`apps/web/src/app/api/v1/knowledge-items/[id]/classifications/route.ts` 和 `apps/web/src/app/api/v1/knowledge-items/[id]/reanalyze/route.ts` 中实现授权授予/列出/撤销、重新分析和分类更正端点
+- [ ] T068 [P0] [P] [US2] 在 `apps/web/src/components/settings/ai-authorization-matrix.tsx` 和 `apps/web/src/app/settings/authorizations/page.tsx` 中构建包含数据范围、提供方、内容类型、用途、撤销和重新同意的 AI 授权矩阵
+- [ ] T069 [P0] [P] [US2] 在 `apps/web/src/components/knowledge/classification-editor.tsx` 中构建暂定、已锁定、已更正、相关项目、来源类型和合并建议分类控件
+- [ ] T070 [P0] [US2] 在 `apps/web/src/components/knowledge/processing-status.tsx` 中构建待处理、运行中、等待授权、失败和暂定项目状态
+- [ ] T071 [P0] [US2] 在 `tests/e2e/classification.spec.ts` 中添加 US2 端到端测试，覆盖自动分类、授权范围拒绝、撤销后不再未来传输、锁定保留、跨项目锁定隔离和重试
+- [ ] T072 [P0] [US2] 在 `tests/security/prompt-injection.test.ts` 中为分类、相关项目输出和恶意导入内容添加提示注入测试
+- [ ] T073 [P0] [US2] 在 `tests/e2e/taste-us2.spec.ts` 中为授权和分类页面应用 `design-taste-frontend`，包含截图证据、人工评审、修复以及 1440/768/390 检查
+- [ ] T074 [P2] [US2] 在 `tests/performance/classification-quality.test.ts` 中为 SC-003 和 SC-010 添加 100 个已标注项目的分类质量以及自动分类/标签覆盖率基准测试
 
-**Checkpoint**: All five user stories are independently testable and coexist safely.
-
----
-
-## Phase 8: Polish and Cross-Cutting Concerns
-
-**Purpose**: Release gates, performance, deployment, recovery, and documentation.
-
-- [ ] T118 [P1] Run the full OpenAPI contract suite and record failures in `tests/contract/all-endpoints.test.ts`
-- [ ] T119 [P1] [P] Add and pass WCAG 2.2 AA automated and keyboard checks in `tests/e2e/accessibility.spec.ts`
-- [ ] T120 [P2] [P] Execute the frozen 100,000-item, 500-query benchmark with cold/warm cache, C2 concurrency, 20 visible results, and a 95%-under-2-seconds report in `tests/performance/run-search-benchmark.ts` and `artifacts/performance/search-report.json`
-- [ ] T121 [P1] [P] Add Semgrep, Gitleaks, Trivy, OWASP ZAP, and canary leak checks for all prohibited surfaces in `.github/workflows/security.yml` and `tests/security/leak-surfaces.test.ts`
-- [ ] T122 [P1] Implement the pgBackRest/restic backup script without destructive restore actions in `deploy/scripts/backup.sh`
-- [ ] T123 [P1] Implement the official-GitHub one-click provisioning entrypoint with fixed-ref selection, separate user/database/bucket/env/cookie/log paths, pre-deploy backup, dependency install, build, migration, startup, health checks, and fail-closed rollback in `deploy/scripts/provision-ubuntu.sh` and `deploy/scripts/lib/deploy-common.sh`
-- [ ] T124 [P1] Configure the approved exact `/` portal, preserve the former landing at `/shuati`, and add `/kb` routing in `deploy/scripts/configure-nginx.sh`, `deploy/nginx/shuati.conf`, and `deploy/nginx/shuati-prod.conf` with backup and `nginx -t` rollback
-- [ ] T125 [P1] Verify zero impact by comparing pre-change `/` with post-change `/shuati`, asserting the approved `/` portal exception, and preserving systemd, MySQL, Redis, cookies, data, `/app`, `/api`, `/bank`, `/pay`, `/apk`, and certificate baselines in `deploy/scripts/verify-existing-app.sh` and `tests/e2e/zero-impact.test.ts`
-- [ ] T126 [P1] Wire GitHub Actions release deployment gates and tag/commit selection in `.github/workflows/deploy.yml`
-- [ ] T127 [P1] Add a bilingual root two-application portal with 拾题 `/app` and 知识库 `/kb` entries in `deploy/portal/index.html`, `deploy/portal/portal.css`, and `deploy/portal/messages.json`
-- [ ] T128 [P1] Run the complete [quickstart.md](quickstart.md) scenario in a clean environment and save command/output evidence in `artifacts/quickstart/report.md`
-- [ ] T129 [P1] Update [README.md](../../README.md), [deployment.md](deployment.md), and `AGENTS.md` with the official GitHub repository URL, default branch, fixed-ref deployment usage, final paths, and verified commands
-- [ ] T130 [P2] Run backup restore in an isolated environment, rebuild Meilisearch from PostgreSQL, verify recycle-window recovery, and prove expired backups cannot revive data in `tests/integration/restore-drill.test.ts`
-- [ ] T131 [P1] Add a fail-closed host capacity and deployment-profile decision gate with thresholds and approval evidence in `deploy/scripts/capacity-gate.sh` and `artifacts/deployment/capacity-report.md`
-- [ ] T132 [P1] Run the official HTTPS GitHub one-click deployment from a fixed tag/commit twice, inject a health-check failure, verify rollback, and scan logs/command history for secrets in `tests/deploy/one-click-deploy.test.sh` and `artifacts/deployment/one-click-report.md`
-- [ ] T133 [P2] Run final acceptance evidence for SC-001 through SC-017, verify the target tag/commit passed lint, typecheck, tests, build, and security gates, confirm failed gates block deployment, and map each result to its task and artifact in `artifacts/acceptance/success-criteria.md`
+**检查点**：US2 在 US1 之上运行，且绝不会阻塞保存或搜索。
 
 ---
 
-## Success Criteria Coverage
+## 阶段 5：用户故事 3 - 通过网页、文档和截图采集知识（优先级：P3）
 
-| Criterion | Priority | Primary verification tasks |
+**目标**：已接受的文本、文档、截图和单页 URL 导入会立即创建可搜索项目，并在后台安全
+完成提取。
+
+**独立测试**：导入一个文档、一张截图和一个本地/公开网页；验证即时可搜索性、来源保留、
+密钥扫描以及不遍历链接。
+
+### 用户故事 3 的测试
+
+- [ ] T075 [P1] [P] [US3] 在 `tests/contract/imports.test.ts` 中为文本、网页和上传导入端点添加 OpenAPI 契约测试
+- [ ] T076 [P1] [P] [US3] 在 `tests/integration/import-safety.test.ts` 中为暂存拒绝、文档提取、OCR、脱敏图像和重试幂等性添加集成测试
+- [ ] T077 [P1] [P] [US3] 在 `tests/security/page-capture.test.ts` 中为回环/私有/CGNAT/IPv6 ULA/元数据/保留 IP、DNS 重绑定、凭据 URL、强制使用 80/443、最多三个重新校验的重定向、禁止 sitemap/预取/无限滚动/多页、单一顶层请求图以及无持久 Cookie/Service Worker/弹窗/下载添加 browser-worker E2E 安全测试
+
+### 用户故事 3 的实施
+
+- [ ] T078 [P1] [US3] 在 `packages/domain/src/import/staging-service.ts` 中实现安全上传暂存、MIME 检测、大小限制和清理
+- [ ] T079 [P1] [P] [US3] 在 `packages/providers/src/extraction/document-ocr.ts` 和 `packages/config/src/upload.ts` 中实现支持的 MIME 校验、文档提取以及带语言包和完整性状态的有界 OCR
+- [ ] T080 [P1] [P] [US3] 在 `packages/domain/src/security/image-redactor.ts` 中实现图像敏感区域脱敏和脱敏副本持久化
+- [ ] T081 [P1] [P] [US3] 在 `packages/domain/src/import/url-safety.ts` 和 `infra/proxy/egress-proxy.ts` 中实现 URL 校验、连接时 DNS/IP 拒绝、重定向限制和出站代理集成
+- [ ] T082 [P1] [US3] 在 `apps/browser-worker/src/capture-page.ts` 和 `apps/browser-worker/src/queues.ts` 中实现隔离的 Playwright 单页采集 worker 及其专用 pg-boss 采集消费者，不进行链接发现且不保持持久会话
+- [ ] T083 [P1] [US3] 在 `apps/web/src/app/api/v1/imports/text/route.ts`、`apps/web/src/app/api/v1/imports/webpage/route.ts`、`apps/web/src/app/api/v1/imports/upload/route.ts`、`apps/web/src/app/api/v1/jobs/[jobId]/route.ts`、`apps/web/src/app/api/v1/jobs/[jobId]/retry/route.ts` 和 `apps/web/src/app/api/v1/jobs/[jobId]/cancel/route.ts` 中实现文本、网页和上传导入创建以及任务状态、重试和取消路由处理器
+- [ ] T084 [P1] [US3] 在 `apps/worker/src/jobs/process-import.ts` 中为已接受的导入实现提取、OCR、脱敏、处理任务和分类任务入队
+- [ ] T085 [P1] [P] [US3] 在 `apps/web/src/components/import/import-panel.tsx` 和 `apps/web/src/app/capture/page.tsx` 中构建文本、URL、文档和截图导入表单
+- [ ] T086 [P1] [P] [US3] 在 `apps/web/src/components/import/import-status.tsx` 和 `apps/web/src/app/processing/page.tsx` 中构建导入扫描、拒绝、待处理、重试、截图回退和处理队列状态
+- [ ] T087 [P1] [US3] 在 `tests/e2e/imports.spec.ts` 中为所有导入模式和即时可搜索性添加 US3 端到端测试
+- [ ] T088 [P1] [US3] 在 `tests/e2e/taste-us3.spec.ts` 中为导入和处理页面应用 `design-taste-frontend`，包含截图证据、人工评审、修复以及 1440/768/390 检查
+- [ ] T089 [P1] [US3] 在 `tests/security/import-injection.test.ts` 中为文档文本、OCR 文本、网页采集和搜索摘要添加提示注入测试
+- [ ] T090 [P1] [US3] 在 `tests/performance/import-quality.test.ts` 中为 SC-004、SC-005 和即时搜索标准添加文本/文档/截图导入基准测试
+
+**检查点**：US3 扩展采集能力，且不会削弱 US1 或 US2。
+
+---
+
+## 阶段 6：用户故事 4 - 单框本地优先混合检索（优先级：P4）
+
+**目标**：单一搜索框始终优先返回个人结果，只有明确同意后才会进行互联网搜索；已确认的
+互联网候选项会成为可搜索项目。
+
+**独立测试**：搜索一个同时具有本地和互联网匹配的术语，验证个人结果优先顺序，确认仅发送
+查询内容，并将一个临时候选项保存到知识库。
+
+### 用户故事 4 的测试
+
+- [ ] T091 [P1] [P] [US4] 在 `tests/contract/external-search.test.ts` 中为外部搜索和候选项保存添加 OpenAPI 契约测试
+- [ ] T092 [P1] [P] [US4] 在 `tests/integration/external-search.test.ts` 中为明确同意、临时候选项过期和确认前不创建项目添加集成测试
+- [ ] T093 [P1] [P] [US4] 在 `tests/e2e/hybrid-search.spec.ts` 中为个人结果优先顺序和外部故障隔离添加浏览器 E2E 测试
+
+### 用户故事 4 的实施
+
+- [ ] T094 [P1] [P] [US4] 在 `packages/providers/src/search/deepseek-search.ts` 中实现包含超时、重试和提供方错误映射的 DeepSeek Search 适配器
+- [ ] T095 [P1] [P] [US4] 在 `packages/domain/src/search/external-candidate-service.ts` 中实现 15 分钟外部候选项缓存和过期清除
+- [ ] T096 [P1] [US4] 在 `apps/web/src/app/api/v1/search/external/route.ts` 和 `apps/web/src/app/api/v1/search/external/[candidateId]/save/route.ts` 中实现明确同意的外部搜索和幂等候选项保存 API 处理器
+- [ ] T097 [P1] [US4] 在 `packages/domain/src/search/save-candidate.ts` 中将候选项确认实现为 PostgreSQL 事务，原子地占用 `saved_item_id`、创建项目/来源，并将分类任务和尽力而为的索引任务入队
+- [ ] T098 [P1] [P] [US4] 在 `apps/web/src/components/search/external-search.tsx` 中构建外部搜索同意、提供方披露、结果分组和保存控件
+- [ ] T099 [P1] [US4] 在 `apps/web/src/components/search/search-page.tsx` 中实现外部加载、超时、无结果、部分失败和重试期间保留本地结果
+- [ ] T100 [P1] [US4] 在 `tests/e2e/external-search-flow.spec.ts` 中为本地优先顺序和候选项保存添加 US4 验收自动化
+- [ ] T101 [P1] [US4] 在 `tests/e2e/taste-us4.spec.ts` 中为混合搜索应用 `design-taste-frontend`，包含截图证据、人工评审、修复以及 1440/768/390 检查
+- [ ] T102 [P1] [US4] 在 `tests/security/external-transmission.test.ts` 中添加网络级测试，证明仅发送查询内容、不发送个人正文/备注/附件，且撤销范围后不会产生未来的外部请求
+- [ ] T103 [P1] [US4] 在 `tests/performance/single-box-search.test.ts` 中为 SC-011 和本地优先结果排序添加 100 条查询的单输入检索基准测试
+
+**检查点**：US4 在保留个人搜索的同时增加可选的互联网检索。
+
+---
+
+## 阶段 7：用户故事 5 - 双语且安全的个人使用（优先级：P5）
+
+**目标**：所有者可以使用完整的中文和英文体验、管理策略状态，并在不暴露凭据或不更改
+用户内容的情况下恢复已删除项目。
+
+**独立测试**：在所有主要流程中切换语言，验证英文覆盖情况，检查密钥金丝雀，并通过
+回收站恢复/删除项目。
+
+### 用户故事 5 的测试
+
+- [ ] T104 [P1] [P] [US5] 在 `tests/unit/i18n-messages.test.ts` 中为中文和英文键添加 ICU/消息完整性测试
+- [ ] T105 [P0] [P] [US5] 在 `tests/security/secret-canaries.test.ts` 中添加跨源代码管理文件、配置、文档、测试、日志、截图、构建产物、版本控制夹具、诊断信息、DOM、API、数据库、Meilisearch、S3 和遥测的唯一金丝雀测试
+- [ ] T106 [P1] [P] [US5] 在 `tests/integration/recycle-bin.test.ts` 中为使用假时钟的回收站生命周期和过期添加测试
+
+### 用户故事 5 的实施
+
+- [ ] T107 [P1] [US5] 在 `apps/web/src/messages/zh-CN.json` 和 `apps/web/src/messages/en.json` 中为每个主要路由、错误、安全提示、破坏性操作和处理状态完善中文和英文消息
+- [ ] T108 [P1] [US5] 在 `apps/web/src/server/preferences/language.ts` 中实现持久化语言选择、AI 输出语言偏好以及不翻译用户内容
+- [ ] T109 [P0] [US5] 在 `apps/web/src/app/login/page.tsx` 和 `apps/web/src/app/setup/page.tsx` 中完成设置/登录/退出/会话集成，包含 `/kb` 范围内的 Cookie 行为和会话恢复
+- [ ] T110 [P0] [P] [US5] 在 `apps/web/src/components/security/secret-notice.tsx` 中构建不显示匹配值的安全密钥脱敏和拒绝提示
+- [ ] T111 [P1] [US5] 在 `apps/web/src/app/api/v1/trash/route.ts`、`apps/web/src/app/api/v1/trash/[itemId]/restore/route.ts` 和 `apps/web/src/app/api/v1/trash/[itemId]/route.ts` 中实现回收站列出、恢复、永久清除和已披露过期路由处理器
+- [ ] T112 [P1] [P] [US5] 在 `apps/web/src/app/trash/page.tsx` 和 `apps/web/src/app/settings/page.tsx` 中构建回收站以及设置/隐私页面
+- [ ] T113 [P1] [US5] 在 `tests/e2e/bilingual-security.spec.ts` 中为默认中文、每个路由/状态、用户内容不变、AI 输出语言和过期消息添加双语及回收站 E2E 覆盖
+- [ ] T114 [P2] [US5] 在 `tests/e2e/taste-us5.spec.ts` 中为登录、设置、安全和回收站页面应用 `design-taste-frontend`，包含截图证据、人工评审、修复以及 1440/768/390 检查
+- [ ] T115 [P1] [US5] 在 `tests/accessibility/manual-checklist.md` 中添加针对焦点顺序、对话框、标签、状态播报、对比度、重排、目标大小和屏幕阅读器语义的人工 WCAG 2.2 AA 检查
+- [ ] T116 [P2] [US5] 为 SC-001 和 SC-009 执行有 10 名参与者引导的可用性研究，并在 `tests/usability/protocol.md` 和 `artifacts/usability/results.md` 中记录观察结果、通过计数和结果
+- [ ] T117 [P1] [US5] 在 `tests/integration/recycle-cascade.test.ts` 中为立即从搜索中移除、来源/附件/分析/索引清理、恢复和永久清除添加完整的回收站级联断言
+
+**检查点**：全部五个用户故事均可独立测试并安全共存。
+
+---
+
+## 阶段 8：完善与跨领域关注事项
+
+**目的**：发布门禁、性能、部署、恢复和文档。
+
+- [ ] T118 [P1] 在 `tests/contract/all-endpoints.test.ts` 中运行完整的 OpenAPI 契约套件并记录失败
+- [ ] T119 [P1] [P] 在 `tests/e2e/accessibility.spec.ts` 中添加并通过 WCAG 2.2 AA 自动化和键盘检查
+- [ ] T120 [P2] [P] 在 `tests/performance/run-search-benchmark.ts` 和 `artifacts/performance/search-report.json` 中执行冻结的 100,000 条项目、500 条查询基准测试，包含冷/热缓存、C2 并发、20 个可见结果以及 95% 低于 2 秒的报告
+- [ ] T121 [P1] [P] 在 `.github/workflows/security.yml` 和 `tests/security/leak-surfaces.test.ts` 中为所有禁止表面添加 Semgrep、Gitleaks、Trivy、OWASP ZAP 和金丝雀泄漏检查
+- [ ] T122 [P1] 在 `deploy/scripts/backup.sh` 中实现不包含破坏性恢复操作的 pgBackRest/restic 备份脚本
+- [ ] T123 [P1] 在 `deploy/scripts/provision-ubuntu.sh` 和 `deploy/scripts/lib/deploy-common.sh` 中实现官方 GitHub 一键配置入口，包含固定 ref 选择、独立的用户/数据库/存储桶/环境/Cookie/日志路径、部署前备份、依赖安装、构建、迁移、启动、健康检查和失败关闭回滚
+- [ ] T124 [P1] 在 `deploy/scripts/configure-nginx.sh`、`deploy/nginx/shuati.conf` 和 `deploy/nginx/shuati-prod.conf` 中配置获批的精确 `/` 门户，将原着陆页保留在 `/shuati`，并添加 `/kb` 路由，同时包含备份和 `nginx -t` 回滚
+- [ ] T125 [P1] 在 `deploy/scripts/verify-existing-app.sh` 和 `tests/e2e/zero-impact.test.ts` 中通过比较变更前 `/` 与变更后 `/shuati`、断言获批的 `/` 门户例外，并保留 systemd、MySQL、Redis、Cookie、数据、`/app`、`/api`、`/bank`、`/pay`、`/apk` 和证书基线来验证零影响
+- [ ] T126 [P1] 在 `.github/workflows/deploy.yml` 中接入 GitHub Actions 发布部署门禁以及 tag/commit 选择
+- [ ] T127 [P1] 在 `deploy/portal/index.html`、`deploy/portal/portal.css` 和 `deploy/portal/messages.json` 中添加双语根双应用门户，包含拾题 `/app` 和知识库 `/kb` 条目
+- [ ] T128 [P1] 在干净环境中运行完整的 [quickstart.md](quickstart.md) 场景，并将命令/输出证据保存到 `artifacts/quickstart/report.md`
+- [ ] T129 [P1] 使用官方 GitHub 仓库 URL、默认分支、固定 ref 部署用法、最终路径和已验证命令更新 [README.md](../../README.md)、[deployment.md](deployment.md) 和 `AGENTS.md`
+- [ ] T130 [P2] 在 `tests/integration/restore-drill.test.ts` 中于隔离环境运行备份恢复，从 PostgreSQL 重建 Meilisearch，验证回收窗口恢复，并证明过期备份无法恢复数据
+- [ ] T131 [P1] 在 `deploy/scripts/capacity-gate.sh` 和 `artifacts/deployment/capacity-report.md` 中添加包含阈值和批准证据的失败关闭主机容量与部署配置决策门禁
+- [ ] T132 [P1] 在 `tests/deploy/one-click-deploy.test.sh` 和 `artifacts/deployment/one-click-report.md` 中从固定 tag/commit 运行两次官方 HTTPS GitHub 一键部署，注入健康检查失败，验证回滚，并扫描日志/命令历史中的密钥
+- [ ] T133 [P2] 在 `artifacts/acceptance/success-criteria.md` 中运行 SC-001 至 SC-017 的最终验收证据，验证目标 tag/commit 通过 lint、类型检查、测试、构建和安全门禁，确认失败的门禁会阻止部署，并将每项结果映射到其任务和产物
+
+---
+
+## 成功标准覆盖
+
+| 标准 | 优先级 | 主要验证任务 |
 |-----------|----------|----------------------------|
 | SC-001 | P2 | T116 |
 | SC-002 | P2 | T120 |
@@ -335,23 +331,23 @@ secret canaries, and restore/delete items through the recycle bin.
 
 ---
 
-## Dependencies & Execution Order
+## 依赖与执行顺序
 
-### Phase Dependencies
+### 阶段依赖
 
-- **Phase 0 Feasibility (T001–T006)**: Starts immediately; provider and search PoCs gate the
-  corresponding implementation decisions.
-- **Phase 1 Setup (T007–T016)**: Can start alongside non-dependent PoC work.
-- **Phase 2 Foundational (T017–T043)**: Depends on setup and blocks all user stories.
-- **US1 (T044–T058)**: Starts after Phase 2 and establishes the MVP.
-- **US2 (T059–T074)**: Requires US1 persistence and classification entry points.
-- **US3 (T075–T090)**: Requires US1 item creation and US2 classification worker interfaces.
-- **US4 (T091–T103)**: Requires US1 search and US2 automatic classification.
-- **US5 (T104–T117)**: Cross-cuts the product; its language and lifecycle work completes after
-  the story routes stabilize.
-- **Polish (T118–T133)**: Depends on all selected stories and release artifacts.
+- **阶段 0 可行性（T001–T006）**：立即开始；提供方和搜索 PoC 决定
+  相应的实施决策。
+- **阶段 1 环境搭建（T007–T016）**：可与不依赖它的 PoC 工作同时开始。
+- **阶段 2 基础能力（T017–T043）**：依赖环境搭建，并阻塞所有用户故事。
+- **US1（T044–T058）**：在阶段 2 之后开始，并建立 MVP。
+- **US2（T059–T074）**：需要 US1 持久化和分类入口。
+- **US3（T075–T090）**：需要 US1 项目创建和 US2 分类 worker 接口。
+- **US4（T091–T103）**：需要 US1 搜索和 US2 自动分类。
+- **US5（T104–T117）**：横跨产品；其语言和生命周期工作在
+  故事路由稳定后完成。
+- **完善（T118–T133）**：依赖所有选定的故事和发布产物。
 
-### Critical Path
+### 关键路径
 
 ```text
 T001-T006
@@ -365,124 +361,124 @@ T001-T006
   -> T118-T133
 ```
 
-### P0 MVP Path
+### P0 MVP 路径
 
 ```text
 T005
   -> T007-T043
   -> T044-T073
   -> T105, T109, T110
-  -> P0 checkpoint
+  -> P0 检查点
 ```
 
-P0 exceptions inside later story phases are intentionally pulled forward after US1 and US2 are
-stable. They do not require P1 imports or internet search to be implemented first.
+P0 例外位于后续故事阶段中，会在 US1 和 US2 稳定后有意提前。它们不要求先实施
+P1 导入或互联网搜索。
 
-### Story Dependencies
+### 用户故事依赖
 
-- **US1**: Independent after Phase 2.
-- **US2**: Requires US1 item persistence but must preserve US1 behavior.
-- **US3**: Requires US1 item creation and US2 classification worker interfaces.
-- **US4**: Requires US1 search and US2 automatic classification.
-- **US5**: Cross-cuts all stories but can be implemented incrementally after Phase 2.
+- **US1**：在阶段 2 之后独立。
+- **US2**：需要 US1 项目持久化，但必须保留 US1 行为。
+- **US3**：需要 US1 项目创建和 US2 分类 worker 接口。
+- **US4**：需要 US1 搜索和 US2 自动分类。
+- **US5**：横跨所有故事，但可以在阶段 2 之后增量实施。
 
 ---
 
-## Parallel Opportunities
+## 并行机会
 
-### Setup
+### 环境搭建
 
 ```text
-T008-T016 use different files and can run in parallel after T007.
+T008-T016 使用不同文件，并可在 T007 之后并行运行。
 ```
 
-### User Story 1
+### 用户故事 1
 
 ```text
-T044-T046 can be written in parallel.
-T051 and T052 can be built in parallel after T050 defines the API behavior.
+T044-T046 可以并行编写。
+T050 定义 API 行为后，T051 和 T052 可以并行构建。
 ```
 
-### User Story 2
+### 用户故事 2
 
 ```text
-T059-T061 can run in parallel.
-T068 and T069 can run in parallel after T062 and T064 define the contracts.
+T059-T061 可以并行运行。
+T062 和 T064 定义契约后，T068 和 T069 可以并行运行。
 ```
 
-### User Story 3
+### 用户故事 3
 
 ```text
-T075-T077 can run in parallel.
-T078-T081 use separate modules and can run in parallel.
-T085 and T086 can run in parallel after T083.
+T075-T077 可以并行运行。
+T078-T081 使用独立模块，可以并行运行。
+T083 之后，T085 和 T086 可以并行运行。
 ```
 
-### User Story 4
+### 用户故事 4
 
 ```text
-T091-T093 can run in parallel.
-T094, T095, and T098 can run in parallel after the external candidate contract is stable.
+T091-T093 可以并行运行。
+外部候选项契约稳定后，T094、T095 和 T098 可以并行运行。
 ```
 
-### User Story 5
+### 用户故事 5
 
 ```text
-T104-T106 can run in parallel.
-T110 and T112 can run in parallel after T107-T109 stabilize route and message keys.
+T104-T106 可以并行运行。
+T107-T109 稳定路由和消息键后，T110 和 T112 可以并行运行。
 ```
 
-### Polish
+### 完善
 
 ```text
-T119-T121 can run in parallel.
-T122, T123, and T130 are sequential deployment and recovery tasks, not parallel edits.
+T119-T121 可以并行运行。
+T122、T123 和 T130 是顺序执行的部署和恢复任务，不是并行编辑。
 ```
 
 ---
 
-## Implementation Strategy
+## 实施策略
 
-### MVP First — P0 Only
+### MVP 优先 — 仅 P0
 
-1. Complete every `[P0]` task in dependency order. P0 includes setup, foundational persistence,
-   security, private authentication, manual capture, automatic classification, single-box local
-   search, core UI, and core security verification.
-2. Stop at the P0 checkpoint and validate the minimum secure end-to-end product in local/staging.
-3. Do not start P1 expansion or expose public `/kb` routing until the P0 checkpoint passes.
-4. The P0 scope is 68 tasks because setup and platform foundations are part of the real MVP rather
-   than mocked implementation.
+1. 按依赖顺序完成每个 `[P0]` 任务。P0 包括环境搭建、基础持久化、
+   安全、私有身份验证、手动采集、自动分类、单框本地
+   搜索、核心 UI 和核心安全验证。
+2. 在 P0 检查点停止，并在本地/暂存环境验证最小可用的安全端到端产品。
+3. 在 P0 检查点通过前，不得开始 P1 扩展或公开 `/kb` 路由。
+4. P0 范围包含 68 个任务，因为环境搭建和平台基础属于真实 MVP 的一部分，
+   而不是模拟实现。
 
-### Incremental Delivery — P1 Then P2
+### 增量交付 — 先 P1，再 P2
 
-1. **P1 Core Expansion (58 tasks)**: document/screenshot/webpage imports, internet search,
-   full bilingual and recycle-bin workflows, production routing, GitHub one-click deployment, and
-   remaining release controls.
-2. **P2 Scale and Hardening (7 tasks)**: 100,000-item performance benchmark, classification and
-   import quality benchmarks, single-box retrieval benchmark, manual accessibility and usability
-   studies, backup restore drill, and final success-criteria evidence.
-3. Complete P2 only after P1 is stable.
+1. **P1 核心扩展（58 个任务）**：文档/截图/网页导入、互联网搜索、
+   完整双语和回收站工作流、生产路由、GitHub 一键部署以及
+   其余发布控制。
+2. **P2 规模与加固（7 个任务）**：100,000 条项目性能基准测试、分类和
+   导入质量基准测试、单框检索基准测试、人工可访问性和可用性
+   研究、备份恢复演练以及最终成功标准证据。
+3. 仅在 P1 稳定后完成 P2。
 
-### Parallel Team Strategy
+### 并行团队策略
 
-- Development agent A: US1 and shared knowledge/search paths.
-- Development agent B: US2 classification and AI authorization.
-- Development agent C: US3 browser worker and import pipeline.
-- Development agent D: US4 external search.
-- Development agent E: US5 i18n, security UX, and recycle bin.
-- Test agent: independent story acceptance, canary, SSRF, performance, and zero-impact checks.
+- 开发子智能体 A：US1 以及共享知识/搜索路径。
+- 开发子智能体 B：US2 分类和 AI 授权。
+- 开发子智能体 C：US3 浏览器 worker 和导入流水线。
+- 开发子智能体 D：US4 外部搜索。
+- 开发子智能体 E：US5 i18n、安全用户体验和回收站。
+- 测试子智能体：独立故事验收、金丝雀、SSRF、性能和零影响检查。
 
 ---
 
-## Notes
+## 备注
 
-- Tests are required by the project constitution and must fail before the corresponding
-  implementation tasks.
-- [P] tasks must not edit the same file as another active task.
-- P0 tasks define the MVP and must be completed before P1 or P2 work begins.
-- P1 and P2 are not optional for final release; they are sequenced after MVP validation.
-- All five story checkpoints must be independently demonstrated.
-- Deployment work must pass the zero-impact checks before exposing `/kb`.
-- The root portal change is an explicitly approved product decision; the existing application
-  must remain reachable at `/app`, and its former landing must remain available at `/shuati`.
-- Commit after each task or coherent task group.
+- 项目章程要求测试，并且测试必须在相应的
+  实施任务之前失败。
+- [P] 任务不得与另一个活动任务编辑同一文件。
+- P0 任务定义 MVP，必须在 P1 或 P2 工作开始前完成。
+- P1 和 P2 对最终发布并非可选；它们安排在 MVP 验证之后。
+- 全部五个故事检查点都必须独立演示。
+- 在公开 `/kb` 前，部署工作必须通过零影响检查。
+- 根门户变更是一项明确获批的产品决策；现有应用
+  必须仍可通过 `/app` 访问，其原着陆页必须仍可通过 `/shuati` 访问。
+- 在每个任务或一组连贯任务后提交。

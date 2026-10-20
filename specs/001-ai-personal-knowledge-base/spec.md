@@ -1,112 +1,112 @@
-# Feature Specification: AI 个人知识库
+# 功能规格说明：AI 个人知识库
 
-**Feature Branch**: `001-ai-personal-knowledge-base`
+**功能分支**：`001-ai-personal-knowledge-base`
 
-**Created**: 2026-10-21
+**创建日期**：2026-10-21
 
-**Status**: Approved
+**状态**：已批准
 
-**Input**: 用户需要一个支持手动录入、AI 辅助录入、自动归类、文档与截图分析、本地优先搜索及联网搜索的个人知识库网站；网页链接通过 AI 分析页面截图中的可见文字，不得使用爬虫技术。联网搜索拟采用 DeepSeek Search 与 Fetch 能力，具体接入方式在计划阶段确认。补充要求：分类和标签由系统在导入知识时自动生成、自动分配，用户无需手动建立标签；知识检索只使用一个输入框，统一覆盖标题、内容、标签等信息，并需满足大规模个人知识库的检索性能目标。
+**输入**：用户需要一个支持手动录入、AI 辅助录入、自动归类、文档与截图分析、本地优先搜索及联网搜索的个人知识库网站；网页链接通过 AI 分析页面截图中的可见文字，不得使用爬虫技术。联网搜索拟采用 DeepSeek Search 与 Fetch 能力，具体接入方式在计划阶段确认。补充要求：分类和标签由系统在导入知识时自动生成、自动分配，用户无需手动建立标签；知识检索只使用一个输入框，统一覆盖标题、内容、标签等信息，并需满足大规模个人知识库的检索性能目标。
 
-## Clarifications
+## 澄清事项
 
-### Session 2026-10-21
+### 2026-10-21 会话
 
-- Q: 个人知识库应以哪里作为最终数据源，并为删除设置什么处理方式？ → A: 采用单账户私有服务端作为权威数据源；删除先进入有明确期限的回收站，到期永久删除，备份按声明周期淘汰。
-- Q: 当系统检测到高置信密钥，或附件无法完成完整扫描时，应如何处理？ → A: 高置信密钥自动脱敏后保存其余内容；无法完成完整扫描的附件整次拒绝，不保存原始附件。
-- Q: 自动 AI 处理授权应覆盖到什么范围？ → A: 按外部服务和内容类型分别持久授权；同范围自动处理，切换范围或在内容编辑后重新分析时再次确认。
-- Q: 知识点在 AI 处理尚未完成，或互联网结果尚未确认保存时，应以什么状态存在？ → A: 手动和 AI 导入立即创建可检索条目，处理状态作为条目字段；互联网候选确认后才创建知识条目。
-- Q: 当系统以后重新分析或归并标签时，用户手动修改过的分类和标签应如何处理？ → A: 用户修改后立即锁定；AI 只补充未锁定或暂定内容，标签归并只对锁定项提出建议。
+- 问：个人知识库应以哪里作为最终数据源，并为删除设置什么处理方式？ → 答：采用单账户私有服务端作为权威数据源；删除先进入有明确期限的回收站，到期永久删除，备份按声明周期淘汰。
+- 问：当系统检测到高置信密钥，或附件无法完成完整扫描时，应如何处理？ → 答：高置信密钥自动脱敏后保存其余内容；无法完成完整扫描的附件整次拒绝，不保存原始附件。
+- 问：自动 AI 处理授权应覆盖到什么范围？ → 答：按外部服务和内容类型分别持久授权；同范围自动处理，切换范围或在内容编辑后重新分析时再次确认。
+- 问：知识点在 AI 处理尚未完成，或互联网结果尚未确认保存时，应以什么状态存在？ → 答：手动和 AI 导入立即创建可检索条目，处理状态作为条目字段；互联网候选确认后才创建知识条目。
+- 问：当系统以后重新分析或归并标签时，用户手动修改过的分类和标签应如何处理？ → 答：用户修改后立即锁定；AI 只补充未锁定或暂定内容，标签归并只对锁定项提出建议。
 
-## User Scenarios & Testing *(mandatory)*
+## 用户场景与测试 *（必需）*
 
-### User Story 1 - 手动收藏并找回知识 (Priority: P1)
+### 用户故事 1 - 手动收藏并找回知识（优先级：P1）
 
 用户可以把文字、标题、链接和个人备注手动保存到知识库，并通过统一检索框输入关键词找回知识。
 
-**Why this priority**: 手动录入与本地检索构成最小可用闭环，即使 AI 服务暂时不可用，知识库仍然可以保存和查找内容。
+**为何设置此优先级**：手动录入与本地检索构成最小可用闭环，即使 AI 服务暂时不可用，知识库仍然可以保存和查找内容。
 
-**Independent Test**: 在没有 AI 服务的条件下，创建一条手动知识条目，再通过关键词检索到它，即可独立验证本故事。
+**独立测试**：在没有 AI 服务的条件下，创建一条手动知识条目，再通过关键词检索到它，即可独立验证本故事。
 
-**Acceptance Scenarios**:
+**验收场景**：
 
-1. **Given** 知识库为空，**When** 用户填写标题和正文并保存，**Then** 系统立即创建可检索知识条目、自动安排分类处理并显示创建时间。
-2. **Given** 已有多条知识，**When** 用户在一个输入框中输入与标题、正文、备注、分类或标签匹配的关键词，**Then** 本地结果按相关度展示并标明匹配字段。
-3. **Given** 本地没有匹配结果，**When** 搜索完成，**Then** 页面保留清晰的本地空结果状态，并提供用户主动发起互联网搜索的入口。
+1. **假设**知识库为空，**当**用户填写标题和正文并保存，**则**系统立即创建可检索知识条目、自动安排分类处理并显示创建时间。
+2. **假设**已有多条知识，**当**用户在一个输入框中输入与标题、正文、备注、分类或标签匹配的关键词，**则**本地结果按相关度展示并标明匹配字段。
+3. **假设**本地没有匹配结果，**当**搜索完成，**则**页面保留清晰的本地空结果状态，并提供用户主动发起互联网搜索的入口。
 
 ---
 
-### User Story 2 - AI 自动归类并生成标签 (Priority: P2)
+### 用户故事 2 - AI 自动归类并生成标签（优先级：P2）
 
 用户保存知识后，系统自动生成摘要、分类和标签，不需要用户预先建立标签或分类。高置信度结果直接应用，低置信度结果先自动应用为暂定分类并标记待复核，不阻塞入库和检索。
 
-**Why this priority**: 全自动分类和标签是知识库从“收藏夹”升级为可整理知识系统的核心价值，也决定统一检索是否能够覆盖可靠的结构化信息。
+**为何设置此优先级**：全自动分类和标签是知识库从“收藏夹”升级为可整理知识系统的核心价值，也决定统一检索是否能够覆盖可靠的结构化信息。
 
-**Independent Test**: 在没有任何手工标签和分类的条件下保存一段原始文字，验证系统自动生成摘要、分类和至少一个标签，并允许用户事后纠正。
+**独立测试**：在没有任何手工标签和分类的条件下保存一段原始文字，验证系统自动生成摘要、分类和至少一个标签，并允许用户事后纠正。
 
-**Acceptance Scenarios**:
+**验收场景**：
 
-1. **Given** 用户保存一段未分类文字，**When** 系统完成自动整理，**Then** 条目自动获得分类、标签和摘要，用户无需手动建立标签。
-2. **Given** AI 分类置信度低于阈值或存在多个相近分类，**When** 自动整理完成，**Then** 系统仍应用暂定分类和标签、标记待复核，并允许用户稍后纠正。
-3. **Given** 用户修改、替换或撤销自动生成的结果，**When** 用户保存修改，**Then** 系统锁定用户的最终选择、更新检索信息，并禁止后续自动分析覆盖该选择。
-4. **Given** 用户锁定的标签与系统标签可能是近义词，**When** 系统执行标签规范化，**Then** 系统只提出合并建议，未获用户确认前不得更改锁定标签。
+1. **假设**用户保存一段未分类文字，**当**系统完成自动整理，**则**条目自动获得分类、标签和摘要，用户无需手动建立标签。
+2. **假设**AI 分类置信度低于阈值或存在多个相近分类，**当**自动整理完成，**则**系统仍应用暂定分类和标签、标记待复核，并允许用户稍后纠正。
+3. **假设**用户修改、替换或撤销自动生成的结果，**当**用户保存修改，**则**系统锁定用户的最终选择、更新检索信息，并禁止后续自动分析覆盖该选择。
+4. **假设**用户锁定的标签与系统标签可能是近义词，**当**系统执行标签规范化，**则**系统只提出合并建议，未获用户确认前不得更改锁定标签。
 
 ---
 
-### User Story 3 - 通过网页、文档和截图采集知识 (Priority: P3)
+### 用户故事 3 - 通过网页、文档和截图采集知识（优先级：P3）
 
 用户可以提交网页链接、文档或截图，由 AI 提取文字、理解内容并生成可编辑且立即检索的知识条目。
 
-**Why this priority**: 多种采集方式覆盖用户日常收藏的主要来源，但依赖 AI 与外部读取能力，因此排在手动录入和基础归类之后。
+**为何设置此优先级**：多种采集方式覆盖用户日常收藏的主要来源，但依赖 AI 与外部读取能力，因此排在手动录入和基础归类之后。
 
-**Independent Test**: 分别提交一个公开网页、一个支持的文档和一张包含清晰文字的截图，验证三者均可生成带来源信息的可检索知识条目。
+**独立测试**：分别提交一个公开网页、一个支持的文档和一张包含清晰文字的截图，验证三者均可生成带来源信息的可检索知识条目。
 
-**Acceptance Scenarios**:
+**验收场景**：
 
-1. **Given** 用户提交一个可访问网页链接，**When** 系统接受该导入，**Then** 系统立即创建可检索条目并显示处理状态；获得单页渲染截图后分析可见文字，自动补充摘要、分类和标签，同时保留原始链接和采集时间。
-2. **Given** 用户上传受支持的文档，**When** 系统接受该导入，**Then** 条目立即可检索，并在分析完成后自动补充提取文字、摘要、分类和标签。
-3. **Given** 用户上传包含文字的截图，**When** 系统接受该导入，**Then** 条目立即可检索，并在分析完成后自动补充识别文字、分类和标签；未检测到密钥时保留原图，检测到密钥时只保留脱敏后的派生图片，无法可靠脱敏时整次拒绝。
-4. **Given** 网页无法访问、需要登录或内容无法可靠识别，**When** 处理失败，**Then** 系统说明失败原因，不生成虚构内容，并允许用户重试或改为手动录入。
-5. **Given** 网页渲染截图能力不可用，**When** 用户仍希望收藏该网页，**Then** 系统提示用户上传页面截图，而不是改用爬虫抓取。
+1. **假设**用户提交一个可访问网页链接，**当**系统接受该导入，**则**系统立即创建可检索条目并显示处理状态；获得单页渲染截图后分析可见文字，自动补充摘要、分类和标签，同时保留原始链接和采集时间。
+2. **假设**用户上传受支持的文档，**当**系统接受该导入，**则**条目立即可检索，并在分析完成后自动补充提取文字、摘要、分类和标签。
+3. **假设**用户上传包含文字的截图，**当**系统接受该导入，**则**条目立即可检索，并在分析完成后自动补充识别文字、分类和标签；未检测到密钥时保留原图，检测到密钥时只保留脱敏后的派生图片，无法可靠脱敏时整次拒绝。
+4. **假设**网页无法访问、需要登录或内容无法可靠识别，**当**处理失败，**则**系统说明失败原因，不生成虚构内容，并允许用户重试或改为手动录入。
+5. **假设**网页渲染截图能力不可用，**当**用户仍希望收藏该网页，**则**系统提示用户上传页面截图，而不是改用爬虫抓取。
 
 ---
 
-### User Story 4 - 单框本地优先混合检索 (Priority: P4)
+### 用户故事 4 - 单框本地优先混合检索（优先级：P4）
 
 用户通过首页唯一的搜索框输入关键词，即可同时匹配标题、正文、备注、分类和标签；系统先检索个人知识库，再按需检索互联网，并可将互联网结果保存到个人知识库。
 
-**Why this priority**: 本地优先检索是产品区别于通用搜索引擎的核心体验，同时需要已有知识条目作为基础。
+**为何设置此优先级**：本地优先检索是产品区别于通用搜索引擎的核心体验，同时需要已有知识条目作为基础。
 
-**Independent Test**: 在同时存在本地与互联网候选结果的场景下，确认本地结果先显示、互联网搜索需用户主动继续，且互联网结果可以保存。
+**独立测试**：在同时存在本地与互联网候选结果的场景下，确认本地结果先显示、互联网搜索需用户主动继续，且互联网结果可以保存。
 
-**Acceptance Scenarios**:
+**验收场景**：
 
-1. **Given** 用户从首页唯一搜索框输入搜索词，**When** 搜索开始，**Then** 系统同时匹配标题、正文、备注、分类和标签，优先展示个人知识库结果，并明确区分本地与互联网来源。
-2. **Given** 本地结果已显示，**When** 用户选择继续互联网搜索，**Then** 系统展示带来源链接的互联网结果，且不自动发送个人知识库正文。
-3. **Given** 用户选择一条互联网结果，**When** 用户确认收入知识库，**Then** 系统立即创建可检索条目，包含来源链接、可见摘要、自动分类和标签，并继续在后台完成整理。
-4. **Given** 互联网搜索超时或无结果，**When** 搜索结束，**Then** 本地结果保持不变，并显示可重试的明确状态。
+1. **假设**用户从首页唯一搜索框输入搜索词，**当**搜索开始，**则**系统同时匹配标题、正文、备注、分类和标签，优先展示个人知识库结果，并明确区分本地与互联网来源。
+2. **假设**本地结果已显示，**当**用户选择继续互联网搜索，**则**系统展示带来源链接的互联网结果，且不自动发送个人知识库正文。
+3. **假设**用户选择一条互联网结果，**当**用户确认收入知识库，**则**系统立即创建可检索条目，包含来源链接、可见摘要、自动分类和标签，并继续在后台完成整理。
+4. **假设**互联网搜索超时或无结果，**当**搜索结束，**则**本地结果保持不变，并显示可重试的明确状态。
 
 ---
 
-### User Story 5 - 双语且安全的个人使用 (Priority: P5)
+### 用户故事 5 - 双语且安全的个人使用（优先级：P5）
 
 用户默认以中文使用系统，也可以切换英文界面；个人知识、外部搜索和密钥信息均受到明确保护。
 
-**Why this priority**: 双语体验可以随核心流程逐步完善，但用户知识的隐私与密钥安全是跨阶段发布门槛，必须从 P1 起满足，不能因本故事的优先级推迟。
+**为何设置此优先级**：双语体验可以随核心流程逐步完善，但用户知识的隐私与密钥安全是跨阶段发布门槛，必须从 P1 起满足，不能因本故事的优先级推迟。
 
-**Independent Test**: 切换中英文界面，并检查密钥、个人知识和外部搜索行为，确认语言与安全约束均得到满足。
+**独立测试**：切换中英文界面，并检查密钥、个人知识和外部搜索行为，确认语言与安全约束均得到满足。
 
-**Acceptance Scenarios**:
+**验收场景**：
 
-1. **Given** 系统首次打开，**When** 用户未设置语言，**Then** 系统以中文展示。
-2. **Given** 用户切换为英文，**When** 浏览核心录入、整理和搜索流程，**Then** 关键界面、错误提示和操作标签均提供完整英文表达。
-3. **Given** 用户输入的内容检测到高置信密钥，**When** 系统准备保存或发送给 AI，**Then** 系统自动移除该密钥、显示安全提示并保存其余内容；无法完整扫描的附件则整次拒绝。
-4. **Given** 用户尚未授权自动 AI 处理，**When** 用户保存手动输入的知识，**Then** 系统说明将发送的数据范围、接收服务和用途，并在用户拒绝后照常保存条目、保持可检索且标记为待分类。
-5. **Given** 用户已授权某一外部服务处理文字，**When** 用户随后上传文档或切换外部服务，**Then** 系统在新范围内再次请求授权，未获授权前不发送对应内容。
+1. **假设**系统首次打开，**当**用户未设置语言，**则**系统以中文展示。
+2. **假设**用户切换为英文，**当**浏览核心录入、整理和搜索流程，**则**关键界面、错误提示和操作标签均提供完整英文表达。
+3. **假设**用户输入的内容检测到高置信密钥，**当**系统准备保存或发送给 AI，**则**系统自动移除该密钥、显示安全提示并保存其余内容；无法完整扫描的附件则整次拒绝。
+4. **假设**用户尚未授权自动 AI 处理，**当**用户保存手动输入的知识，**则**系统说明将发送的数据范围、接收服务和用途，并在用户拒绝后照常保存条目、保持可检索且标记为待分类。
+5. **假设**用户已授权某一外部服务处理文字，**当**用户随后上传文档或切换外部服务，**则**系统在新范围内再次请求授权，未获授权前不发送对应内容。
 
 ---
 
-### Edge Cases
+### 边界情况
 
 - 网页需要登录、受访问限制、内容为空或页面结构无法稳定读取时，系统必须明确说明无法读取，不得通过爬虫或其他自动遍历方式绕过限制。
 - 同一网页在采集期间内容发生变化时，系统必须以采集快照为准，并记录采集时间。
@@ -128,142 +128,142 @@
 - 文档、截图或搜索摘要中包含针对 AI 的指令时，系统必须同样将其视为不可信资料。
 - 用户删除知识条目时，该条目必须立即从默认检索结果中消失，其用户可见来源附件和 AI 分析必须在明确告知的清除流程中一并删除。
 
-## Requirements *(mandatory)*
+## 需求 *（必需）*
 
-### Functional Requirements
+### 功能需求
 
-- **FR-001**: System MUST provide a private, single-owner knowledge workspace with authenticated access and server-side authoritative storage.
-- **FR-002**: Users MUST be able to initialize the owner account, sign in, sign out, and resume an authenticated session.
-- **FR-003**: Users MUST be able to manually create, edit, open, and delete text-based knowledge items.
-- **FR-004**: Users MUST be able to add a title, body, personal note, and source link; System MUST assign category and tags automatically.
-- **FR-005**: System MUST preserve created, updated, and source-captured timestamps for every knowledge item.
-- **FR-006**: System MUST search personal knowledge by title, body, note, category, and tags.
-- **FR-007**: System MUST rank and highlight personal results by relevance, with clear indication of why each result matched.
-- **FR-008**: System MUST always display personal knowledge results before offering internet results for the same query.
-- **FR-009**: System MUST require an explicit user action before sending a query to an internet search service.
-- **FR-010**: System MUST send only the minimum query information required for internet search and MUST NOT automatically send personal knowledge content.
-- **FR-011**: System MUST visually separate personal results from internet results and show source identity for internet results.
-- **FR-012**: Users MUST be able to save an internet result as a knowledge item with its source preserved.
-- **FR-013**: AI MUST generate a summary, category, tags, and related-item results for every successfully imported knowledge item.
-- **FR-014**: System MUST automatically apply a category and at least one tag to every successfully processed item without requiring the user to create or select tags.
-- **FR-015**: System MUST apply high-confidence classifications directly and low-confidence classifications as provisional results with a review marker; neither outcome MUST block saving or search.
-- **FR-016**: System MUST support AI-assisted import from pasted or typed text.
-- **FR-017**: System MUST support AI-assisted import from a user-provided webpage URL by analyzing rendered-page captures of visible content from that single page.
-- **FR-018**: Webpage import MUST analyze only the user-requested page and its captured views; it MUST NOT crawl, follow links, enumerate pages, or bulk-collect content.
-- **FR-019**: System MUST retain the original URL and capture timestamp for every webpage-derived knowledge item.
-- **FR-020**: When rendered-page capture is unavailable, System MUST offer screenshot upload as the fallback and MUST NOT substitute crawling or automated site traversal.
-- **FR-021**: System MUST support AI-assisted import from user-uploaded documents.
-- **FR-022**: System MUST support AI-assisted import from user-uploaded screenshots; when no secret is detected, it MUST preserve the original image, and when a secret is detected, it MUST preserve only a reliably redacted derivative or reject the submission if redaction cannot be completed.
-- **FR-023**: System MUST show processing status and allow failed imports to be retried or cancelled.
-- **FR-024**: System MUST preserve non-secret raw user input when AI processing is unavailable or unsuccessful.
-- **FR-025**: System MUST detect likely secrets such as API keys, SMTP credentials, passwords, and access tokens before persisting or transmitting content to an AI service.
-- **FR-026**: System MUST redact high-confidence detected secrets before persistence or external processing, save the remaining non-secret content, and MUST NOT expose the removed secret in user-visible content or diagnostic messages.
-- **FR-027**: System MUST obtain AI, SMTP, and other credentials only from environment variables and MUST NOT store credential values in application data.
-- **FR-028**: System MUST treat webpage content, documents, screenshots, extracted text, and search summaries as untrusted data and MUST NOT execute instructions embedded in them.
-- **FR-029**: System MUST default to Chinese and provide complete English coverage for primary workflows, errors, security notices, and destructive actions.
-- **FR-030**: System MUST keep personal knowledge private by default and MUST NOT provide public sharing or multi-user collaboration in this feature.
-- **FR-031**: System MUST allow users to identify whether a knowledge item came from manual entry, URL, document, screenshot, text, or internet search.
-- **FR-032**: System MUST provide a clear empty, loading, partial-failure, and retry state for every AI-assisted workflow.
-- **FR-033**: The home page MUST provide one prominent search box that starts a personal-first search without requiring navigation to another screen.
-- **FR-034**: Before sending manual title, body, note, pasted text, documents, screenshots, or webpage analysis inputs to an AI service, System MUST disclose the data scope, receiving service, content type, and purpose and require authorization for that service and content type.
-- **FR-035**: Users MUST be able to open a search result, read the complete saved item, and continue editing it.
-- **FR-036**: When an item is deleted, System MUST remove the item, its source attachments, and its AI analysis from active search immediately, place them in a visible recycle bin for a disclosed retention period, and then permanently delete them.
-- **FR-037**: System MUST reject webpage URLs containing embedded credentials and URLs targeting local, private, or otherwise non-public network resources.
-- **FR-038**: System MUST persist the selected interface language while preserving user content exactly as entered and MUST NOT automatically translate user knowledge when the interface changes.
-- **FR-039**: AI-generated summaries and classifications MUST use the current interface language by default unless the user chooses the original content language.
-- **FR-040**: Internet search timeout, no-result, partial-failure, and retry outcomes MUST be shown separately from personal search results.
-- **FR-041**: Internet results MUST remain transient candidates until the user confirms saving; confirmation MUST create an active knowledge item that preserves the source link and generates category and tags automatically.
-- **FR-042**: System MUST check required environment variables at startup, list only missing variable names without values, and keep non-dependent local features available.
-- **FR-043**: Secret detection MUST occur before persistence and external transmission; high-confidence secrets MUST be redacted automatically, while content or attachments that cannot be scanned completely MUST be rejected before any persistence.
-- **FR-044**: Raw credentials MUST NOT appear in source-controlled files, configuration files, documents, tests, logs, screenshots, build artifacts, or version control.
-- **FR-045**: Users MUST be able to correct, replace, or remove automatically generated categories and tags without being required to create or maintain a tag vocabulary; user-edited values MUST become locked against automatic overwrite.
-- **FR-046**: System MUST automatically normalize duplicate, synonymous, and inconsistent-generated tags into a reusable vocabulary for unlocked or provisional values, but MUST only propose merges or renames for user-locked item fields.
-- **FR-047**: The knowledge search interface MUST provide exactly one text input and MUST query title, body, note, category, and tags together.
-- **FR-048**: Users MUST NOT need to choose a separate title, content, category, or tag search mode to find matching knowledge.
-- **FR-049**: Items awaiting automatic classification MUST remain searchable and MUST be retried automatically when classification becomes available.
-- **FR-050**: A user MUST be able to grant persistent automatic-processing authorization for a specific external service and content type, revoke it at any time, and later authorize classification for individual pending items.
-- **FR-051**: Declining AI processing MUST NOT prevent manual saving, opening, editing, deleting, or searching a knowledge item.
-- **FR-052**: The authoritative knowledge, attachment, analysis, and search-index data MUST reside in the private server-side store under the single owner account; deletion and backup retention MUST follow the disclosed recycle-bin and expiry policy.
-- **FR-053**: Automatically redacted content MUST remain usable as a knowledge item, and the system MUST show a safe notice that redaction occurred without revealing the removed value.
-- **FR-054**: If the system cannot complete secret scanning for any submitted content or attachment, it MUST reject the entire submission and MUST NOT persist the unscanned original.
-- **FR-055**: System MUST require a new authorization when the external service changes or when a different content type is submitted.
-- **FR-056**: System MUST require a new authorization when previously authorized content is edited and the user requests re-analysis.
-- **FR-057**: Revoking an authorization MUST stop future transmissions for that scope while preserving already saved knowledge and its current classifications.
-- **FR-058**: Manual entries and accepted AI imports MUST create an active, searchable knowledge item immediately, even while classification or extraction is still pending.
-- **FR-059**: Processing, extraction, classification, and failure states MUST be stored as knowledge-item attributes and MUST NOT prevent access to already available title, body, note, or source content.
-- **FR-060**: Internet search results MUST remain transient candidates until the user confirms saving; confirmation MUST immediately create an active, searchable knowledge item with automatic classification pending or applied.
-- **FR-061**: Automatic analysis, retry, and tag normalization MUST update only unlocked or provisional classification fields and MUST NOT overwrite user-locked categories or tags.
-- **FR-062**: Category and tag locks MUST apply to the specific fields of a knowledge item, not to shared vocabulary entries; changing one item MUST NOT silently lock or alter the same category or tag on other items.
+- **FR-001**：系统必须提供私有、单一所有者的知识工作区，具有经过身份验证的访问和服务端权威存储。
+- **FR-002**：用户必须能够初始化所有者账户、登录、退出并恢复已认证会话。
+- **FR-003**：用户必须能够手动创建、编辑、打开和删除基于文字的知识条目。
+- **FR-004**：用户必须能够添加标题、正文、个人备注和来源链接；系统必须自动分配分类和标签。
+- **FR-005**：系统必须为每个知识条目保留创建、更新和来源采集时间戳。
+- **FR-006**：系统必须按标题、正文、备注、分类和标签检索个人知识。
+- **FR-007**：系统必须按相关度对个人结果进行排序和突出显示，并明确说明每个结果匹配的原因。
+- **FR-008**：对于同一查询，系统必须始终先显示个人知识结果，再提供互联网结果。
+- **FR-009**：在将查询发送给互联网搜索服务前，系统必须要求用户明确执行操作。
+- **FR-010**：系统只能发送互联网搜索所需的最小查询信息，且不得自动发送个人知识内容。
+- **FR-011**：系统必须在视觉上区分个人结果与互联网结果，并显示互联网结果的来源标识。
+- **FR-012**：用户必须能够将互联网结果保存为知识条目，并保留其来源。
+- **FR-013**：对于每个成功导入的知识条目，AI 必须生成摘要、分类、标签和相关条目结果。
+- **FR-014**：系统必须自动为每个成功处理的条目应用分类和至少一个标签，无需用户创建或选择标签。
+- **FR-015**：系统必须直接应用高置信度分类，并将低置信度分类应用为带复核标记的暂定结果；两种结果均不得阻塞保存或检索。
+- **FR-016**：系统必须支持从粘贴或输入的文字进行 AI 辅助导入。
+- **FR-017**：系统必须支持从用户提供的网页 URL 进行 AI 辅助导入，方法是分析该单页渲染截图中可见的内容。
+- **FR-018**：网页导入只能分析用户请求的页面及其采集视图；不得爬取、跟随链接、枚举页面或批量收集内容。
+- **FR-019**：对于每个由网页生成的知识条目，系统必须保留原始 URL 和采集时间戳。
+- **FR-020**：当渲染页面截图能力不可用时，系统必须提供截图上传作为后备方案，且不得改用爬虫或自动化站点遍历。
+- **FR-021**：系统必须支持从用户上传的文档进行 AI 辅助导入。
+- **FR-022**：系统必须支持从用户上传的截图进行 AI 辅助导入；未检测到密钥时，必须保留原始图片；检测到密钥时，只能保留可靠脱敏后的派生图片；无法完成脱敏时，必须拒绝该提交。
+- **FR-023**：系统必须显示处理状态，并允许重试或取消失败的导入。
+- **FR-024**：当 AI 处理不可用或未成功时，系统必须保留非密钥类的原始用户输入。
+- **FR-025**：系统必须在持久化内容或将内容传输给 AI 服务前，检测可能的密钥，例如 API 密钥、SMTP 凭据、密码和访问令牌。
+- **FR-026**：系统必须在持久化或外部处理前脱敏高置信度检测到的密钥，保存其余非密钥内容，且不得在用户可见内容或诊断消息中暴露已移除的密钥。
+- **FR-027**：系统只能从环境变量获取 AI、SMTP 和其他凭据，且不得在应用数据中存储凭据值。
+- **FR-028**：系统必须将网页内容、文档、截图、提取文本和搜索摘要视为不可信数据，且不得执行其中嵌入的指令。
+- **FR-029**：系统必须默认使用中文，并为主要工作流、错误、安全通知和破坏性操作提供完整的英文覆盖。
+- **FR-030**：系统必须默认保持个人知识隐私，且本功能不得提供公开分享或多用户协作。
+- **FR-031**：系统必须允许用户识别知识条目来自手动录入、URL、文档、截图、文字还是互联网搜索。
+- **FR-032**：对于每个 AI 辅助工作流，系统必须提供清晰的空状态、加载中状态、部分失败状态和重试状态。
+- **FR-033**：首页必须提供一个醒目的搜索框，用户无需导航到其他界面即可启动个人知识优先的搜索。
+- **FR-034**：在将手动输入的标题、正文、备注、粘贴文字、文档、截图或网页分析输入发送给 AI 服务前，系统必须披露数据范围、接收服务、内容类型和用途，并针对该服务和内容类型请求授权。
+- **FR-035**：用户必须能够打开搜索结果、阅读完整保存条目并继续编辑。
+- **FR-036**：删除条目时，系统必须立即将其条目、来源附件和 AI 分析从活动检索中移除，放入可见回收站并保留已披露的期限，之后永久删除。
+- **FR-037**：系统必须拒绝包含内嵌凭据的网页 URL，以及指向本机、私网或其他非公开网络资源的 URL。
+- **FR-038**：系统必须持久保存所选界面语言，同时完全保留用户输入的内容；界面语言变化时，不得自动翻译用户知识。
+- **FR-039**：AI 生成的摘要和分类必须默认使用当前界面语言，除非用户选择原内容语言。
+- **FR-040**：互联网搜索的超时、无结果、部分失败和重试结果必须与个人搜索结果分开显示。
+- **FR-041**：互联网结果必须保持为临时候选，直到用户确认保存；确认后必须创建一个活动知识条目，保留来源链接并自动生成分类和标签。
+- **FR-042**：系统必须在启动时检查必需的环境变量，只列出缺失的变量名而不显示其值，并保持不依赖这些变量的本地功能可用。
+- **FR-043**：密钥检测必须发生在持久化和外部传输之前；高置信度密钥必须自动脱敏，而无法完整扫描的内容或附件必须在任何持久化之前被拒绝。
+- **FR-044**：原始凭据不得出现在源代码受控文件、配置文件、文档、测试、日志、截图、构建产物或版本控制中。
+- **FR-045**：用户必须能够纠正、替换或移除自动生成的分类和标签，且无需创建或维护标签词表；用户编辑的值必须锁定，防止被自动覆盖。
+- **FR-046**：系统必须自动将重复、同义和生成不一致的标签规范化为可复用的词表，但只对未锁定或暂定值执行；对于用户锁定的条目字段，只能提出合并或重命名建议。
+- **FR-047**：知识检索界面必须恰好提供一个文本输入框，并同时查询标题、正文、备注、分类和标签。
+- **FR-048**：用户无需选择单独的标题、内容、分类或标签搜索模式，即可找到匹配的知识。
+- **FR-049**：等待自动分类的条目必须保持可检索，并在分类能力可用时自动重试。
+- **FR-050**：用户必须能够针对特定的外部服务和内容类型授予持久的自动处理授权，随时撤销，并在之后为单个待处理条目授权分类。
+- **FR-051**：拒绝 AI 处理不得阻止用户手动保存、打开、编辑、删除或检索知识条目。
+- **FR-052**：权威的知识、附件、分析和检索索引数据必须位于单一所有者账户下的私有服务端存储中；删除和备份保留必须遵循已披露的回收站与到期策略。
+- **FR-053**：自动脱敏后的内容必须仍可作为知识条目使用，系统必须显示已发生脱敏的安全通知，且不得透露被移除的值。
+- **FR-054**：如果系统无法对任何提交内容或附件完成密钥扫描，必须拒绝整个提交，且不得持久化未扫描的原始内容。
+- **FR-055**：当外部服务发生变化或提交不同内容类型时，系统必须要求重新授权。
+- **FR-056**：当先前已授权的内容被编辑且用户请求重新分析时，系统必须要求重新授权。
+- **FR-057**：撤销授权必须停止该范围内未来的传输，同时保留已保存的知识及其当前分类。
+- **FR-058**：手动录入和已接受的 AI 导入必须立即创建活动且可检索的知识条目，即使分类或提取仍处于待处理状态。
+- **FR-059**：处理、提取、分类和失败状态必须作为知识条目属性存储，且不得阻止访问已可用的标题、正文、备注或来源内容。
+- **FR-060**：互联网搜索结果必须保持为临时候选，直到用户确认保存；确认后必须立即创建活动且可检索的知识条目，其自动分类可处于待处理或已应用状态。
+- **FR-061**：自动分析、重试和标签规范化只能更新未锁定或暂定的分类字段，且不得覆盖用户锁定的分类或标签。
+- **FR-062**：分类和标签锁定必须作用于知识条目的特定字段，而不是共享词表条目；更改一个条目不得静默锁定或更改其他条目中的同一分类或标签。
 
-### Key Entities
+### 关键实体
 
-- **Knowledge Item**: A saved unit of knowledge with title, body, note, category and tag assignments, source, timestamps, processing status, and active-or-recycled lifecycle state.
-- **Source**: The origin of an item, including manual entry, webpage, uploaded document, screenshot, pasted text, or internet search result.
-- **Capture Task**: A user-initiated import operation with source input, progress state, result, and retry information.
-- **AI Analysis**: Automatically generated summary, category, tags, confidence, related items, review state, and user corrections.
-- **Category**: A shared user-visible organizational group generated automatically and reusable across knowledge items; item-specific corrections and lock state belong to Classification Assignment.
-- **Tag**: A shared normalized descriptive label generated automatically and reusable across knowledge items; item-specific corrections and lock state belong to Classification Assignment.
-- **Classification Assignment**: An item-specific association to a category or tag with confidence, locked-or-provisional state, source, and correction history.
-- **AI Processing Authorization**: A per-service and per-content-type permission record with grant, revocation, and scope history.
-- **Internet Search Result**: A transient external search candidate that is not part of the knowledge library until the owner confirms saving.
-- **Search Session**: One user query with personal results, optional internet results, source separation, and save actions.
-- **Owner Account**: The single private user who owns all knowledge, sources, and settings in this feature.
+- **知识条目**：已保存的知识单元，包含标题、正文、备注、分类与标签分配、来源、时间戳、处理状态以及活动或回收站生命周期状态。
+- **来源**：条目的出处，包括手动录入、网页、上传文档、截图、粘贴文字或互联网搜索结果。
+- **采集任务**：由用户发起的导入操作，包含来源输入、进度状态、结果和重试信息。
+- **AI 分析**：自动生成的摘要、分类、标签、置信度、相关条目、复核状态和用户更正。
+- **分类**：由系统自动生成、用户可见且可跨知识条目复用的组织分组；条目特定的更正和锁定状态属于分类分配。
+- **标签**：由系统自动生成、规范化且可跨知识条目复用的描述性标签；条目特定的更正和锁定状态属于分类分配。
+- **分类分配**：条目与分类或标签之间的特定关联，包含置信度、锁定或暂定状态、来源和更正历史。
+- **AI 处理授权**：按服务和内容类型记录的权限，包含授予、撤销和范围历史。
+- **互联网搜索结果**：临时外部搜索候选，在所有者确认保存前不属于知识库。
+- **搜索会话**：一次用户查询，包含个人结果、可选的互联网结果、来源区分和保存操作。
+- **所有者账户**：拥有本功能中全部知识、来源和设置的单一私有用户。
 
-## Success Criteria *(mandatory)*
+## 成功标准 *（必需）*
 
-### Measurable Outcomes
+### 可衡量结果
 
-- **SC-001**: In a facilitated test with 10 first-time users, at least 9 save a manual knowledge item in under 60 seconds.
-- **SC-002**: In a benchmark library of 100,000 items and a documented reference environment, at least 95% of test queries show a first page of at least 20 personal results within 2 seconds, measured from search submission to visible result rendering.
-- **SC-003**: At least 85% of a 100-item benchmark receives an accepted, lightly edited, or correctly auto-applied classification.
-- **SC-004**: At least 90% of supported text, document, and screenshot benchmark imports produce a searchable knowledge item containing a non-empty title, summary, category, and at least one tag within 2 minutes.
-- **SC-005**: 100% of tested webpage imports preserve the requested source URL and do not follow additional links.
-- **SC-006**: 100% of tested searches display personal results before internet results.
-- **SC-007**: 100% of tested secret-handling scenarios prevent raw credentials from appearing in source-controlled files, configuration, documents, tests, logs, screenshots, build artifacts, saved knowledge, user-visible output, or diagnostic messages.
-- **SC-008**: 100% of primary workflows and required error states render complete, understandable Chinese and English interface text.
-- **SC-009**: In a facilitated test with 10 users, at least 9 distinguish personal results from internet results without additional explanation.
-- **SC-010**: 100% of successfully imported benchmark items receive a category and at least one tag automatically, or enter a provisional classification state, within 2 minutes and without manual tag creation.
-- **SC-011**: 100% of benchmark queries targeting title, body, note, category, or tag return the expected item through the single search input without changing search mode.
-- **SC-012**: 100% of tested cases where automatic AI processing is declined still save the item, keep it searchable, and mark it as awaiting classification.
-- **SC-013**: 100% of deleted test items disappear from active search immediately, remain recoverable during the disclosed recycle-bin period, and are permanently removed after that period and applicable backup expiry.
-- **SC-014**: 100% of tested high-confidence secret cases remove the raw secret while preserving non-secret content, and 100% of unscannable attachment cases are rejected without persistence.
-- **SC-015**: 100% of tested AI transmissions occur only within an active authorization matching both the external service and content type, and revoking a scope produces no further transmission for that scope.
-- **SC-016**: 100% of accepted manual and AI imports are searchable immediately after acceptance, while their processing status may remain pending or failed.
-- **SC-017**: 100% of tested re-analysis and normalization runs preserve user-locked categories and tags while updating only unlocked or provisional values.
+- **SC-001**：在包含 10 名首次使用用户的引导测试中，至少 9 人能在 60 秒内保存一条手动知识条目。
+- **SC-002**：在有记录的参考环境中，对包含 100,000 个条目的基准知识库进行测试时，至少 95% 的测试查询能在 2 秒内显示至少 20 条个人结果的第一页，计时从提交搜索开始，到结果可见渲染结束。
+- **SC-003**：在 100 个条目的基准集中，至少 85% 能获得被接受、轻度编辑后接受或正确自动应用的分类。
+- **SC-004**：至少 90% 的受支持文字、文档和截图基准导入能在 2 分钟内生成可检索知识条目，且包含非空标题、摘要、分类和至少一个标签。
+- **SC-005**：100% 的受测网页导入保留所请求的来源 URL，且不跟随其他链接。
+- **SC-006**：100% 的受测搜索先显示个人结果，再显示互联网结果。
+- **SC-007**：100% 的受测密钥处理场景都能防止原始凭据出现在源代码受控文件、配置、文档、测试、日志、截图、构建产物、已保存知识、用户可见输出或诊断消息中。
+- **SC-008**：100% 的主要工作流和必需错误状态都能呈现完整且易于理解的中文和英文界面文本。
+- **SC-009**：在包含 10 名用户的引导测试中，至少 9 人无需额外说明即可区分个人结果与互联网结果。
+- **SC-010**：100% 的成功导入基准条目都能在 2 分钟内自动获得分类和至少一个标签，或进入暂定分类状态，且无需手动创建标签。
+- **SC-011**：100% 的基准查询都能通过单一搜索输入返回预期条目，查询目标包括标题、正文、备注、分类或标签，且无需更改搜索模式。
+- **SC-012**：100% 的受测拒绝自动 AI 处理场景仍能保存条目、保持其可检索并标记为等待分类。
+- **SC-013**：100% 的受测已删除条目都会立即从活动检索中消失，在已披露的回收站期限内可恢复，并在该期限及适用的备份到期后永久移除。
+- **SC-014**：100% 的受测高置信度密钥场景都会移除原始密钥并保留非密钥内容，100% 的无法扫描附件场景都会被拒绝且不进行持久化。
+- **SC-015**：100% 的受测 AI 传输都仅发生在同时匹配外部服务和内容类型的有效授权范围内，撤销某个范围后不得再为该范围进行任何传输。
+- **SC-016**：100% 的已接受手动导入和 AI 导入在接受后立即可检索，其处理状态可仍为待处理或失败。
+- **SC-017**：100% 的受测重新分析和规范化运行都会保留用户锁定的分类和标签，只更新未锁定或暂定值。
 
-## Assumptions
+## 假设
 
-- The first release serves one private owner through an authenticated website. The private server-side store is authoritative for knowledge, attachments, AI analysis, and search indexes; the same owner account may access the service across devices.
-- Deleted knowledge enters a visible recycle bin with a planned retention period, then becomes permanently deleted. Backups follow a documented expiry schedule and are not used to restore data after the disclosed deletion window.
-- “Local-first search” means personal knowledge results are ordered before internet results; it does not by itself require that all data be stored only on the user's device.
-- The owner has stable internet access when using AI-assisted import or internet search.
-- Initial document support includes common text, PDF, and word-processing formats; initial image support includes common screenshot formats.
-- The exact supported file size and retention limits are planning decisions and must be visible to users before upload.
-- Internet search and webpage reading use a user-approved external service. The user has named DeepSeek Search and Fetch as the intended capability, while provider selection and integration details are deferred to planning.
-- A webpage import is limited to the single page explicitly provided by the user; rendered capture may include multiple user-requested views of that page, but no crawling or automatic link discovery is allowed.
-- A high-confidence threshold controls automatic classification; its numeric value is a planning decision and must be evaluated against a benchmark before release.
-- Low-confidence results are still applied automatically as provisional classifications; user review is optional and never blocks saving or search.
-- Categories and tags are system-managed and user-correctable; manual tag creation and taxonomy administration are not required.
-- AI processing authorization is scoped by external service and content type; same-scope saves may proceed automatically, while scope changes or re-analysis after edits require confirmation.
-- Manual and AI imports are active knowledge items from acceptance, with processing state represented as an attribute; internet search candidates become knowledge items only after owner confirmation.
-- User-edited categories and tags are authoritative and locked; future AI analysis fills only unlocked fields, and normalization may propose but not apply changes to locked values.
-- Category and tag locks are item-field scoped; shared vocabulary normalization never changes a locked field without an accepted suggestion.
-- Large-library search is validated at 100,000 knowledge items before release, while indexing and retrieval architecture remain planning decisions.
-- The planning phase must define the reproducible search benchmark, including query set and distribution, cold/warm cache conditions, reference environment, and concurrency.
-- The planning phase must define a benchmark sample and pass threshold for duplicate and synonymous tag normalization.
-- Credentials are supplied only through environment variables and are never stored inside knowledge content.
-- Knowledge export, mobile applications, browser extensions, public APIs, and automatic scheduled internet ingestion are outside the first feature scope.
-- Search history is not persisted by default; only saved knowledge items and their source records are retained.
-- User knowledge is not automatically translated when the interface language changes.
+- 首个版本通过经过身份验证的网站服务一个私有所有者。私有服务端存储是知识、附件、AI 分析和检索索引的权威来源；同一所有者账户可以跨设备访问该服务。
+- 已删除知识进入可见回收站并保留计划期限，之后永久删除。备份遵循有记录的到期计划，且不在已披露的删除窗口结束后用于恢复数据。
+- “本地优先搜索”是指个人知识结果排在互联网结果之前；其本身不要求所有数据只存储在用户设备上。
+- 所有者在使用 AI 辅助导入或互联网搜索时具有稳定的互联网连接。
+- 初始文档支持包括常见文本、PDF 和文字处理格式；初始图片支持包括常见截图格式。
+- 确切支持的文件大小和保留限制属于计划决策，且必须在用户上传前可见。
+- 互联网搜索和网页读取使用经用户批准的外部服务。用户已指定 DeepSeek Search 和 Fetch 作为预期能力，但提供商选择和集成细节推迟到计划阶段。
+- 网页导入仅限于用户明确提供的单个页面；渲染截图可以包含该页面的多个用户请求视图，但不允许爬取或自动发现链接。
+- 高置信度阈值控制自动分类；其数值属于计划决策，且必须在发布前通过基准测试评估。
+- 低置信度结果仍会自动应用为暂定分类；用户复核是可选的，且绝不阻塞保存或检索。
+- 分类和标签由系统管理且可由用户更正；不要求手动创建标签或管理分类体系。
+- AI 处理授权按外部服务和内容类型划分；同范围保存可以自动继续，而范围变化或编辑后重新分析需要确认。
+- 手动导入和 AI 导入从接受时起就是活动知识条目，处理状态作为属性表示；互联网搜索候选只有在所有者确认后才成为知识条目。
+- 用户编辑的分类和标签具有权威性并被锁定；后续 AI 分析只填充未锁定字段，规范化可以提出建议，但不得更改锁定值。
+- 分类和标签锁定按条目的字段划分；共享词表规范化绝不能在没有接受建议的情况下更改锁定字段。
+- 大型知识库检索必须在发布前以 100,000 个知识条目进行验证，索引和检索架构仍属于计划决策。
+- 计划阶段必须定义可复现的搜索基准，包括查询集及分布、冷缓存或热缓存条件、参考环境和并发情况。
+- 计划阶段必须定义用于重复标签和同义标签规范化的基准样本及通过阈值。
+- 凭据只能通过环境变量提供，且绝不存储在知识内容中。
+- 知识导出、移动应用、浏览器扩展、公开 API 和自动定时互联网采集不在首个功能范围内。
+- 默认不持久保存搜索历史；只保留已保存的知识条目及其来源记录。
+- 界面语言变化时，不自动翻译用户知识。
 
-## Out of Scope (v1)
+## 范围外（v1）
 
-- Web crawling, site mirroring, bulk page capture, and automatic link traversal.
-- Multi-user workspaces, public sharing, comments, and collaborative editing.
-- Native mobile applications and browser extensions.
-- Automatic continuous monitoring of external sites or sources.
-- Payment, subscription, and billing workflows.
-- SMTP-based notifications, unless a future notification feature is separately specified.
-- Conversational question answering over the personal knowledge base.
-- Manual tag-taxonomy creation and administration workflows.
-- Separate title, content, tag, or category search modes and advanced multi-field filter forms.
+- 网页爬取、站点镜像、批量页面采集和自动链接遍历。
+- 多用户工作区、公开分享、评论和协作编辑。
+- 原生移动应用和浏览器扩展。
+- 对外部站点或来源进行自动持续监控。
+- 支付、订阅和计费工作流。
+- 基于 SMTP 的通知，除非未来另行指定通知功能。
+- 基于个人知识库的对话式问答。
+- 手动创建和管理标签分类体系的工作流。
+- 单独的标题、内容、标签或分类搜索模式，以及高级多字段筛选表单。

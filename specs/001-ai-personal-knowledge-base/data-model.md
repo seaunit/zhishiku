@@ -1,541 +1,536 @@
-# Phase 1 Data Model: AI 个人知识库
+# 阶段 1 数据模型：AI 个人知识库
 
-**Feature**: `001-ai-personal-knowledge-base`
+**特性**：`001-ai-personal-knowledge-base`
 
-**Date**: 2026-10-21
+**日期**：2026-10-21
 
-**Database**: PostgreSQL 18
+**数据库**：PostgreSQL 18
 
-## Conventions
+## 约定
 
-- Primary keys are UUIDs generated server-side.
-- Timestamps use `timestamptz` and are stored in UTC.
-- All mutable business rows carry `version integer NOT NULL DEFAULT 1` for optimistic
-  concurrency unless the row is append-only.
-- `owner_id` is retained on owner-scoped data for explicit access checks, but the product is
-  constrained to one owner.
-- Enum values are implemented as PostgreSQL enums or checked text columns. State transitions
-  are enforced in the domain layer and tested at the database boundary.
-- JSONB stores only validated, schema-versioned projections. Raw provider responses, raw
-  secrets, and unbounded extracted content are not stored.
+- 主键为服务端生成的 UUID。
+- 时间戳使用 `timestamptz`，并以 UTC 存储。
+- 除仅追加的行外，所有可变业务行都包含 `version integer NOT NULL DEFAULT 1`，用于乐观
+  并发控制。
+- `owner_id` 保留在按所有者隔离的数据中，以便执行显式访问检查，但产品限定为单一所有者。
+- 枚举值由 PostgreSQL 枚举或带检查约束的文本列实现。状态转换在领域层强制执行，并在
+  数据库边界进行测试。
+- JSONB 仅存储经过验证且带模式版本的投影。不存储原始提供商响应、原始密钥或无界提取
+  内容。
 
-## Relationship Overview
+## 关系概览
 
 ```mermaid
 erDiagram
-  OWNER_ACCOUNT ||--o{ AUTH_SESSION : owns
-  OWNER_ACCOUNT ||--o{ KNOWLEDGE_ITEM : owns
-  OWNER_ACCOUNT ||--o{ AI_PROCESSING_AUTHORIZATION : grants
-  KNOWLEDGE_ITEM ||--|| SOURCE : has
-  KNOWLEDGE_ITEM ||--o{ ATTACHMENT : contains
-  KNOWLEDGE_ITEM ||--o{ CAPTURE_JOB : starts
-  KNOWLEDGE_ITEM ||--o{ PROCESSING_JOB : processes
-  KNOWLEDGE_ITEM ||--o{ AI_ANALYSIS : receives
-  KNOWLEDGE_ITEM ||--o| CATEGORY_ASSIGNMENT : current_category
-  KNOWLEDGE_ITEM ||--o{ TAG_ASSIGNMENT : current_tags
-  CATEGORY ||--o{ CATEGORY_ASSIGNMENT : classifies
-  TAG ||--o{ TAG_ASSIGNMENT : labels
-  AI_ANALYSIS ||--o{ CATEGORY_ASSIGNMENT : suggests
-  AI_ANALYSIS ||--o{ TAG_ASSIGNMENT : suggests
-  TAG_ASSIGNMENT ||--o{ TAG_MERGE_SUGGESTION : receives
-  OWNER_ACCOUNT ||--o{ EXTERNAL_SEARCH_CANDIDATE : sees
-  OWNER_ACCOUNT ||--o{ AUDIT_EVENT : acts
+  OWNER_ACCOUNT ||--o{ AUTH_SESSION : 拥有
+  OWNER_ACCOUNT ||--o{ KNOWLEDGE_ITEM : 拥有
+  OWNER_ACCOUNT ||--o{ AI_PROCESSING_AUTHORIZATION : 授予
+  KNOWLEDGE_ITEM ||--|| SOURCE : 具有
+  KNOWLEDGE_ITEM ||--o{ ATTACHMENT : 包含
+  KNOWLEDGE_ITEM ||--o{ CAPTURE_JOB : 发起
+  KNOWLEDGE_ITEM ||--o{ PROCESSING_JOB : 处理
+  KNOWLEDGE_ITEM ||--o{ AI_ANALYSIS : 接收
+  KNOWLEDGE_ITEM ||--o| CATEGORY_ASSIGNMENT : 当前分类
+  KNOWLEDGE_ITEM ||--o{ TAG_ASSIGNMENT : 当前标签
+  CATEGORY ||--o{ CATEGORY_ASSIGNMENT : 分类
+  TAG ||--o{ TAG_ASSIGNMENT : 标记
+  AI_ANALYSIS ||--o{ CATEGORY_ASSIGNMENT : 建议
+  AI_ANALYSIS ||--o{ TAG_ASSIGNMENT : 建议
+  TAG_ASSIGNMENT ||--o{ TAG_MERGE_SUGGESTION : 接收
+  OWNER_ACCOUNT ||--o{ EXTERNAL_SEARCH_CANDIDATE : 查看
+  OWNER_ACCOUNT ||--o{ AUDIT_EVENT : 执行
 ```
 
-## Entity: Owner Account
+## 实体：所有者账户
 
-**Purpose**: Represents the sole private owner.
+**用途**：表示唯一的私有所有者。
 
-**Implementation note**: Use Better Auth's Drizzle schema and extend its user record with
-`instance_key`, `locale`, and application profile fields. Session and credential tables remain
-owned by Better Auth but must use hashed tokens and database sessions.
+**实现说明**：使用 Better Auth 的 Drizzle 模式，并通过 `instance_key`、`locale` 和应用配置
+字段扩展其用户记录。会话表和凭据表仍由 Better Auth 管理，但必须使用哈希令牌和数据库会话。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `instance_key` | smallint | Fixed value `1`; unique |
-| `email_normalized` | citext | Unique, required, normalized |
-| `locale` | text | `zh-CN` or `en`; default `zh-CN` |
-| `created_at` | timestamptz | Required |
-| `updated_at` | timestamptz | Required |
-| `version` | integer | Optimistic concurrency |
+| `id` | uuid | 主键 |
+| `instance_key` | smallint | 固定值 `1`；唯一 |
+| `email_normalized` | citext | 唯一、必填、已规范化 |
+| `locale` | text | `zh-CN` 或 `en`；默认 `zh-CN` |
+| `created_at` | timestamptz | 必填 |
+| `updated_at` | timestamptz | 必填 |
+| `version` | integer | 乐观并发控制 |
 
-**Constraints**:
+**约束**：
 
-- `UNIQUE(instance_key)` prevents a second owner.
-- `UNIQUE(email_normalized)` prevents duplicate identities.
-- Public registration is disabled after bootstrap.
+- `UNIQUE(instance_key)` 防止创建第二个所有者。
+- `UNIQUE(email_normalized)` 防止出现重复身份。
+- 引导初始化完成后禁用公开注册。
 
-## Entity: Authentication Session
+## 实体：认证会话
 
-**Purpose**: Represents an authenticated browser session.
+**用途**：表示已认证的浏览器会话。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `owner_id` | uuid | FK to owner, `ON DELETE CASCADE` |
-| `token_hash` | text | Unique; never store the raw session token |
-| `created_at` | timestamptz | Required |
-| `last_seen_at` | timestamptz | Updated with throttling |
-| `expires_at` | timestamptz | Required |
-| `revoked_at` | timestamptz | Nullable |
+| `id` | uuid | 主键 |
+| `owner_id` | uuid | 指向所有者的外键，`ON DELETE CASCADE` |
+| `token_hash` | text | 唯一；绝不存储原始会话令牌 |
+| `created_at` | timestamptz | 必填 |
+| `last_seen_at` | timestamptz | 限流更新 |
+| `expires_at` | timestamptz | 必填 |
+| `revoked_at` | timestamptz | 可为空 |
 
-**Indexes**:
+**索引**：
 
 - `UNIQUE(token_hash)`
 - `(owner_id, expires_at) WHERE revoked_at IS NULL`
 
-## Entity: Knowledge Item
+## 实体：知识条目
 
-**Purpose**: The primary searchable unit.
+**用途**：主要可搜索单元。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `owner_id` | uuid | FK to owner, `ON DELETE RESTRICT` |
-| `title` | text | Required, trimmed, 1–300 characters |
-| `body` | text | Redacted text; may be empty during extraction |
-| `note` | text | User-authored, redacted text |
-| `processing_status` | enum | See processing state |
-| `processing_error_code` | text | Safe code only |
-| `tags_locked` | boolean | Default false; supports locking an intentionally empty tag set |
-| `redaction_applied` | boolean | Default false |
-| `redaction_count` | integer | Non-negative; counts redacted regions, not values |
-| `lifecycle_state` | enum | `active`, `recycled`, `purging` |
-| `deleted_at` | timestamptz | Required when recycled or purging |
-| `purge_after` | timestamptz | Required when recycled or purging |
-| `search_revision` | integer | Incremented when searchable fields change |
-| `indexed_revision` | integer | Last Meilisearch revision acknowledged |
-| `created_at` | timestamptz | Required |
-| `updated_at` | timestamptz | Required |
-| `version` | integer | Optimistic concurrency |
+| `id` | uuid | 主键 |
+| `owner_id` | uuid | 指向所有者的外键，`ON DELETE RESTRICT` |
+| `title` | text | 必填、去除首尾空白，长度 1–300 个字符 |
+| `body` | text | 已脱敏文本；提取期间可以为空 |
+| `note` | text | 用户编写并已脱敏的文本 |
+| `processing_status` | enum | 参见处理状态 |
+| `processing_error_code` | text | 仅允许安全代码 |
+| `tags_locked` | boolean | 默认 false；支持锁定有意为空的标签集 |
+| `redaction_applied` | boolean | 默认 false |
+| `redaction_count` | integer | 非负数；统计已脱敏区域的数量，而不是值的数量 |
+| `lifecycle_state` | enum | `active`、`recycled`、`purging` |
+| `deleted_at` | timestamptz | 处于 recycled 或 purging 时必填 |
+| `purge_after` | timestamptz | 处于 recycled 或 purging 时必填 |
+| `search_revision` | integer | 可搜索字段变更时递增 |
+| `indexed_revision` | integer | 最近一次确认的 Meilisearch 修订版本 |
+| `created_at` | timestamptz | 必填 |
+| `updated_at` | timestamptz | 必填 |
+| `version` | integer | 乐观并发控制 |
 
-**Searchable projection fields**:
+**可搜索投影字段**：
 
 - `title`
 - `body`
 - `note`
-- current category display name
-- current tag display names
-- generated summary
+- 当前分类显示名称
+- 当前标签显示名称
+- 生成的摘要
 
-`processing_status` never filters the default search. An item with pending, provisional, or
-failed processing remains searchable while active.
+`processing_status` 从不作为默认搜索的过滤条件。只要条目处于 active 状态，即使处理正在
+等待、暂定或已失败，仍然可被搜索。
 
-## Entity: Source
+## 实体：来源
 
-**Purpose**: Describes where the knowledge came from.
+**用途**：描述知识的来源。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `item_id` | uuid | FK to item, `ON DELETE CASCADE`; unique for V1 |
-| `kind` | enum | `manual`, `pasted_text`, `webpage`, `document`, `screenshot`, `internet_search` |
-| `url_sanitized` | text | Nullable; fragment removed; must pass URL safety checks |
-| `url_host` | text | Nullable; normalized host |
-| `url_sha256` | char(64) | Nullable; used for duplicate hints, not raw-token search |
-| `provider` | text | Nullable; for example `deepseek-search` |
-| `external_result_id` | text | Nullable; provider result reference |
-| `captured_at` | timestamptz | Required for external sources |
-| `created_at` | timestamptz | Required |
+| `id` | uuid | 主键 |
+| `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE`；V1 中唯一 |
+| `kind` | enum | `manual`、`pasted_text`、`webpage`、`document`、`screenshot`、`internet_search` |
+| `url_sanitized` | text | 可为空；已移除片段标识；必须通过 URL 安全检查 |
+| `url_host` | text | 可为空；已规范化主机名 |
+| `url_sha256` | char(64) | 可为空；用于重复提示，不用于原始令牌搜索 |
+| `provider` | text | 可为空；例如 `deepseek-search` |
+| `external_result_id` | text | 可为空；提供商结果引用 |
+| `captured_at` | timestamptz | 外部来源必填 |
+| `created_at` | timestamptz | 必填 |
 
-**Constraints**:
+**约束**：
 
-- `UNIQUE(item_id)` for V1 because each item has one primary source.
-- Reject URLs with embedded credentials or non-public targets before insert.
-- Do not store cookies, authorization headers, or full provider responses.
+- V1 中使用 `UNIQUE(item_id)`，因为每个条目只有一个主要来源。
+- 插入前拒绝包含内嵌凭据或指向非公开目标的 URL。
+- 不存储 Cookie、`Authorization` 请求头或完整提供商响应。
 
-## Entity: Attachment
+## 实体：附件
 
-**Purpose**: Stores an object-store file and its safety state.
+**用途**：存储对象存储中的文件及其安全状态。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `item_id` | uuid | FK to item, `ON DELETE CASCADE` |
-| `source_id` | uuid | FK to source, nullable, `ON DELETE SET NULL` |
-| `kind` | enum | `document`, `image`, `screenshot`, `derived_redacted_image` |
-| `storage_key` | text | Unique, non-guessable S3 key |
-| `filename_display` | text | Sanitized display name; not used in logs |
-| `media_type` | text | Detected MIME, not extension-only |
-| `size_bytes` | bigint | Non-negative |
-| `sha256` | char(64) | Content digest |
-| `scan_state` | enum | `pending`, `clean`, `rejected` |
-| `redaction_state` | enum | `none`, `redacted`, `not_required`, `rejected` |
-| `derived_from_attachment_id` | uuid | Self-FK, nullable |
-| `storage_state` | enum | `staged`, `stored`, `deleting`, `deleted` |
-| `created_at` | timestamptz | Required |
-| `updated_at` | timestamptz | Required |
+| `id` | uuid | 主键 |
+| `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
+| `source_id` | uuid | 指向来源的外键，可为空，`ON DELETE SET NULL` |
+| `kind` | enum | `document`、`image`、`screenshot`、`derived_redacted_image` |
+| `storage_key` | text | 唯一且不可猜测的 S3 键 |
+| `filename_display` | text | 已清理的显示名称；不用于日志 |
+| `media_type` | text | 检测得到的 MIME 类型，而非仅依据扩展名 |
+| `size_bytes` | bigint | 非负数 |
+| `sha256` | char(64) | 内容摘要 |
+| `scan_state` | enum | `pending`、`clean`、`rejected` |
+| `redaction_state` | enum | `none`、`redacted`、`not_required`、`rejected` |
+| `derived_from_attachment_id` | uuid | 指向自身的外键，可为空 |
+| `storage_state` | enum | `staged`、`stored`、`deleting`、`deleted` |
+| `created_at` | timestamptz | 必填 |
+| `updated_at` | timestamptz | 必填 |
 
-**Rules**:
+**规则**：
 
-- A rejected attachment does not create a durable attachment row or S3 object.
-- Staging artifacts use a restricted temporary bucket and expire automatically.
-- An image containing a secret is replaced by a redacted derived image; the original is never
-  promoted to durable storage.
-- If complete scanning or redaction is uncertain, the request fails and all staging artifacts
-  are deleted.
+- 被拒绝的附件不会创建持久附件行或 S3 对象。
+- 暂存产物使用受限的临时存储桶，并会自动过期。
+- 包含密钥的图片会替换为脱敏后的派生图片；原始图片绝不会提升到持久存储。
+- 如果无法确定扫描或脱敏是否完整，请求将失败，并删除所有暂存产物。
 
-## Entity: Capture Job
+## 实体：采集任务
 
-**Purpose**: Tracks user-initiated import and extraction work.
+**用途**：跟踪用户发起的导入和提取工作。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `owner_id` | uuid | FK to owner |
-| `item_id` | uuid | FK to item, `ON DELETE CASCADE` |
-| `source_id` | uuid | FK to source, nullable |
-| `kind` | enum | `text`, `document`, `screenshot`, `webpage` |
-| `content_type` | enum | `text`, `document`, `image`, `webpage` |
-| `status` | enum | `queued`, `running`, `blocked_authorization`, `succeeded`, `failed`, `cancelled` |
-| `attempt_count` | integer | Default 0 |
-| `scheduled_at` | timestamptz | Required |
-| `started_at` | timestamptz | Nullable |
-| `finished_at` | timestamptz | Nullable |
-| `lease_expires_at` | timestamptz | Nullable |
-| `error_code` | text | Safe code only |
-| `error_message_safe` | text | No content, URL credentials, filename, or provider body |
-| `idempotency_key` | text | Stable per owner/action |
-| `version` | integer | Optimistic concurrency |
-| `created_at` | timestamptz | Required |
-| `updated_at` | timestamptz | Required |
+| `id` | uuid | 主键 |
+| `owner_id` | uuid | 指向所有者的外键 |
+| `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
+| `source_id` | uuid | 指向来源的外键，可为空 |
+| `kind` | enum | `text`、`document`、`screenshot`、`webpage` |
+| `content_type` | enum | `text`、`document`、`image`、`webpage` |
+| `status` | enum | `queued`、`running`、`blocked_authorization`、`succeeded`、`failed`、`cancelled` |
+| `attempt_count` | integer | 默认 0 |
+| `scheduled_at` | timestamptz | 必填 |
+| `started_at` | timestamptz | 可为空 |
+| `finished_at` | timestamptz | 可为空 |
+| `lease_expires_at` | timestamptz | 可为空 |
+| `error_code` | text | 仅允许安全代码 |
+| `error_message_safe` | text | 不得包含内容、URL 凭据、文件名或提供商正文 |
+| `idempotency_key` | text | 按所有者/操作保持稳定 |
+| `version` | integer | 乐观并发控制 |
+| `created_at` | timestamptz | 必填 |
+| `updated_at` | timestamptz | 必填 |
 
-**Constraint**: `UNIQUE(owner_id, idempotency_key)`.
+**约束**：`UNIQUE(owner_id, idempotency_key)`。
 
-## Entity: Processing Job
+## 实体：处理任务
 
-**Purpose**: Tracks classification, OCR, provider calls, and indexing work.
+**用途**：跟踪分类、OCR、提供商调用和索引工作。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `owner_id` | uuid | FK to owner |
-| `item_id` | uuid | FK to item, `ON DELETE CASCADE` |
-| `capture_job_id` | uuid | Nullable FK to capture job |
-| `kind` | enum | `extract`, `ocr`, `classify`, `index`, `redact_image`, `purge` |
-| `service_code` | text | Enum-like provider identifier |
-| `content_type` | enum | `text`, `document`, `image`, `webpage`, `internet_result` |
-| `authorization_id` | uuid | Nullable FK to authorization, `ON DELETE RESTRICT` |
-| `content_hash` | char(64) | Hash of the exact approved payload |
-| `explicit_confirmation_at` | timestamptz | Required for external calls |
-| `status` | enum | `queued`, `running`, `blocked_authorization`, `succeeded`, `failed`, `cancelled` |
-| `attempt_count` | integer | Default 0 |
-| `scheduled_at` | timestamptz | Required |
-| `started_at` | timestamptz | Nullable |
-| `finished_at` | timestamptz | Nullable |
-| `lease_expires_at` | timestamptz | Nullable |
-| `error_code` | text | Safe code only |
-| `error_message_safe` | text | No user content |
-| `idempotency_key` | text | Stable per item revision and task type |
-| `version` | integer | Optimistic concurrency |
-| `created_at` | timestamptz | Required |
-| `updated_at` | timestamptz | Required |
+| `id` | uuid | 主键 |
+| `owner_id` | uuid | 指向所有者的外键 |
+| `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
+| `capture_job_id` | uuid | 指向采集任务的外键，可为空 |
+| `kind` | enum | `extract`、`ocr`、`classify`、`index`、`redact_image`、`purge` |
+| `service_code` | text | 类似枚举的提供商标识符 |
+| `content_type` | enum | `text`、`document`、`image`、`webpage`、`internet_result` |
+| `authorization_id` | uuid | 指向授权的外键，可为空，`ON DELETE RESTRICT` |
+| `content_hash` | char(64) | 精确获批载荷的哈希 |
+| `explicit_confirmation_at` | timestamptz | 外部调用必填 |
+| `status` | enum | `queued`、`running`、`blocked_authorization`、`succeeded`、`failed`、`cancelled` |
+| `attempt_count` | integer | 默认 0 |
+| `scheduled_at` | timestamptz | 必填 |
+| `started_at` | timestamptz | 可为空 |
+| `finished_at` | timestamptz | 可为空 |
+| `lease_expires_at` | timestamptz | 可为空 |
+| `error_code` | text | 仅允许安全代码 |
+| `error_message_safe` | text | 不得包含用户内容 |
+| `idempotency_key` | text | 按条目修订版本和任务类型保持稳定 |
+| `version` | integer | 乐观并发控制 |
+| `created_at` | timestamptz | 必填 |
+| `updated_at` | timestamptz | 必填 |
 
-**Constraint**: `UNIQUE(owner_id, idempotency_key)`.
+**约束**：`UNIQUE(owner_id, idempotency_key)`。
 
-## Entity: AI Analysis
+## 实体：AI 分析
 
-**Purpose**: Stores validated analysis output, not raw model responses.
+**用途**：存储经过验证的分析输出，而非原始模型响应。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `owner_id` | uuid | FK to owner |
-| `item_id` | uuid | FK to item, `ON DELETE CASCADE` |
-| `processing_job_id` | uuid | Nullable FK, unique |
-| `service_code` | text | Provider identifier |
-| `model_id` | text | Exact model/version used |
-| `prompt_version` | text | Reproducibility identifier |
-| `content_type` | enum | Same enum as processing job |
-| `input_hash` | char(64) | Hash of redacted approved input |
-| `output_language` | text | `zh-CN` or `en` |
-| `confidence_threshold` | numeric(4,3) | Active threshold at analysis time |
-| `status` | enum | `succeeded`, `partial`, `failed` |
-| `summary` | text | Redacted and validated |
-| `structured_result` | jsonb | Versioned schema containing categories, tags, confidence, related IDs |
-| `result_schema_version` | integer | Required |
-| `created_at` | timestamptz | Required |
+| `id` | uuid | 主键 |
+| `owner_id` | uuid | 指向所有者的外键 |
+| `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
+| `processing_job_id` | uuid | 可为空的外键，唯一 |
+| `service_code` | text | 提供商标识符 |
+| `model_id` | text | 实际使用的精确模型/版本 |
+| `prompt_version` | text | 可复现性标识符 |
+| `content_type` | enum | 与处理任务相同的枚举 |
+| `input_hash` | char(64) | 已脱敏且获批输入的哈希 |
+| `output_language` | text | `zh-CN` 或 `en` |
+| `confidence_threshold` | numeric(4,3) | 分析时生效的阈值 |
+| `status` | enum | `succeeded`、`partial`、`failed` |
+| `summary` | text | 已脱敏并经过验证 |
+| `structured_result` | jsonb | 带版本的 schema，包含分类、标签、置信度和关联 ID |
+| `result_schema_version` | integer | 必填 |
+| `created_at` | timestamptz | 必填 |
 
-**Rules**:
+**规则**：
 
-- Never persist raw prompts or unvalidated model output.
-- Related-item IDs must reference active owner items or be discarded.
-- A late result is ignored if `input_hash` does not match the current redacted revision.
+- 绝不持久化原始提示词或未经验证的模型输出。
+- 关联条目 ID 必须引用该所有者处于 active 状态的条目，否则应丢弃。
+- 如果 `input_hash` 与当前脱敏修订版本不匹配，则忽略迟到的结果。
 
-## Entity: Category
+## 实体：分类
 
-**Purpose**: Shared, automatically generated classification vocabulary.
+**用途**：共享的自动生成分类词表。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `canonical_key` | text | Unique normalized key |
-| `display_name` | text | User-visible label |
-| `language_code` | text | `zh-CN`, `en`, or neutral |
-| `status` | enum | `active`, `merged`, `retired` |
-| `merged_into_id` | uuid | Self-FK, nullable |
-| `created_at` | timestamptz | Required |
-| `updated_at` | timestamptz | Required |
-| `version` | integer | Optimistic concurrency |
+| `id` | uuid | 主键 |
+| `canonical_key` | text | 唯一的规范化键 |
+| `display_name` | text | 用户可见标签 |
+| `language_code` | text | `zh-CN`、`en` 或中性 |
+| `status` | enum | `active`、`merged`、`retired` |
+| `merged_into_id` | uuid | 指向自身的外键，可为空 |
+| `created_at` | timestamptz | 必填 |
+| `updated_at` | timestamptz | 必填 |
+| `version` | integer | 乐观并发控制 |
 
-Category rows do not contain per-item locks.
+分类行不包含按条目设置的锁。
 
-## Entity: Tag
+## 实体：标签
 
-**Purpose**: Shared normalized tag vocabulary.
+**用途**：共享的规范化标签词表。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `canonical_key` | text | Unique normalized key |
-| `display_name` | text | User-visible label |
-| `language_code` | text | `zh-CN`, `en`, or neutral |
-| `status` | enum | `active`, `merged`, `retired` |
-| `merged_into_id` | uuid | Self-FK, nullable |
-| `created_at` | timestamptz | Required |
-| `updated_at` | timestamptz | Required |
-| `version` | integer | Optimistic concurrency |
+| `id` | uuid | 主键 |
+| `canonical_key` | text | 唯一的规范化键 |
+| `display_name` | text | 用户可见标签 |
+| `language_code` | text | `zh-CN`、`en` 或中性 |
+| `status` | enum | `active`、`merged`、`retired` |
+| `merged_into_id` | uuid | 指向自身的外键，可为空 |
+| `created_at` | timestamptz | 必填 |
+| `updated_at` | timestamptz | 必填 |
+| `version` | integer | 乐观并发控制 |
 
-Tag rows do not contain per-item locks.
+标签行不包含按条目设置的锁。
 
-## Entity: Category Assignment
+## 实体：分类分配
 
-**Purpose**: Current item-level classification with lock and review state.
+**用途**：保存当前条目级分类及其锁定和审核状态。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `item_id` | uuid | FK to item, `ON DELETE CASCADE` |
-| `category_id` | uuid | Nullable FK, `ON DELETE RESTRICT`; null means intentionally uncategorized |
-| `status` | enum | `provisional`, `applied`, `locked`, `superseded` |
-| `confidence` | numeric(4,3) | Nullable for user-only assignments |
-| `origin` | enum | `ai`, `user`, `system` |
-| `analysis_id` | uuid | Nullable FK to AI analysis |
-| `assigned_at` | timestamptz | Required |
-| `locked_at` | timestamptz | Required when status is `locked` |
-| `superseded_at` | timestamptz | Nullable |
-| `version` | integer | Optimistic concurrency |
+| `id` | uuid | 主键 |
+| `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
+| `category_id` | uuid | 可为空的外键，`ON DELETE RESTRICT`；null 表示有意不分类 |
+| `status` | enum | `provisional`、`applied`、`locked`、`superseded` |
+| `confidence` | numeric(4,3) | 仅用户分配时可为空 |
+| `origin` | enum | `ai`、`user`、`system` |
+| `analysis_id` | uuid | 指向 AI 分析的可为空外键 |
+| `assigned_at` | timestamptz | 必填 |
+| `locked_at` | timestamptz | 状态为 `locked` 时必填 |
+| `superseded_at` | timestamptz | 可为空 |
+| `version` | integer | 乐观并发控制 |
 
-**Constraint**: At most one current assignment:
+**约束**：最多只能有一个当前分配：
 
 ```text
 UNIQUE(item_id) WHERE superseded_at IS NULL
 ```
 
-## Entity: Tag Assignment
+## 实体：标签分配
 
-**Purpose**: Current item-level tag assignments with lock and review state.
+**用途**：保存当前条目级标签分配及其锁定和审核状态。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `item_id` | uuid | FK to item, `ON DELETE CASCADE` |
-| `tag_id` | uuid | FK to tag, `ON DELETE RESTRICT` |
-| `status` | enum | `provisional`, `applied`, `locked`, `superseded` |
-| `confidence` | numeric(4,3) | Nullable for user-only assignments |
-| `origin` | enum | `ai`, `user`, `system` |
-| `analysis_id` | uuid | Nullable FK to AI analysis |
-| `assigned_at` | timestamptz | Required |
-| `locked_at` | timestamptz | Required when status is `locked` |
-| `superseded_at` | timestamptz | Nullable |
-| `version` | integer | Optimistic concurrency |
+| `id` | uuid | 主键 |
+| `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
+| `tag_id` | uuid | 指向标签的外键，`ON DELETE RESTRICT` |
+| `status` | enum | `provisional`、`applied`、`locked`、`superseded` |
+| `confidence` | numeric(4,3) | 仅用户分配时可为空 |
+| `origin` | enum | `ai`、`user`、`system` |
+| `analysis_id` | uuid | 指向 AI 分析的可为空外键 |
+| `assigned_at` | timestamptz | 必填 |
+| `locked_at` | timestamptz | 状态为 `locked` 时必填 |
+| `superseded_at` | timestamptz | 可为空 |
+| `version` | integer | 乐观并发控制 |
 
-**Constraint**:
+**约束**：
 
 ```text
 UNIQUE(item_id, tag_id) WHERE superseded_at IS NULL
 ```
 
-`knowledge_item.tags_locked = true` records the intentionally empty locked tag set.
+`knowledge_item.tags_locked = true` 记录有意锁定的空标签集。
 
-## Entity: Tag Merge Suggestion
+## 实体：标签合并建议
 
-**Purpose**: Presents normalization proposals without changing locked item fields.
+**用途**：在不更改已锁定条目字段的情况下提供规范化建议。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `item_id` | uuid | FK to item, `ON DELETE CASCADE` |
-| `tag_assignment_id` | uuid | FK to assignment, `ON DELETE CASCADE` |
-| `source_tag_id` | uuid | FK to tag |
-| `target_tag_id` | uuid | FK to tag |
-| `reason_code` | text | Safe enum-like reason |
-| `status` | enum | `pending`, `accepted`, `rejected`, `expired` |
-| `created_at` | timestamptz | Required |
-| `resolved_at` | timestamptz | Nullable |
+| `id` | uuid | 主键 |
+| `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
+| `tag_assignment_id` | uuid | 指向分配的外键，`ON DELETE CASCADE` |
+| `source_tag_id` | uuid | 指向标签的外键 |
+| `target_tag_id` | uuid | 指向标签的外键 |
+| `reason_code` | text | 类似枚举的安全原因 |
+| `status` | enum | `pending`、`accepted`、`rejected`、`expired` |
+| `created_at` | timestamptz | 必填 |
+| `resolved_at` | timestamptz | 可为空 |
 
-Only suggestions can be created for locked assignments. Applying one requires an explicit user
-action that creates a new locked assignment and supersedes the old one.
+对于已锁定的分配，只能创建建议。应用建议需要用户显式操作，该操作会创建新的锁定分配并
+取代旧分配。
 
-## Entity: AI Processing Authorization
+## 实体：AI 处理授权
 
-**Purpose**: Records explicit consent by service and content type.
+**用途**：按服务和内容类型记录显式同意。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `owner_id` | uuid | FK to owner, `ON DELETE CASCADE` |
-| `service_code` | text | Provider/service identifier |
-| `content_type` | enum | `text`, `document`, `image`, `webpage`, `internet_result` |
-| `purpose` | text | Controlled value such as `classify`, `search`, `fetch`, `vision` |
-| `consent_text_version` | text | Version of disclosed purpose text |
-| `granted_at` | timestamptz | Required |
-| `revoked_at` | timestamptz | Nullable |
-| `version` | integer | Optimistic concurrency |
+| `id` | uuid | 主键 |
+| `owner_id` | uuid | 指向所有者的外键，`ON DELETE CASCADE` |
+| `service_code` | text | 提供商/服务标识符 |
+| `content_type` | enum | `text`、`document`、`image`、`webpage`、`internet_result` |
+| `purpose` | text | 受控值，例如 `classify`、`search`、`fetch`、`vision` |
+| `consent_text_version` | text | 已披露用途文本的版本 |
+| `granted_at` | timestamptz | 必填 |
+| `revoked_at` | timestamptz | 可为空 |
+| `version` | integer | 乐观并发控制 |
 
-**Constraint**:
+**约束**：
 
 ```text
 UNIQUE(owner_id, service_code, content_type, purpose)
 WHERE revoked_at IS NULL
 ```
 
-Re-authorization creates a new row. Revocation does not delete existing knowledge or analysis.
+重新授权会创建新行。撤销授权不会删除现有知识或分析。
 
-## Entity: External Search Candidate
+## 实体：外部搜索候选
 
-**Purpose**: Holds short-lived internet results that are not knowledge items.
+**用途**：保存不属于知识条目的短期互联网搜索结果。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `owner_id` | uuid | FK to owner |
-| `session_id` | uuid | Opaque current search session |
-| `provider` | text | Search provider identifier |
-| `title` | text | Provider title, sanitized for display |
-| `url` | text | Public URL, sanitized |
-| `snippet` | text | Short provider snippet |
-| `rank` | integer | Provider order |
-| `expires_at` | timestamptz | Default now + 15 minutes |
-| `saved_item_id` | uuid | Nullable unique FK to knowledge item; set on first successful save |
-| `consumed_at` | timestamptz | Nullable; set with `saved_item_id` |
-| `created_at` | timestamptz | Required |
+| `id` | uuid | 主键 |
+| `owner_id` | uuid | 指向所有者的外键 |
+| `session_id` | uuid | 表示当前搜索会话的不透明标识 |
+| `provider` | text | 搜索提供商标识符 |
+| `title` | text | 提供商标题，已为显示目的清理 |
+| `url` | text | 公开 URL，已清理 |
+| `snippet` | text | 提供商返回的简短摘要片段 |
+| `rank` | integer | 提供商排序 |
+| `expires_at` | timestamptz | 默认当前时间加 15 分钟 |
+| `saved_item_id` | uuid | 指向知识条目的可为空唯一外键；首次成功保存时设置 |
+| `consumed_at` | timestamptz | 可为空；与 `saved_item_id` 同时设置 |
+| `created_at` | timestamptz | 必填 |
 
-**Rules**:
+**规则**：
 
-- No `knowledge_item`, `source`, attachment, or search document is created before confirmation.
-- Rows are not exposed as search history.
-- Expired rows are purged periodically and can be cleaned at confirmation time.
-- Saving a candidate is idempotent using `saved_item_id`; repeated confirmation returns the
-  already-created item even when the client sends a different idempotency key.
+- 确认前不会创建任何 `knowledge_item`、`source`、附件或搜索文档。
+- 这些行不会作为搜索历史暴露。
+- 过期行会定期清除，并可在确认时清理。
+- 使用 `saved_item_id` 保存候选是幂等操作；即使客户端发送不同的幂等键，重复确认也会返回
+  已创建的条目。
 
-## Entity: Audit Event
+## 实体：审计事件
 
-**Purpose**: Records safe operational facts after business rows are deleted.
+**用途**：在业务行删除后记录安全的操作事实。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | bigint | Identity primary key |
-| `actor_type` | enum | `owner`, `system` |
-| `actor_id` | uuid | Nullable |
-| `action` | text | Enum-like action code |
-| `entity_type` | text | Controlled entity name |
-| `entity_id` | uuid | Nullable |
-| `correlation_id` | uuid | Request/job correlation |
-| `metadata_safe` | jsonb | No content, URLs with credentials, filenames, or secrets |
-| `occurred_at` | timestamptz | Required |
+| `id` | bigint | 标识列主键 |
+| `actor_type` | enum | `owner`、`system` |
+| `actor_id` | uuid | 可为空 |
+| `action` | text | 类似枚举的操作代码 |
+| `entity_type` | text | 受控实体名称 |
+| `entity_id` | uuid | 可为空 |
+| `correlation_id` | uuid | 请求/任务关联标识 |
+| `metadata_safe` | jsonb | 不得包含内容、含凭据的 URL、文件名或密钥 |
+| `occurred_at` | timestamptz | 必填 |
 
-No business foreign keys are attached, so hard deletion does not remove audit facts.
+此处不附加业务外键，因此硬删除不会移除审计事实。
 
-## Entity: Request Idempotency
+## 实体：请求幂等性
 
-**Purpose**: Persists write-request idempotency and safe response replay for the OpenAPI
-`Idempotency-Key` contract.
+**用途**：为 OpenAPI 的 `Idempotency-Key` 契约持久化写请求幂等性和安全响应重放。
 
-| Field | Type | Rules |
+| 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | Primary key |
-| `owner_id` | uuid | FK to owner, `ON DELETE CASCADE` |
-| `scope` | text | Route/action identifier |
-| `idempotency_key` | text | Client-supplied key |
-| `request_hash` | char(64) | Hash of method, route, and validated body |
-| `status` | enum | `processing`, `completed`, `failed` |
-| `response_status` | integer | Nullable until completion |
-| `response_body_safe` | jsonb | Nullable; validated safe response body |
-| `resource_id` | uuid | Nullable; created or affected resource |
-| `created_at` | timestamptz | Required |
-| `expires_at` | timestamptz | Default now + 24 hours |
+| `id` | uuid | 主键 |
+| `owner_id` | uuid | 指向所有者的外键，`ON DELETE CASCADE` |
+| `scope` | text | 路由/操作标识符 |
+| `idempotency_key` | text | 客户端提供的键 |
+| `request_hash` | char(64) | 方法、路由和已验证请求体的哈希 |
+| `status` | enum | `processing`、`completed`、`failed` |
+| `response_status` | integer | 完成前可为空 |
+| `response_body_safe` | jsonb | 可为空；经过验证的安全响应体 |
+| `resource_id` | uuid | 可为空；已创建或受影响的资源 |
+| `created_at` | timestamptz | 必填 |
+| `expires_at` | timestamptz | 默认当前时间加 24 小时 |
 
-**Constraint**: `UNIQUE(owner_id, scope, idempotency_key)`.
+**约束**：`UNIQUE(owner_id, scope, idempotency_key)`。
 
-**Rules**:
+**规则**：
 
-- A repeated key with the same request hash returns the stored safe response.
-- A repeated key with a different request hash returns `409`.
-- Processing records older than the expiry window may be retried after reconciliation.
-- Stored responses never contain credentials or raw provider output.
+- 使用相同请求哈希重复提交键时，返回已存储的安全响应。
+- 使用不同请求哈希重复提交键时，返回 `409`。
+- 超过过期时间窗口的处理记录可经协调后重试。
+- 存储的响应绝不包含凭据或原始提供商输出。
 
-## State Machines
+## 状态机
 
-### Item Lifecycle
+### 条目生命周期
 
 ```text
-active -> recycled -> purging -> hard deleted
+active -> recycled -> purging -> 硬删除
 recycled -> active
 ```
 
-- `active` is searchable.
-- `recycled` is not searchable and is visible only in the trash.
-- `purging` cannot be restored.
-- Deletion clears the search projection immediately.
+- `active` 状态可搜索。
+- `recycled` 状态不可搜索，且仅在回收站中可见。
+- `purging` 状态不可恢复。
+- 删除会立即清除搜索投影。
 
-### Item Processing
+### 条目处理
 
 ```text
 not_requested -> pending -> running -> succeeded
                          -> partial
                          -> failed
 pending -> awaiting_authorization
-failed -> pending                 (retry)
+failed -> pending                 （重试）
 pending/running -> cancelled
 ```
 
-Every state remains searchable while `lifecycle_state = active`.
+只要 `lifecycle_state = active`，每种状态都保持可搜索。
 
-### Job
+### 任务
 
 ```text
 queued -> running -> succeeded
                   -> failed
                   -> cancelled
 queued/running -> blocked_authorization
-retryable failed -> queued
+可重试的 failed -> queued
 ```
 
-### Classification Assignment
+### 分类分配
 
 ```text
 provisional -> locked
 applied     -> locked
 provisional -> superseded
 applied     -> superseded
-locked      -> superseded         (only by an explicit user edit)
+locked      -> superseded         （仅限用户显式编辑）
 ```
 
-AI and normalization jobs can modify only `provisional` or `applied` current assignments.
+AI 和规范化任务只能修改处于 `provisional` 或 `applied` 状态的当前分配。
 
-### Authorization
+### 授权
 
 ```text
 active -> revoked
 ```
 
-Revocation applies to future jobs only.
+撤销仅对后续任务生效。
 
-## Search Index Projection
+## 搜索索引投影
 
-Each Meilisearch document contains:
+每个 Meilisearch 文档包含：
 
 ```json
 {
   "id": "uuid",
-  "title": "redacted title",
-  "body": "redacted body",
-  "note": "redacted note",
-  "summary": "redacted summary",
-  "category_names": ["category"],
-  "tag_names": ["tag"],
+  "title": "已脱敏标题",
+  "body": "已脱敏正文",
+  "note": "已脱敏笔记",
+  "summary": "已脱敏摘要",
+  "category_names": ["分类"],
+  "tag_names": ["标签"],
   "source_type": "manual",
   "lifecycle_state": "active",
   "search_revision": 4,
@@ -543,56 +538,55 @@ Each Meilisearch document contains:
 }
 ```
 
-The index never contains attachment bytes, raw URLs with sensitive query data, provider
-credentials, authorization records, or deleted-item content.
+索引绝不包含附件字节、带敏感查询数据的原始 URL、提供商凭据、授权记录或已删除条目的内容。
 
-## Required Indexes
+## 必需索引
 
-- Active knowledge ordering: `(owner_id, updated_at DESC) WHERE lifecycle_state = 'active'`.
-- Processing panel: `(owner_id, processing_status, updated_at DESC) WHERE lifecycle_state = 'active'`.
-- Purge scheduler: `(lifecycle_state, purge_after)`.
-- Job leasing: `(status, scheduled_at)`, `(lease_expires_at)` partial for queued/running.
-- Current category: `(category_id) WHERE superseded_at IS NULL`.
-- Current tags: `(tag_id) WHERE superseded_at IS NULL`.
-- Pending review: `(status) WHERE superseded_at IS NULL AND status IN ('provisional')`.
-- Duplicate source hints: `source(url_sha256)`.
-- Attachments: `(item_id)`, `(sha256)`, `(storage_state)`.
-- External candidates: `(owner_id, session_id, expires_at)`.
-- Audit: `(entity_type, entity_id, occurred_at DESC)` and `(occurred_at)`.
+- active 知识排序：`(owner_id, updated_at DESC) WHERE lifecycle_state = 'active'`。
+- 处理面板：`(owner_id, processing_status, updated_at DESC) WHERE lifecycle_state = 'active'`。
+- 清除调度器：`(lifecycle_state, purge_after)`。
+- 任务租约：`(status, scheduled_at)`，以及针对 queued/running 状态的部分索引 `(lease_expires_at)`。
+- 当前分类：`(category_id) WHERE superseded_at IS NULL`。
+- 当前标签：`(tag_id) WHERE superseded_at IS NULL`。
+- 待审核项：`(status) WHERE superseded_at IS NULL AND status IN ('provisional')`。
+- 重复来源提示：`source(url_sha256)`。
+- 附件：`(item_id)`、`(sha256)`、`(storage_state)`。
+- 外部候选：`(owner_id, session_id, expires_at)`。
+- 审计：`(entity_type, entity_id, occurred_at DESC)` 和 `(occurred_at)`。
 
-## Retention and Deletion
+## 保留与删除
 
-| Data | Default |
+| 数据 | 默认值 |
 |------|---------|
-| Active knowledge | Until user deletion |
-| Recycle bin | 30 days |
-| Daily database backup | 30 days |
-| WAL/PITR | 7 days |
-| Search candidates | 15 minutes |
-| Processing jobs | 90 days |
-| Audit events | 365 days |
-| Authorization history | Account lifetime |
+| active 知识 | 直到用户删除 |
+| 回收站 | 30 天 |
+| 每日数据库备份 | 30 天 |
+| WAL/PITR | 7 天 |
+| 搜索候选 | 15 分钟 |
+| 处理任务 | 90 天 |
+| 审计事件 | 365 天 |
+| 授权历史 | 账户存续期间 |
 
-Permanent deletion order:
+永久删除顺序：
 
-1. Stop or cancel related jobs.
-2. Mark the item `purging`.
-3. Remove Meilisearch documents.
-4. Delete S3 objects and verify completion.
-5. Hard-delete the knowledge item and cascading business rows.
-6. Record a safe audit event.
+1. 停止或取消相关任务。
+2. 将条目标记为 `purging`。
+3. 移除 Meilisearch 文档。
+4. 删除 S3 对象并验证删除完成。
+5. 硬删除知识条目及级联业务行。
+6. 记录安全审计事件。
 
-If object deletion fails, the database row remains `purging` and the task retries.
+如果对象删除失败，数据库行保持 `purging` 状态，并由任务重试。
 
-## Critical Invariants
+## 关键不变量
 
-1. Accepted manual and AI imports are `active` and searchable immediately.
-2. Search results never include non-active items, even when an index is stale.
-3. Internet candidates create no knowledge rows before confirmation.
-4. One current category and multiple current tags are allowed per item.
-5. User edits create locked item-level assignments; shared vocabulary rows remain unlocked.
-6. AI cannot overwrite locked assignments or a newer item revision.
-7. Every external AI call requires an active matching service/content-type authorization.
-8. High-confidence secrets never enter durable text, indexes, logs, or object storage.
-9. Unscannable content is rejected before durable persistence.
-10. Expired recycled items cannot be restored from current data or old backups.
+1. 已接受的手动导入和 AI 导入处于 `active` 状态，并可立即搜索。
+2. 即使索引已过期，搜索结果也绝不包含非 active 条目。
+3. 确认前，互联网候选不会创建任何知识行。
+4. 每个条目允许一个当前分类和多个当前标签。
+5. 用户编辑会创建锁定的条目级分配；共享词表行保持未锁定。
+6. AI 不能覆盖已锁定分配或更新版本的条目修订。
+7. 每次外部 AI 调用都需要与服务和内容类型匹配的 active 授权。
+8. 高置信度密钥绝不会进入持久文本、索引、日志或对象存储。
+9. 无法扫描的内容在持久化前会被拒绝。
+10. 已过期的回收条目无法从当前数据或旧备份恢复。

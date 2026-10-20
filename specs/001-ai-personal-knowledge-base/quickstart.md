@@ -1,27 +1,22 @@
-# Phase 1 Quickstart and Validation: AI 个人知识库
+# 第 1 阶段快速入门与验证：AI 个人知识库
 
-**Feature**: `001-ai-personal-knowledge-base`
+**功能**：`001-ai-personal-knowledge-base`
 
-**Purpose**: Validate the planned feature end to end after implementation. This is not a
-current implementation report; the repository does not yet contain the application.
+**目的**：在实现完成后对计划中的功能进行端到端验证。本文不是当前的实现报告；仓库中尚未包含该应用。
 
-## Prerequisites
+## 前置条件
 
-The current production host does not have Docker installed and already runs a native systemd
-application. Docker Compose is a local-development or capacity-approved deployment option, not
-the current production baseline. See [deployment.md](deployment.md) before changing
-`seaunit.site`.
+当前生产主机未安装 Docker，并且已经在运行原生 systemd 应用。Docker Compose 仅作为本地开发或经容量评估批准的部署选项，不是当前的生产基线。修改 `seaunit.site` 前，请参阅 [deployment.md](deployment.md)。
 
-- Docker Engine with Compose v2
+- 安装了 Compose v2 的 Docker Engine
 - Node.js 24 LTS
 - pnpm
-- A Chromium-compatible browser for Playwright
-- Optional real DeepSeek credentials for live-provider tests
+- 用于 Playwright 的 Chromium 兼容浏览器
+- 用于实时提供商测试的可选真实 DeepSeek 凭据
 
-## Planned Environment Variables
+## 计划使用的环境变量
 
-Create a local `.env` from the committed `.env.example`. The example file contains names and
-safe placeholders only, never real credentials.
+根据已提交的 `.env.example` 创建本地 `.env`。示例文件只包含变量名和安全占位符，不包含真实凭据。
 
 ```dotenv
 APP_ENV=development
@@ -43,10 +38,9 @@ MAX_UPLOAD_BYTES=26214400
 LOG_LEVEL=info
 ```
 
-The application must fail feature-specific startup checks with variable names only when a
-value is missing. It must never print the values.
+当某个值缺失时，应用必须让功能特定的启动检查失败，并且只显示变量名。应用绝不能打印变量值。
 
-## Start the Planned Stack
+## 启动计划中的技术栈
 
 ```powershell
 pnpm install
@@ -55,17 +49,17 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Expected services:
+预期服务：
 
-- Web/API: `http://localhost:3000`
-- PostgreSQL: internal network only
-- Meilisearch: internal network or local diagnostic port
-- S3/MinIO: internal network or local diagnostic port
-- Worker and browser worker: no public ports
+- Web/API：`http://localhost:3000`
+- PostgreSQL：仅限内部网络
+- Meilisearch：内部网络或本地诊断端口
+- S3/MinIO：内部网络或本地诊断端口
+- Worker 和 browser worker：不开放公共端口
 
-## Production Coexistence
+## 生产环境共存
 
-The current production routing plan is:
+当前生产路由计划如下：
 
 ```text
 https://seaunit.site/       -> portal with 拾题 and 知识库 entries
@@ -73,122 +67,107 @@ https://seaunit.site/app    -> existing 拾题 SPA
 https://seaunit.site/kb     -> new knowledge base
 ```
 
-The existing `/api`, `/bank`, `/pay`, and `/apk` routes must remain on the existing services.
-The knowledge-base application must use `/kb` and `/kb/api`, bind to `127.0.0.1:3000`, and be
-proxied through the existing Nginx. The current host has limited memory; see
-[deployment.md](deployment.md) before installing or starting the application stack.
+现有的 `/api`、`/bank`、`/pay` 和 `/apk` 路由必须继续由现有服务处理。知识库应用必须使用 `/kb` 和 `/kb/api`，绑定到 `127.0.0.1:3000`，并通过现有 Nginx 代理。当前主机内存有限；安装或启动应用技术栈前，请参阅 [deployment.md](deployment.md)。
 
-## Validation Scenarios
+## 验证场景
 
-### 1. Bootstrap and access control
+### 1. 引导初始化与访问控制
 
-1. Open `/setup` with a one-time bootstrap token.
-2. Create the sole owner account.
-3. Confirm `/setup` closes after bootstrap.
-4. Sign out and confirm protected routes reject anonymous access.
-5. Sign in and confirm Chinese is the default interface language.
+1. 使用一次性 bootstrap token 打开 `/setup`。
+2. 创建唯一的所有者账户。
+3. 确认 bootstrap 完成后 `/setup` 关闭。
+4. 退出登录，并确认受保护路由拒绝匿名访问。
+5. 登录并确认默认界面语言为中文。
 
-### 2. Manual save and immediate search
+### 2. 手动保存与即时搜索
 
-1. Create a note with title, body, note, and source link.
-2. Confirm the item is visible in `/library` immediately.
-3. Search with the only search box using values found in title, body, note, category, and tag.
-4. Confirm each query returns the item and shows which field matched.
-5. Confirm there is no second search box in the library, processing, or trash pages.
+1. 创建一条包含标题、正文、笔记和来源链接的笔记。
+2. 确认该项目立即显示在 `/library` 中。
+3. 使用唯一搜索框，分别以标题、正文、笔记、分类和标签中出现的值进行搜索。
+4. 确认每次查询都返回该项目，并显示匹配字段。
+5. 确认资源库、处理中和回收站页面中没有第二个搜索框。
 
-### 3. AI authorization and classification
+### 3. AI 授权与分类
 
-1. Save a new text item without an authorization.
-2. Confirm the item remains active and searchable while awaiting classification.
-3. Grant classification permission for the selected provider and `text` content type.
-4. Confirm the item receives a summary, category, and at least one tag.
-5. Simulate low confidence and confirm a provisional result plus review marker appears without
-   blocking search.
-6. Correct the category or tag and confirm the field becomes locked.
-7. Run re-analysis and confirm the locked field does not change.
+1. 在未授权的情况下保存一个新的文本项目。
+2. 确认该项目在等待分类期间保持可用且可搜索。
+3. 为选定的提供商和 `text` 内容类型授予分类权限。
+4. 确认该项目获得摘要、分类和至少一个标签。
+5. 模拟低置信度，并确认出现临时结果和审核标记，同时不会阻止搜索。
+6. 修正分类或标签，并确认该字段变为锁定状态。
+7. 运行重新分析，并确认锁定字段不会改变。
 
-### 4. Secret scanning and redaction
+### 4. 密钥扫描与脱敏
 
-1. Submit text containing a synthetic canary credential.
-2. Confirm the credential is removed, the remaining text is saved, and the message never shows
-   the matched value.
-3. Confirm the canary does not appear in PostgreSQL, Meilisearch, object storage, logs,
-   screenshots, or telemetry.
-4. Upload an image with a detectable synthetic secret and confirm only the redacted derived
-   image remains.
-5. Simulate an image or document that cannot be fully scanned and confirm the entire
-   submission is rejected with no durable rows or objects.
+1. 提交包含合成 canary 凭据的文本。
+2. 确认凭据已被移除、其余文本已保存，并且消息中绝不显示匹配到的值。
+3. 确认 canary 不会出现在 PostgreSQL、Meilisearch、对象存储、日志、截图或遥测中。
+4. 上传包含可检测合成密钥的图片，并确认仅保留脱敏后的派生图片。
+5. 模拟无法完整扫描的图片或文档，并确认整个提交被拒绝，且不会留下持久化行或对象。
 
-### 5. Document and screenshot import
+### 5. 文档与截图导入
 
-1. Upload a supported text, PDF, or word-processing document.
-2. Confirm the item is created and searchable before extraction finishes.
-3. Confirm processing status changes through the documented state machine.
-4. Upload a screenshot with clear text and confirm OCR, summary, category, and tags populate.
-5. Retry a simulated extraction failure and confirm no duplicate item or attachment is created.
+1. 上传受支持的文本、PDF 或文字处理文档。
+2. 确认在提取完成前，项目已创建且可搜索。
+3. 确认处理状态按照文档中定义的状态机变化。
+4. 上传带有清晰文字的截图，并确认 OCR、摘要、分类和标签均被填充。
+5. 重试模拟的提取失败，并确认不会创建重复项目或附件。
 
-### 6. Single-page webpage import
+### 6. 单页网页导入
 
-1. Use a local public-HTML fixture or approved public page.
-2. Submit exactly one URL.
-3. Confirm the browser worker opens only that page and captures a bounded screenshot.
-4. Confirm no link discovery, sitemap traversal, infinite scrolling, or multi-page jobs occur.
-5. Confirm redirects are limited and private-IP, loopback, CGNAT, metadata, and credential URLs
-   are rejected.
-6. Confirm login/CAPTCHA/failure returns a screenshot-upload fallback rather than crawling.
+1. 使用本地 public-HTML fixture 或已批准的公开页面。
+2. 仅提交一个 URL。
+3. 确认 browser worker 只打开该页面，并捕获限定尺寸的截图。
+4. 确认不会发生链接发现、sitemap 遍历、无限滚动或多页面任务。
+5. 确认重定向受到限制，并拒绝私有 IP、loopback、CGNAT、元数据和凭据 URL。
+6. 确认登录、CAPTCHA 或失败情况返回截图上传回退方案，而不是继续爬取。
 
-### 7. Local-first internet search
+### 7. 本地优先的互联网搜索
 
-1. Enter a query that has both personal and internet results.
-2. Confirm personal results render first.
-3. Confirm the browser does not send the query to the internet provider until the user chooses
-   “continue internet search”.
-4. Confirm only the query is transmitted, not knowledge bodies, notes, categories, attachments,
-   or authorizations.
-5. Confirm external candidates are visually separate and remain transient.
-6. Confirm saving a candidate creates a searchable item with its source preserved.
-7. Confirm refreshing before confirmation does not create a knowledge item.
+1. 输入一个既有个人结果又有互联网结果的查询。
+2. 确认个人结果先渲染。
+3. 确认在用户选择“继续互联网搜索”之前，浏览器不会将查询发送给互联网提供商。
+4. 确认仅传输查询，不传输知识正文、笔记、分类、附件或授权。
+5. 确认外部候选项在视觉上彼此分离，并保持临时状态。
+6. 确认保存候选项会创建可搜索项目，并保留其来源。
+7. 确认在确认前刷新不会创建知识项目。
 
-### 8. Recycle bin and purge
+### 8. 回收站与清除
 
-1. Delete an active item.
-2. Confirm it disappears from search immediately.
-3. Confirm it appears in `/trash` with a visible purge date.
-4. Restore it and confirm it becomes searchable again.
-5. Delete again, run the purge job with a short test retention period, and confirm the item,
-   source, attachments, analysis, and index document are permanently removed.
-6. Confirm an old backup cannot restore an item after the disclosed backup expiry.
+1. 删除一个可用项目。
+2. 确认它立即从搜索中消失。
+3. 确认它显示在 `/trash` 中，并带有可见的清除日期。
+4. 恢复该项目，并确认它再次可搜索。
+5. 再次删除该项目，使用较短的测试保留期运行 purge job，并确认项目、来源、附件、分析和索引文档均被永久移除。
+6. 确认在已披露的备份过期后，旧备份无法恢复该项目。
 
-### 9. Bilingual behavior
+### 9. 双语行为
 
-1. Confirm default Chinese on first visit.
-2. Switch to English and visit every primary route.
-3. Confirm navigation, errors, security notices, destructive confirmations, and processing
-   states are complete in English.
-4. Confirm user-entered content is unchanged by the language switch.
-5. Confirm AI output language follows the setting or explicit source-language choice.
+1. 确认首次访问时默认使用中文。
+2. 切换到英文并访问每个主要路由。
+3. 确认导航、错误、安全提示、破坏性操作确认和处理状态均有完整的英文内容。
+4. 确认切换语言不会改变用户输入的内容。
+5. 确认 AI 输出语言遵循设置或明确的来源语言选择。
 
-### 10. Taste visual verification
+### 10. Taste 视觉验证
 
-Use the `design-taste-frontend` skill during implementation and inspect the real app at:
+实现期间使用 `design-taste-frontend` skill，并在以下尺寸检查真实应用：
 
-- Desktop: 1440 px
-- Tablet: 768 px
-- Mobile: 390 px
+- 桌面端（Desktop）：1440 px
+- 平板端（Tablet）：768 px
+- 移动端（Mobile）：390 px
 
-Required checks:
+必需检查：
 
-- Search is the dominant home-page action and the only text search input.
-- Local results are visually before the internet-search action.
-- Loading, empty, failed, pending, provisional, locked, redacted, and recycled states remain
-  readable without layout shift.
-- Text does not overflow controls at either language.
-- Keyboard focus, labels, dialogs, and destructive confirmations are accessible.
+- 搜索是主页最主要的操作，并且是唯一的文本搜索输入框。
+- 本地结果在视觉上位于互联网搜索操作之前。
+- 加载、空、失败、待处理、临时、锁定、脱敏和已回收状态在布局不发生偏移的情况下仍然可读。
+- 两种语言下文字都不会溢出控件。
+- 键盘焦点、标签、对话框和破坏性操作确认均可访问。
 
-## Automated Commands
+## 自动化命令
 
-These commands become the release gate after the implementation creates the workspace and
-scripts:
+实现创建工作区和脚本后，以下命令将成为发布门禁：
 
 ```powershell
 pnpm lint
@@ -203,31 +182,26 @@ pnpm test:perf
 pnpm build
 ```
 
-## Performance Validation
+## 性能验证
 
-1. Load the frozen 100,000-item benchmark corpus.
-2. Confirm the dataset manifest and hash match the committed benchmark definition.
-3. Run 500 performance queries and the separate 100 correctness queries.
-4. Use two browser sessions and two background jobs as formal concurrency.
-5. Measure from search submission until 20 result cards are visible.
-6. Confirm 95% of formal queries complete within 2 seconds in both cold-query and warm-cache
-   conditions.
-7. Run four concurrent searches for 60 seconds as a diagnostic pressure test; no 5xx responses
-   are allowed.
+1. 加载冻结的 100,000 项基准语料库。
+2. 确认数据集 manifest 和 hash 与已提交的基准定义一致。
+3. 运行 500 次性能查询，以及单独运行的 100 次正确性查询。
+4. 使用两个浏览器会话和两个后台任务作为正式并发。
+5. 测量从提交搜索到 20 个结果卡片可见所需的时间。
+6. 确认在 cold-query 和 warm-cache 条件下，95% 的正式查询均在 2 秒内完成。
+7. 运行四个并发搜索持续 60 秒，作为诊断性压力测试；不允许出现 5xx 响应。
 
-## Backup and Recovery Validation
+## 备份与恢复验证
 
-1. Back up PostgreSQL, object storage, analysis metadata, authorizations, and deletion
-   tombstones.
-2. Rebuild Meilisearch from PostgreSQL.
-3. Restore into an isolated Compose project.
-4. Verify item, attachment, classification, language, and source consistency.
-5. Verify a recycled item can be restored inside its window and cannot reappear after the
-   disclosed backup expiry.
-6. Confirm logs and metrics contain no user content, raw query, filename, token, or provider
-   response.
+1. 备份 PostgreSQL、对象存储、分析元数据、授权和删除 tombstone。
+2. 从 PostgreSQL 重建 Meilisearch。
+3. 恢复到隔离的 Compose 项目。
+4. 验证项目、附件、分类、语言和来源的一致性。
+5. 验证已回收项目可在其窗口内恢复，并且在已披露的备份过期后不会重新出现。
+6. 确认日志和指标不包含用户内容、原始查询、文件名、token 或提供商响应。
 
-## Related Design Artifacts
+## 相关设计产物
 
 - [spec.md](spec.md)
 - [plan.md](plan.md)

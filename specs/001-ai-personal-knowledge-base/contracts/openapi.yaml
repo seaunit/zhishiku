@@ -1,42 +1,41 @@
 openapi: 3.1.0
 info:
-  title: Zhishiku Personal Knowledge API
+  title: Zhishiku 个人知识 API
   version: 1.0.0
   description: >
-    Internal HTTP contract for the single-owner AI personal knowledge base.
-    The authoritative data store is private; internet search and AI calls require
-    an explicit user action and matching authorization.
+    面向单一所有者 AI 个人知识库的内部 HTTP 契约。
+    权威数据存储为私有资源；互联网搜索和 AI 调用需要用户显式操作并提供匹配的授权。
 servers:
   - url: http://localhost:3000/kb
-    description: Local implementation with the production-compatible /kb base path
+    description: 使用与生产环境兼容的 /kb 基础路径的本地实现
 security:
   - sessionCookie: []
 tags:
-  - name: Search
-  - name: Knowledge
-  - name: Imports
-  - name: Jobs
-  - name: Authorizations
-  - name: Trash
-  - name: Health
+  - name: 搜索
+  - name: 知识
+  - name: 导入
+  - name: 任务
+  - name: 授权
+  - name: 回收站
+  - name: 健康检查
 paths:
   /health:
     get:
-      tags: [Health]
+      tags: [健康检查]
       security: []
       operationId: getHealth
       responses:
         "200":
-          description: Service health and feature availability.
+          description: 服务健康状态和功能可用性。
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
   /api/v1/search:
     get:
-      tags: [Search]
+      tags: [搜索]
       operationId: searchPersonalKnowledge
-      summary: Search the personal knowledge base with one query string.
+      summary: 使用单个查询字符串搜索个人知识库。
       parameters:
         - name: q
           in: query
@@ -58,7 +57,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Personal results only. Internet search is a separate call.
+          description: 仅返回个人知识结果。互联网搜索需通过单独调用完成。
           content:
             application/json:
               schema:
@@ -71,9 +70,9 @@ paths:
           $ref: "#/components/responses/RateLimited"
   /api/v1/search/external:
     post:
-      tags: [Search]
+      tags: [搜索]
       operationId: searchInternet
-      summary: Send only the query to an authorized internet search provider.
+      summary: 仅将查询发送给已授权的互联网搜索提供商。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -84,7 +83,7 @@ paths:
               $ref: "#/components/schemas/ExternalSearchRequest"
       responses:
         "200":
-          description: Transient internet candidates.
+          description: 短期互联网搜索候选结果。
           content:
             application/json:
               schema:
@@ -99,14 +98,14 @@ paths:
           $ref: "#/components/responses/RateLimited"
   /api/v1/search/external/{candidateId}/save:
     post:
-      tags: [Search, Knowledge]
+      tags: [搜索, 知识]
       operationId: saveExternalCandidate
       parameters:
         - $ref: "#/components/parameters/CandidateId"
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "201":
-          description: An active knowledge item was created from the candidate.
+          description: 已基于该候选创建 active 知识条目。
           content:
             application/json:
               schema:
@@ -118,10 +117,10 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
         "410":
-          description: The transient candidate has expired.
+          description: 短期候选结果已过期。
   /api/v1/knowledge-items:
     get:
-      tags: [Knowledge]
+      tags: [知识]
       operationId: listKnowledgeItems
       parameters:
         - name: status
@@ -145,7 +144,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Active knowledge items.
+          description: active 知识条目。
           content:
             application/json:
               schema:
@@ -153,9 +152,9 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
     post:
-      tags: [Knowledge]
+      tags: [知识]
       operationId: createKnowledgeItem
-      summary: Create an active and immediately searchable manual item.
+      summary: 创建可立即搜索的 active 手动条目。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -166,7 +165,7 @@ paths:
               $ref: "#/components/schemas/CreateKnowledgeItemRequest"
       responses:
         "201":
-          description: Item created. Processing may still be pending.
+          description: 条目已创建。处理状态可能仍为等待中。
           content:
             application/json:
               schema:
@@ -181,11 +180,11 @@ paths:
     parameters:
       - $ref: "#/components/parameters/ItemId"
     get:
-      tags: [Knowledge]
+      tags: [知识]
       operationId: getKnowledgeItem
       responses:
         "200":
-          description: Complete active item.
+          description: 完整的 active 条目。
           content:
             application/json:
               schema:
@@ -195,7 +194,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
     patch:
-      tags: [Knowledge]
+      tags: [知识]
       operationId: updateKnowledgeItem
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -207,7 +206,7 @@ paths:
               $ref: "#/components/schemas/UpdateKnowledgeItemRequest"
       responses:
         "200":
-          description: Updated item.
+          description: 已更新的条目。
           content:
             application/json:
               schema:
@@ -221,13 +220,13 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationError"
     delete:
-      tags: [Knowledge, Trash]
+      tags: [知识, 回收站]
       operationId: moveKnowledgeItemToTrash
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "204":
-          description: Item is no longer active or searchable.
+          description: 条目不再处于 active 状态，且不可搜索。
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -238,9 +237,9 @@ paths:
     parameters:
       - $ref: "#/components/parameters/ItemId"
     patch:
-      tags: [Knowledge]
+      tags: [知识]
       operationId: updateClassifications
-      summary: Correct classifications; edited item fields become locked.
+      summary: 修正分类；编辑后的条目字段将变为锁定状态。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -251,7 +250,7 @@ paths:
               $ref: "#/components/schemas/UpdateClassificationsRequest"
       responses:
         "200":
-          description: Locked assignments returned.
+          description: 返回已锁定的分配。
           content:
             application/json:
               schema:
@@ -264,14 +263,14 @@ paths:
           $ref: "#/components/responses/ValidationError"
   /api/v1/knowledge-items/{itemId}/reanalyze:
     post:
-      tags: [Knowledge, Jobs]
+      tags: [知识, 任务]
       operationId: reanalyzeKnowledgeItem
       parameters:
         - $ref: "#/components/parameters/ItemId"
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "202":
-          description: Re-analysis accepted. New authorization may be required.
+          description: 已接受重新分析请求。可能需要新的授权。
           content:
             application/json:
               schema:
@@ -284,7 +283,7 @@ paths:
           $ref: "#/components/responses/Conflict"
   /api/v1/imports/text:
     post:
-      tags: [Imports]
+      tags: [导入]
       operationId: importText
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -296,7 +295,7 @@ paths:
               $ref: "#/components/schemas/TextImportRequest"
       responses:
         "202":
-          description: Active item and background job accepted.
+          description: 已接受 active 条目和后台任务。
           content:
             application/json:
               schema:
@@ -307,7 +306,7 @@ paths:
           $ref: "#/components/responses/ValidationError"
   /api/v1/imports/webpage:
     post:
-      tags: [Imports]
+      tags: [导入]
       operationId: importWebpage
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -319,7 +318,7 @@ paths:
               $ref: "#/components/schemas/WebpageImportRequest"
       responses:
         "202":
-          description: Active item and single-page capture job accepted.
+          description: 已接受 active 条目和单页采集任务。
           content:
             application/json:
               schema:
@@ -332,7 +331,7 @@ paths:
           $ref: "#/components/responses/RateLimited"
   /api/v1/imports/upload:
     post:
-      tags: [Imports]
+      tags: [导入]
       operationId: uploadKnowledgeAttachment
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -355,7 +354,7 @@ paths:
                   maxLength: 20000
       responses:
         "202":
-          description: Upload accepted only after the complete security scan passes.
+          description: 仅在完整安全扫描通过后接受上传。
           content:
             application/json:
               schema:
@@ -363,18 +362,18 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "413":
-          description: File exceeds the configured upload limit.
+          description: 文件超过配置的上传限制。
         "422":
           $ref: "#/components/responses/ValidationError"
   /api/v1/jobs/{jobId}:
     get:
-      tags: [Jobs]
+      tags: [任务]
       operationId: getJob
       parameters:
         - $ref: "#/components/parameters/JobId"
       responses:
         "200":
-          description: Current job state.
+          description: 当前任务状态。
           content:
             application/json:
               schema:
@@ -385,14 +384,14 @@ paths:
           $ref: "#/components/responses/NotFound"
   /api/v1/jobs/{jobId}/retry:
     post:
-      tags: [Jobs]
+      tags: [任务]
       operationId: retryJob
       parameters:
         - $ref: "#/components/parameters/JobId"
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "202":
-          description: Retry accepted.
+          description: 已接受重试请求。
           content:
             application/json:
               schema:
@@ -405,14 +404,14 @@ paths:
           $ref: "#/components/responses/ValidationError"
   /api/v1/jobs/{jobId}/cancel:
     post:
-      tags: [Jobs]
+      tags: [任务]
       operationId: cancelJob
       parameters:
         - $ref: "#/components/parameters/JobId"
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "202":
-          description: Cancellation accepted.
+          description: 已接受取消请求。
           content:
             application/json:
               schema:
@@ -425,11 +424,11 @@ paths:
           $ref: "#/components/responses/Conflict"
   /api/v1/ai-authorizations:
     get:
-      tags: [Authorizations]
+      tags: [授权]
       operationId: listAIAuthorizations
       responses:
         "200":
-          description: Active and revoked authorization history.
+          description: active 和已撤销的授权历史。
           content:
             application/json:
               schema:
@@ -439,7 +438,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
     post:
-      tags: [Authorizations]
+      tags: [授权]
       operationId: grantAIAuthorization
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -451,7 +450,7 @@ paths:
               $ref: "#/components/schemas/AIAuthorizationRequest"
       responses:
         "201":
-          description: Authorization granted for one service and content type.
+          description: 已为单个服务和内容类型授予授权。
           content:
             application/json:
               schema:
@@ -462,7 +461,7 @@ paths:
           $ref: "#/components/responses/ValidationError"
   /api/v1/ai-authorizations/{authorizationId}:
     delete:
-      tags: [Authorizations]
+      tags: [授权]
       operationId: revokeAIAuthorization
       parameters:
         - name: authorizationId
@@ -474,14 +473,14 @@ paths:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "204":
-          description: Future transmissions for this scope are disabled.
+          description: 此范围内后续传输已被禁用。
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
   /api/v1/trash:
     get:
-      tags: [Trash]
+      tags: [回收站]
       operationId: listTrash
       parameters:
         - name: cursor
@@ -497,7 +496,7 @@ paths:
             default: 20
       responses:
         "200":
-          description: Recycled items only.
+          description: 仅返回 recycled 状态的条目。
           content:
             application/json:
               schema:
@@ -506,14 +505,14 @@ paths:
           $ref: "#/components/responses/Unauthorized"
   /api/v1/trash/{itemId}/restore:
     post:
-      tags: [Trash]
+      tags: [回收站]
       operationId: restoreKnowledgeItem
       parameters:
         - $ref: "#/components/parameters/ItemId"
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200":
-          description: Restored active item.
+          description: 已恢复的 active 条目。
           content:
             application/json:
               schema:
@@ -524,14 +523,14 @@ paths:
           $ref: "#/components/responses/Conflict"
   /api/v1/trash/{itemId}:
     delete:
-      tags: [Trash]
+      tags: [回收站]
       operationId: permanentlyDeleteKnowledgeItem
       parameters:
         - $ref: "#/components/parameters/ItemId"
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "202":
-          description: Permanent purge accepted and idempotent.
+          description: 已接受永久清除请求，且该操作具有幂等性。
           content:
             application/json:
               schema:
@@ -580,37 +579,37 @@ components:
         format: uuid
   responses:
     Unauthorized:
-      description: Authentication is required.
+      description: 需要身份认证。
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     Forbidden:
-      description: Required authorization scope is missing.
+      description: 缺少所需的授权范围。
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
-      description: Resource does not exist or is not owned by the current owner.
+      description: 资源不存在，或不属于当前所有者。
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     Conflict:
-      description: Version conflict or duplicate idempotency key.
+      description: 版本冲突或幂等键重复。
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     ValidationError:
-      description: Request validation failed without echoing sensitive content.
+      description: 请求验证失败，且未回显敏感内容。
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     RateLimited:
-      description: Provider or local rate limit reached.
+      description: 已达到提供商或本地速率限制。
       headers:
         Retry-After:
           schema:
@@ -879,7 +878,7 @@ components:
             type: string
             minLength: 1
             maxLength: 80
-      description: Every submitted classification field becomes a user-locked assignment.
+      description: 每个提交的分类字段都会成为用户锁定的分配。
     ClassificationResponse:
       type: object
       required: [itemId, category, tags, version]
@@ -928,7 +927,7 @@ components:
             - "null"
         degraded:
           type: boolean
-          description: True when the bounded PostgreSQL fallback served the request.
+          description: 当请求由有界 PostgreSQL 回退方案处理时为 true。
     ExternalSearchRequest:
       type: object
       required: [query, explicitConsent]
@@ -1034,7 +1033,7 @@ components:
         note:
           type: string
           maxLength: 20000
-      description: The browser worker may open only this single URL, subject to SSRF checks.
+      description: 浏览器工作进程只能打开此单个 URL，并须经过 SSRF 检查。
     ImportAccepted:
       type: object
       required: [itemId, jobId, status]

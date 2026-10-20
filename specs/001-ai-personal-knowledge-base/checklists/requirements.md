@@ -1,47 +1,46 @@
-# Specification Quality Checklist: AI 个人知识库
+# 规格质量检查清单：AI 个人知识库
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-10-21
-**Feature**: [spec.md](../spec.md)
+**用途**：在进入计划阶段前验证规格的完整性和质量
+**创建日期**：2026-10-21
+**功能**：[spec.md](../spec.md)
 
-## Content Quality
+## 内容质量
 
-- [x] No implementation details (languages, frameworks, APIs)
-- [x] Focused on user value and business needs
-- [x] Written for non-technical stakeholders
-- [x] All mandatory sections completed
+- [x] 不包含实现细节（语言、框架、API）
+- [x] 聚焦用户价值与业务需求
+- [x] 面向非技术利益相关者编写
+- [x] 所有必需章节均已完成
 
-## Requirement Completeness
+## 需求完整性
 
-- [x] No [NEEDS CLARIFICATION] markers remain
-- [x] Requirements are testable and unambiguous
-- [x] Success criteria are measurable
-- [x] Success criteria are technology-agnostic (no implementation details)
-- [x] All acceptance scenarios are defined
-- [x] Edge cases are identified
-- [x] Scope is clearly bounded
-- [x] Dependencies and assumptions identified
+- [x] 不再保留 [NEEDS CLARIFICATION] 标记
+- [x] 需求可测试且无歧义
+- [x] 成功标准可衡量
+- [x] 成功标准与技术实现无关（不包含实现细节）
+- [x] 已定义所有验收场景
+- [x] 已识别边界情况
+- [x] 范围边界清晰
+- [x] 已识别依赖与假设
 
-## Feature Readiness
+## 功能就绪度
 
-- [x] All functional requirements have clear acceptance criteria
-- [x] User scenarios cover primary flows
-- [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
+- [x] 所有功能需求都有清晰的验收标准
+- [x] 用户场景覆盖主要流程
+- [x] 功能满足成功标准中定义的可衡量结果
+- [x] 规格中未泄露实现细节
 
-## Notes
+## 备注
 
-- Validation completed in three iterations: initial specification review, first product-agent review,
-  and supplemental auto-classification/search review.
-- The first product review identified and resolved 12 specification gaps; the supplemental review
-  identified and resolved the manual-content AI consent gap.
-- The specification now requires automatic category and tag generation without manual taxonomy setup,
-  provisional low-confidence classification, and a single search input across title, body, note,
-  category, and tags.
-- Large-library search defines a target of 100,000 items, 2-second first-page rendering, and at least
-  20 results; benchmark environment and query-set details remain planning decisions.
-- DeepSeek Search and Fetch are recorded only as the user's intended external dependency; provider
-  selection and integration behavior remain planning decisions and do not appear as implementation
-  requirements.
-- The specification explicitly preserves the project constitution's no-crawler rule, environment-only
-  credential storage, secret non-disclosure surfaces, bilingual default, and cross-stage security gate.
+- 验证分三轮完成：初始规格审查、第一轮产品智能体审查，
+  以及补充的自动分类与搜索审查。
+- 第一轮产品审查识别并解决了 12 个规格缺口；补充审查
+  识别并解决了手动内容 AI 授权方面的缺口。
+- 规格现在要求在不进行手动分类体系设置的情况下自动生成分类和标签，
+  对低置信度结果采用暂定分类，并使用一个搜索输入框覆盖标题、正文、备注、
+  分类和标签。
+- 大型知识库检索定义的目标为 100,000 个条目、第一页在 2 秒内渲染，以及至少
+  20 条结果；基准环境和查询集细节仍属于计划决策。
+- DeepSeek Search 和 Fetch 仅记录为用户预期的外部依赖；提供商选择
+  和集成行为仍属于计划决策，且不会作为实现需求出现。
+- 规格明确保留项目章程中的禁止爬虫规则、仅通过环境变量存储凭据、
+  密钥不得披露的界面范围、默认双语，以及跨阶段安全门槛。

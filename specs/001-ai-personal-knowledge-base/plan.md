@@ -1,10 +1,10 @@
-# Implementation Plan: AI 个人知识库
+# 实施计划：AI 个人知识库
 
-**Branch**: `001-ai-personal-knowledge-base` | **Date**: 2026-10-21 | **Spec**: [spec.md](spec.md)
+**分支**：`001-ai-personal-knowledge-base` | **日期**：2026-10-21 | **规格**：[spec.md](spec.md)
 
-**Input**: Feature specification from `specs/001-ai-personal-knowledge-base/spec.md`
+**输入**：来自 `specs/001-ai-personal-knowledge-base/spec.md` 的功能规格
 
-## Summary
+## 摘要
 
 构建一个单用户、私有部署的 AI 个人知识库网站。用户可以手动录入，或通过文字、文档、
 截图和单页网页截图采集知识；系统自动生成摘要、分类和标签，用户纠正后锁定。
@@ -15,82 +15,79 @@ Playwright 单页浏览器进程。PostgreSQL 是唯一权威数据源，Meilise
 pg-boss 使用 PostgreSQL 执行异步任务，S3 兼容对象存储保存附件。AI、互联网搜索和单页读取
 通过 DeepSeek 适配器接入；Web 请求进程不执行 OCR、截图或长时间 AI 任务。
 
-## Technical Context
+## 技术背景
 
-**Language/Version**: Node.js 24 LTS；TypeScript 使用与 Next.js 构建链兼容的最新稳定 5.x
+**语言/版本**：Node.js 24 LTS；TypeScript 使用与 Next.js 构建链兼容的最新稳定 5.x
 
-**Primary Dependencies**: Next.js 16 App Router、React 19、Better Auth、Drizzle ORM、
+**主要依赖**：Next.js 16 App Router、React 19、Better Auth、Drizzle ORM、
 pg-boss、Meilisearch、S3 SDK、Playwright、Sharp、Tesseract OCR、Secretlint、
 next-intl、Zod、Pino、OpenTelemetry、Radix UI primitives、Lucide icons
 
-**Storage**: PostgreSQL 18 为权威存储；Meilisearch 为派生全文索引；S3 兼容私有对象存储
+**存储**：PostgreSQL 18 为权威存储；Meilisearch 为派生全文索引；S3 兼容私有对象存储
 保存附件和脱敏派生图；不引入 Redis
 
-**Testing**: Vitest、fast-check、Testcontainers、Playwright、axe-core、Schemathesis、
+**测试**：Vitest、fast-check、Testcontainers、Playwright、axe-core、Schemathesis、
 k6、Semgrep、Gitleaks、Trivy
 
-**Target Platform**: Ubuntu 24.04 x86_64、原生 Nginx 与 systemd；新知识库可在容量允许
+**目标平台**：Ubuntu 24.04 x86_64、原生 Nginx 与 systemd；新知识库可在容量允许
 时使用 Docker Compose，也可使用独立主机；现代桌面与移动浏览器
 
-**Project Type**: Web application with web, background worker, and isolated browser worker
+**项目类型**：Web 应用，包含 web、后台 worker 与隔离的 browser worker
 
-**Performance Goals**: 100,000 条知识基准下，95% 查询在 2 秒内显示至少 20 条个人结果；
+**性能目标**：100,000 条知识基准下，95% 查询在 2 秒内显示至少 20 条个人结果；
 目标并发为 2 个用户会话/标签页加 2 个后台任务
 
-**Constraints**: 单用户；默认中文并支持英文；禁止爬虫、链接遍历和批量抓取；网页只处理
+**约束**：单用户；默认中文并支持英文；禁止爬虫、链接遍历和批量抓取；网页只处理
 用户明确提交的单页；所有密钥仅来自环境变量；无法完整完成密钥扫描的附件整次拒绝；
 AI 外发按服务和内容类型授权；实际前端必须通过 Taste 视觉检查；必须与现有
 `https://seaunit.site/app` 应用共存，不修改其 `/api`、`/bank`、`/pay`、`/apk` 和认证边界
 
-**Scale/Scope**: 1 个所有者账户、最多 3 至 5 个设备/会话、100,000 条知识、
+**规模/范围**：1 个所有者账户、最多 3 至 5 个设备/会话、100,000 条知识、
 约 10 个核心页面、文件上限在实施时冻结
 
-## Constitution Check
+## 章程检查
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*门禁：必须在阶段 0 研究前通过。阶段 1 设计后重新检查。*
 
-| Gate | Pre-Research | Post-Design | Evidence |
+| 门禁 | 研究前 | 设计后 | 证据 |
 |------|--------------|-------------|----------|
-| SDD and approved clarifications | PASS | PASS | Plan derives from the 62-requirement specification and five accepted clarifications |
-| Product/development/test separation | PASS | PASS | Product review completed; implementation and independent test gates are defined |
-| Chinese default and complete English coverage | PASS | PASS | `next-intl` with `zh-CN` default; bilingual E2E and string validation required |
-| Accuracy and traceability | PASS | PASS | Source, capture time, provider, analysis revision, and safe audit metadata are modeled |
-| Taste visual verification | PASS | PASS | UI implementation must run `design-taste-frontend`; 1440/768/390 checks are release gates |
-| No crawling and external-data safety | PASS | PASS | Single-page browser sandbox, SSRF egress proxy, redirect limits, no link discovery |
-| Environment-only secrets and non-disclosure | PASS | PASS | Zod startup validation, secret scanner/redactor, canary tests, no secret columns or logs |
-| Search scale and measurable acceptance | PASS | PASS | Meilisearch with PostgreSQL fallback and a frozen 100,000-item benchmark |
+| SDD 与已批准的澄清事项 | 通过 | 通过 | 计划源自包含 62 项需求的功能规格和五项已接受的澄清事项 |
+| 产品/开发/测试分离 | 通过 | 通过 | 产品评审已完成；实施门禁与独立测试门禁已定义 |
+| 默认中文并完整覆盖英文 | 通过 | 通过 | `next-intl` 以 `zh-CN` 为默认语言；要求双语端到端测试与字符串验证 |
+| 准确性与可追溯性 | 通过 | 通过 | 来源、采集时间、Provider、分析修订版和安全审计元数据均已建模 |
+| Taste 视觉验证 | 通过 | 通过 | UI 实施必须运行 `design-taste-frontend`；1440/768/390 检查是发布门禁 |
+| 禁止爬虫与外部数据安全 | 通过 | 通过 | 单页浏览器沙箱、SSRF 出站代理、重定向限制、不进行链接发现 |
+| 仅环境变量中的密钥与不泄露 | 通过 | 通过 | Zod 启动校验、密钥扫描器/脱敏器、金丝雀测试、无密钥列或密钥日志 |
+| 搜索规模与可度量验收 | 通过 | 通过 | Meilisearch 配合 PostgreSQL 回退方案，并采用冻结的 100,000 条基准 |
 
-No constitutional violations are required for this design.
+本设计无需违反任何章程约束。
 
-## Architecture Decisions
+## 架构决策
 
-1. **Modular monolith, separate processes.** `web`, `worker`, and `browser-worker` share the
-   same TypeScript domain code and schema. This keeps deployment operationally small while
-   isolating untrusted browser rendering.
-2. **PostgreSQL is authoritative.** Meilisearch and derived files can be rebuilt. Search
-   hydration always checks current PostgreSQL lifecycle state so recycled items cannot leak
-   through a stale index.
-3. **Immediate searchability.** Every accepted manual or AI import creates an active item in
-   the same transaction as its base search fields. Meilisearch is updated best-effort; a
-   PostgreSQL fallback covers pending or temporarily unavailable indexing.
-4. **No Redis or external queue.** pg-boss stores durable tasks in PostgreSQL and supports
-   locking, retries, dead letters, and periodic jobs.
-5. **One-page browser sandbox.** A user-submitted URL is opened once in an isolated Playwright
-   process. It may load required subresources, but it must not discover or follow links,
-   enumerate routes, scroll infinitely, or batch process URLs. All redirects and DNS results
-   are revalidated through an egress proxy.
-6. **DeepSeek behind ports.** Classification, Search, and Fetch are separate provider
-   adapters with distinct authorization scopes and timeout/retry behavior. Fetch is optional
-   until its single-URL behavior and data policy pass a provider PoC.
-7. **Secret safety is fail-closed.** Text, extracted document text, OCR output, and screenshot
-   pixels are scanned before persistence or external transmission. Unscannable content is
-   rejected; high-confidence secrets are removed from text or redacted in derived images.
-8. **Single owner with closed registration.** Better Auth uses database sessions. A one-time
-   bootstrap token creates the sole owner; subsequent public registration is disabled.
+1. **模块化单体，独立进程。** `web`、`worker` 与 `browser-worker` 共享同一套 TypeScript
+   领域代码和 schema。这样既能保持部署在运维上足够轻量，又能隔离不受信任的浏览器渲染。
+2. **PostgreSQL 为权威数据源。** Meilisearch 和派生文件可以重建。搜索命中后的数据补全
+   始终检查 PostgreSQL 中的当前生命周期状态，确保已回收的条目不会通过陈旧索引泄露。
+3. **即时可搜索性。** 每次接受手动录入或 AI 导入时，都在同一事务中创建 `active` 条目
+   并写入其基础搜索字段。Meilisearch 采用尽力而为（best-effort）的更新方式；
+   PostgreSQL 回退方案覆盖索引待处理或暂时不可用的情况。
+4. **不使用 Redis 或外部队列。** pg-boss 将持久化任务存储在 PostgreSQL 中，并支持
+   锁定、重试、死信和周期任务。
+5. **单页浏览器沙箱。** 用户提交的 URL 会在隔离的 Playwright 进程中仅打开一次。
+   它可以加载渲染所需的子资源，但不得发现或跟随链接、枚举路由、无限滚动或批量处理
+   URL。所有重定向和 DNS 结果都通过出站代理重新验证。
+6. **通过端口接入 DeepSeek。** 分类、Search 与 Fetch 是独立的 Provider 适配器，
+   各自具有不同的授权范围以及超时/重试行为。在单 URL 行为和数据政策通过 Provider
+   PoC 前，Fetch 保持可选。
+7. **密钥安全采用 fail-closed（失败即拒绝）。** 文本、提取后的文档文本、OCR 输出和
+   截图像素在持久化或外发前均会扫描。无法扫描的内容会被拒绝；高置信度密钥会从文本中
+   移除，或在派生图像中脱敏。
+8. **单所有者与封闭注册。** Better Auth 使用数据库会话。一次性 bootstrap token
+   创建唯一所有者；此后禁用公开注册。
 
-## Project Structure
+## 项目结构
 
-### Documentation (this feature)
+### 文档（本功能）
 
 ```text
 specs/001-ai-personal-knowledge-base/
@@ -101,10 +98,10 @@ specs/001-ai-personal-knowledge-base/
 ├── quickstart.md
 ├── contracts/
 │   └── openapi.yaml
-└── tasks.md               # Created later by $speckit-tasks
+└── tasks.md               # 后续由 $speckit-tasks 创建
 ```
 
-### Source Code (repository root)
+### 源代码（仓库根目录）
 
 ```text
 apps/
@@ -149,89 +146,83 @@ infra/
 └── backup/
 ```
 
-**Structure Decision**: Use a pnpm workspace. The web app owns UI and short-lived HTTP
-requests; workers own extraction, classification, indexing, cleanup, and browser rendering.
-Shared packages prevent duplicated domain rules while the browser worker remains isolated.
+**结构决策**：使用 pnpm workspace。Web 应用负责 UI 和短时 HTTP 请求；worker 负责提取、
+分类、索引、清理和浏览器渲染。共享包用于避免领域规则重复，同时 browser worker 保持
+隔离。
 
-## Data and API Design
+## 数据与 API 设计
 
-- The complete relational model, constraints, indexes, deletion behavior, and state machines
-  are defined in [data-model.md](data-model.md).
-- External HTTP behavior is defined in [contracts/openapi.yaml](contracts/openapi.yaml).
-- Internet search candidates use a signed, user-scoped, short-lived server cache for 15
-  minutes and never create a knowledge item until the owner confirms saving.
-- Category assignment is at most one current category per item. Tag assignment is many-to-many.
-  User edits create `locked` item-level assignments; shared vocabulary rows never carry a
-  per-item lock.
-- Search query fields are title, body, note, category names, and tag names. There is no second
-  search input or user-selected search mode.
+- 完整的关系模型、约束、索引、删除行为和状态机定义在 [data-model.md](data-model.md)。
+- 外部 HTTP 行为定义在 [contracts/openapi.yaml](contracts/openapi.yaml)。
+- 互联网搜索候选项使用带签名、按用户限定且有效期 15 分钟的短期服务器缓存；在所有者
+  确认保存前，绝不创建知识条目。
+- 每个条目最多归属一个当前分类。标签分配为多对多关系。用户编辑会产生 `locked`
+  的条目级分配；共享词表行不携带按条目区分的锁。
+- 搜索查询字段为 `title`、`body`、`note`、`category_names` 和 `tag_names`。不提供
+  第二个搜索输入框，也不提供由用户选择的搜索模式。
 
-## Deployment Coexistence
+## 部署共存
 
-- The existing “拾题” application is a native systemd deployment, not Docker:
-  Spring Boot on `127.0.0.1:8080`, payment sidecar on `127.0.0.1:8090`, MySQL, Redis, and
-  Nginx on the same host.
-- Keep the existing application and its `/app`, `/api`, `/bank`, `/pay`, `/apk`, and auth
-  routes unchanged.
-- Publish the knowledge base at `/kb` with `basePath=/kb`; bind its web process to
-  `127.0.0.1:3000` and proxy it through the existing Nginx.
-- Replace only the exact root landing route with a portal containing entries to `/app` and
-  `/kb`; preserve public bank and sitemap routes.
-- The inspected host has about 1.8 GiB RAM available. The full knowledge-base stack is not
-  recommended on that host without additional memory/swap and resource validation.
-- The two Nginx source templates under `/opt/shuati/deploy/nginx/` must be updated together
-  with the active server config.
+- 现有“拾题”应用采用原生 systemd 部署，而非 Docker：Spring Boot 运行于
+  `127.0.0.1:8080`，支付 sidecar 运行于 `127.0.0.1:8090`，MySQL、Redis 与 Nginx
+  运行于同一主机。
+- 保持现有应用及其 `/app`、`/api`、`/bank`、`/pay`、`/apk` 和认证路由不变。
+- 使用 `basePath=/kb` 在 `/kb` 发布知识库；将其 Web 进程绑定到 `127.0.0.1:3000`，
+  并通过现有 Nginx 代理。
+- 仅将精确匹配的根落地路由替换为包含 `/app` 与 `/kb` 入口的门户；保留公开的 `/bank`
+  与 sitemap 路由。
+- 经检查的主机约有 1.8 GiB RAM 可用。若没有额外内存/swap 和资源验证，不建议在该主机
+  上运行完整知识库技术栈。
+- `/opt/shuati/deploy/nginx/` 下的两个 Nginx 源模板必须与当前生效的服务器配置一同更新。
 
-The complete deployment baseline, routing design, resource limits, rollback, and secret rules
-are documented in [deployment.md](deployment.md).
+完整的部署基线、路由设计、资源限制、回滚和密钥规则记录在
+[deployment.md](deployment.md)。
 
-## Implementation Sequence
+## 实施顺序
 
-1. **Provider and search PoCs:** verify DeepSeek Search/Fetch constraints, Meilisearch Chinese
-   relevance at 100,000 items, screenshot success rate, and OCR/redaction completeness.
-2. **Foundation:** pnpm workspace, Docker Compose, environment schema, PostgreSQL migrations,
-   Better Auth bootstrap, i18n shell, structured logging.
-3. **Core capture:** manual CRUD, secret scanning/redaction, object staging, import jobs,
-   processing states, recycle bin, optimistic concurrency.
-4. **AI classification:** provider adapters, authorization matrix, structured output schema,
-   provisional/applied/locked assignments, retry and idempotency.
-5. **Search:** Meilisearch indexing, PostgreSQL fallback, stale-index hydration guard,
-   single-box query, external-search handoff, candidate confirmation transaction.
-6. **Browser worker:** Playwright single-page capture, egress proxy, private-network rejection,
-   screenshot-only fallback, capture metadata.
-7. **UI:** implement with the Taste skill, then complete real-browser checks at 1440, 768,
-   and 390 pixels.
-8. **Hardening:** contract/security/performance/accessibility/bilingual suites, backup and
-   restore rehearsal, deletion expiry verification.
+1. **Provider 与搜索 PoC：** 验证 DeepSeek Search/Fetch 约束、Meilisearch 在 100,000
+   条目下的中文相关性、截图成功率和 OCR/脱敏完整性。
+2. **基础工程：** pnpm workspace、Docker Compose、环境变量 schema、PostgreSQL 迁移、
+   Better Auth bootstrap、国际化外壳、结构化日志。
+3. **核心采集：** 手动 CRUD、密钥扫描/脱敏、对象暂存、导入任务、处理状态、回收站、
+   乐观并发。
+4. **AI 分类：** Provider 适配器、授权矩阵、结构化输出 schema、
+   provisional/applied/locked 分配、重试与幂等性。
+5. **搜索：** Meilisearch 索引、PostgreSQL 回退、陈旧索引数据补全保护、单框查询、
+   外部搜索交接、候选项确认事务。
+6. **Browser worker：** Playwright 单页采集、出站代理、私有网络拒绝、仅截图回退、
+   采集元数据。
+7. **UI：** 使用 Taste 技能实施，然后完成 1440、768 和 390 像素下的真实浏览器检查。
+8. **加固：** 契约/安全/性能/可访问性/双语测试套件、备份与恢复演练、删除到期验证。
 
-## Validation Strategy
+## 验证策略
 
-- Unit: state machines, lock precedence, idempotency, secret patterns, version conflicts,
-  retention calculations, and provider response validation.
-- Integration: PostgreSQL, pg-boss, Meilisearch, and object storage using Testcontainers.
-- Contract: OpenAPI and provider adapter schemas, errors, timeout, 429, and malformed output.
-- E2E: manual save, all import modes, candidate confirmation, recycle bin, language switch,
-  authorization, and immediate searchability.
-- Security: canary secrets across DOM, network, DB, index, logs, screenshots, and artifacts;
-  SSRF/private-IP/credential URL tests; authentication and access-control tests.
-- Performance: frozen 100,000-item corpus and 500-query benchmark using the parameters in
-  [research.md](research.md), measured through visible Playwright result rendering.
-- Visual: the Taste inspector and screenshot review at 1440, 768, and 390 pixels.
+- 单元测试：状态机、锁优先级、幂等性、密钥模式、版本冲突、保留期计算和 Provider
+  响应验证。
+- 集成测试：使用 Testcontainers 验证 PostgreSQL、pg-boss、Meilisearch 和对象存储。
+- 契约测试：OpenAPI 与 Provider 适配器 schema、错误、超时、429 和格式错误的输出。
+- 端到端测试：手动保存、所有导入模式、候选项确认、回收站、语言切换、授权和即时
+  可搜索性。
+- 安全测试：跨 DOM、网络、数据库、索引、日志、截图和制品的金丝雀密钥；
+  SSRF/私有 IP/凭据 URL 测试；认证和访问控制测试。
+- 性能测试：使用 [research.md](research.md) 中的参数，对冻结的 100,000 条语料集和
+  500 条查询进行基准测试，并通过 Playwright 的可见结果渲染进行测量。
+- 视觉测试：使用 Taste 检查器，并在 1440、768 和 390 像素下审查截图。
 
-## Risks and Mitigations
+## 风险与缓解措施
 
-| Risk | Mitigation |
+| 风险 | 缓解措施 |
 |------|------------|
-| Meilisearch Chinese relevance misses acceptance | Run the fixed benchmark before implementing the full UI; Typesense and PostgreSQL fallback are evaluated alternatives |
-| DeepSeek Fetch cannot guarantee single-URL behavior | Keep Fetch behind an adapter and feature flag; disable it if the provider PoC fails; use Search plus user-uploaded screenshots |
-| Image secret redaction is unreliable | Redact only when OCR/sensitive-region confidence is sufficient; otherwise reject and delete temporary artifacts |
-| Index and database divergence | PostgreSQL lifecycle guard during hydration, revisioned idempotent index jobs, and full rebuild by alias switch |
-| Browser capture causes SSRF or accidental crawling | Isolated browser egress proxy, DNS/IP validation at connection time, redirect cap, no link discovery, no persistent session |
-| AI output prompt injection | Treat all imported content as data, disable tools, use strict JSON schema, validate output, and never execute model-suggested actions |
-| Retention window is misunderstood | Set configurable defaults, display the exact purge and backup exposure dates, and test expiry with a fake clock and a short-retention sandbox |
+| Meilisearch 中文相关性未达到验收标准 | 在实施完整 UI 前运行固定基准；Typesense 与 PostgreSQL 回退方案是已评估的备选方案 |
+| DeepSeek Fetch 无法保证单 URL 行为 | 将 Fetch 置于适配器和功能开关之后；若 Provider PoC 失败则禁用它；使用 Search 加用户上传的截图 |
+| 图像密钥脱敏不可靠 | 仅在 OCR/敏感区域置信度足够时脱敏；否则拒绝并删除临时制品 |
+| 索引与数据库不一致 | 数据补全时使用 PostgreSQL 生命周期保护、带修订版的幂等索引任务，并通过别名切换完成全量重建 |
+| 浏览器采集导致 SSRF 或意外爬取 | 隔离的浏览器出站代理、连接时 DNS/IP 验证、重定向上限、不进行链接发现、不保留持久会话 |
+| AI 输出提示注入 | 将所有导入内容视为数据、禁用工具、使用严格 JSON schema、验证输出，并绝不执行模型建议的操作 |
+| 保留窗口被误解 | 设置可配置默认值，显示准确的清除日期和备份暴露日期，并使用假时钟和短保留期沙箱测试到期行为 |
 
-## Complexity Tracking
+## 复杂度跟踪
 
-No constitutional violations are required. The separate browser worker and derived search
-index are justified by the no-crawler security boundary and the 100,000-item search target;
-they will be removed only if their provider and search PoCs fail to show value.
+本设计无需违反任何章程约束。独立的 browser worker 和派生搜索索引由禁止爬虫的安全边界
+以及 100,000 条目搜索目标提供合理性；只有当对应的 Provider 与搜索 PoC 无法体现价值时，
+才会移除它们。
