@@ -198,6 +198,8 @@ failed processing remains searchable while active.
 | `error_message_safe` | text | No content, URL credentials, filename, or provider body |
 | `idempotency_key` | text | Stable per owner/action |
 | `version` | integer | Optimistic concurrency |
+| `created_at` | timestamptz | Required |
+| `updated_at` | timestamptz | Required |
 
 **Constraint**: `UNIQUE(owner_id, idempotency_key)`.
 
@@ -227,6 +229,8 @@ failed processing remains searchable while active.
 | `error_message_safe` | text | No user content |
 | `idempotency_key` | text | Stable per item revision and task type |
 | `version` | integer | Optimistic concurrency |
+| `created_at` | timestamptz | Required |
+| `updated_at` | timestamptz | Required |
 
 **Constraint**: `UNIQUE(owner_id, idempotency_key)`.
 
@@ -404,6 +408,8 @@ Re-authorization creates a new row. Revocation does not delete existing knowledg
 | `snippet` | text | Short provider snippet |
 | `rank` | integer | Provider order |
 | `expires_at` | timestamptz | Default now + 15 minutes |
+| `saved_item_id` | uuid | Nullable unique FK to knowledge item; set on first successful save |
+| `consumed_at` | timestamptz | Nullable; set with `saved_item_id` |
 | `created_at` | timestamptz | Required |
 
 **Rules**:
@@ -411,7 +417,8 @@ Re-authorization creates a new row. Revocation does not delete existing knowledg
 - No `knowledge_item`, `source`, attachment, or search document is created before confirmation.
 - Rows are not exposed as search history.
 - Expired rows are purged periodically and can be cleaned at confirmation time.
-- Saving a candidate is idempotent using a candidate ID plus owner ID.
+- Saving a candidate is idempotent using `saved_item_id`; repeated confirmation returns the
+  already-created item even when the client sends a different idempotency key.
 
 ## Entity: Audit Event
 
@@ -430,6 +437,34 @@ Re-authorization creates a new row. Revocation does not delete existing knowledg
 | `occurred_at` | timestamptz | Required |
 
 No business foreign keys are attached, so hard deletion does not remove audit facts.
+
+## Entity: Request Idempotency
+
+**Purpose**: Persists write-request idempotency and safe response replay for the OpenAPI
+`Idempotency-Key` contract.
+
+| Field | Type | Rules |
+|-------|------|-------|
+| `id` | uuid | Primary key |
+| `owner_id` | uuid | FK to owner, `ON DELETE CASCADE` |
+| `scope` | text | Route/action identifier |
+| `idempotency_key` | text | Client-supplied key |
+| `request_hash` | char(64) | Hash of method, route, and validated body |
+| `status` | enum | `processing`, `completed`, `failed` |
+| `response_status` | integer | Nullable until completion |
+| `response_body_safe` | jsonb | Nullable; validated safe response body |
+| `resource_id` | uuid | Nullable; created or affected resource |
+| `created_at` | timestamptz | Required |
+| `expires_at` | timestamptz | Default now + 24 hours |
+
+**Constraint**: `UNIQUE(owner_id, scope, idempotency_key)`.
+
+**Rules**:
+
+- A repeated key with the same request hash returns the stored safe response.
+- A repeated key with a different request hash returns `409`.
+- Processing records older than the expiry window may be retried after reconciliation.
+- Stored responses never contain credentials or raw provider output.
 
 ## State Machines
 
