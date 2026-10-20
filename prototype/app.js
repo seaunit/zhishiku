@@ -46,7 +46,7 @@ const items = [
     summary: "用户只提交一个链接，系统截图、识别可见文字并自动分类，不遍历其他页面。",
     body: [
       "网页导入只处理用户指定的单页。",
-      "系统先获得渲染截图，再进行 OCR、密钥扫描与自动归类；截图能力失败时回退到用户上传截图。",
+      "系统先获得渲染截图，再进行 OCR、密钥扫描与自动归类；截图能力失败时回退到用户粘贴剪贴板截图。",
     ],
     category: "工程实践",
     tags: ["网页采集", "OCR", "安全"],
@@ -342,7 +342,7 @@ const translations = {
     authTextTitle: "DeepSeek 分类 · 文本",
     authTextDesc: "标题、正文、备注与粘贴文字",
     authVisionTitle: "DeepSeek Vision · 截图",
-    authVisionDesc: "网页渲染图与用户上传截图",
+    authVisionDesc: "网页渲染图与用户粘贴截图",
     authSearchTitle: "DeepSeek Search · 查询",
     authSearchDesc: "仅在你主动继续互联网搜索时发送查询词",
     settingsLanguageTitle: "默认语言",
@@ -398,7 +398,19 @@ const translations = {
     formUrl: "网页链接",
     formNote: "备注",
     formFile: "选择文件",
-    formFileHint: "原型中不会真正上传文件",
+    formFileHint: "支持 PDF、Word、TXT、Markdown、JPG、PNG、WebP、HEIC，单文件最大 25 MiB",
+    documentDropTitle: "拖入或选择文档或图片",
+    documentDropHint: "文档与图片共用同一套安全扫描流程",
+    screenshotPasteTitle: "点击这里，然后粘贴截图",
+    screenshotPasteHint: "电脑：复制后按 Ctrl+V / ⌘V；手机：复制截图后在粘贴区使用系统粘贴菜单",
+    screenshotPasteReady: "剪贴板截图已就绪",
+    screenshotPasteEmpty: "请先粘贴一张剪贴板截图。",
+    screenshotClipboardOnly: "仅支持剪贴板粘贴",
+    screenshotClear: "清除截图",
+    fileMissing: "请先选择一个文档或图片文件。",
+    screenshotTooLarge: "截图超过 25 MiB，请压缩后重新复制。",
+    removeFile: "移除",
+    goToDocument: "无法粘贴图片？前往文档入口选择 JPG、PNG 等图片文件。",
     saveAuto: "保存并自动整理",
     cancel: "取消",
     safetyNote: "提交前会扫描密钥；无法完整扫描的文件会被拒绝。",
@@ -447,7 +459,7 @@ const translations = {
     authTextTitle: "DeepSeek Classification · Text",
     authTextDesc: "Titles, body, notes, and pasted text",
     authVisionTitle: "DeepSeek Vision · Screenshot",
-    authVisionDesc: "Rendered pages and user-uploaded screenshots",
+    authVisionDesc: "Rendered pages and clipboard screenshots",
     authSearchTitle: "DeepSeek Search · Query",
     authSearchDesc: "Only the query is sent when you explicitly continue to internet search",
     settingsLanguageTitle: "Default language",
@@ -503,7 +515,19 @@ const translations = {
     formUrl: "Page URL",
     formNote: "Note",
     formFile: "Choose file",
-    formFileHint: "This prototype does not upload the file",
+    formFileHint: "PDF, Word, TXT, Markdown, JPG, PNG, WebP, HEIC; max 25 MiB",
+    documentDropTitle: "Drop or choose a document or image",
+    documentDropHint: "Documents and images share the same safety scan",
+    screenshotPasteTitle: "Click here, then paste a screenshot",
+    screenshotPasteHint: "Desktop: press Ctrl+V / ⌘V. Phone: copy the screenshot, then use the system paste menu here.",
+    screenshotPasteReady: "Clipboard screenshot ready",
+    screenshotPasteEmpty: "Paste a clipboard screenshot first.",
+    screenshotClipboardOnly: "Clipboard paste only",
+    screenshotClear: "Clear screenshot",
+    fileMissing: "Choose a document or image file first.",
+    screenshotTooLarge: "The screenshot exceeds 25 MiB. Compress it and copy again.",
+    removeFile: "Remove",
+    goToDocument: "Can't paste an image? Choose a JPG, PNG, or other image in the Document tab.",
     saveAuto: "Save and organize",
     cancel: "Cancel",
     safetyNote: "Secrets are scanned before saving. Unscannable files are rejected.",
@@ -517,6 +541,9 @@ const state = {
   libraryFilter: "all",
   captureMode: "manual",
   dialogMode: "manual",
+  pastedScreenshots: { dialog: null, page: null },
+  selectedFiles: { dialog: null, page: null },
+  notes: { dialog: "", page: "" },
   currentDetailId: null,
   externalVisible: false,
 };
@@ -822,6 +849,20 @@ function renderDetail(itemId) {
       <div class="detail-body">
         ${item.body.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
       </div>
+      ${item.attachments?.length ? `
+        <section class="detail-attachments" aria-label="${state.lang === "en" ? "Source images" : "来源图片"}">
+          <h2>${state.lang === "en" ? "Source images" : "来源图片"}</h2>
+          ${item.attachments.map((attachment) => `
+            <figure>
+              <img src="${attachment.url}" alt="${escapeHtml(attachment.name)}" />
+              <figcaption>
+                <strong>${escapeHtml(attachment.name)}</strong>
+                <span>${state.lang === "en" ? "Safe source attachment · not inserted into the body" : "安全来源附件 · 未自动插入正文"}</span>
+              </figcaption>
+            </figure>
+          `).join("")}
+        </section>
+      ` : ""}
     </section>
     <aside class="detail-aside">
       <section class="aside-section">
@@ -905,6 +946,171 @@ function renderTrash() {
   `).join("");
 }
 
+const MAX_SCREENSHOT_BYTES = 25 * 1024 * 1024;
+const IMAGE_FILE_PATTERN = /\.(jpe?g|png|webp|heic|heif)$/i;
+const DOCUMENT_FILE_PATTERN = /\.(pdf|docx?|txt|md|rtf)$/i;
+const SUPPORTED_IMAGE_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+
+function isImageFile(file) {
+  if (!file) return false;
+  const mediaType = String(file.type || "").toLowerCase();
+  const name = String(file.name || "");
+  const supportedType = mediaType ? SUPPORTED_IMAGE_MIME.has(mediaType) : false;
+  const supportedExtension = IMAGE_FILE_PATTERN.test(name);
+  const hasDifferentExtension = /\.[^.]+$/.test(name) && !supportedExtension;
+  return !hasDifferentExtension && (supportedType || supportedExtension);
+}
+
+function isDocumentFile(file) {
+  return Boolean(file && (DOCUMENT_FILE_PATTERN.test(file.name) || file.type === "application/pdf"));
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function clearPastedScreenshot(target) {
+  const current = state.pastedScreenshots[target];
+  if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
+  state.pastedScreenshots[target] = null;
+  paintPastedScreenshot(target);
+}
+
+function setPastedScreenshot(target, file) {
+  if (!isImageFile(file)) return false;
+  if (file.size > MAX_SCREENSHOT_BYTES) {
+    showToast(t("screenshotTooLarge"));
+    return false;
+  }
+  const current = state.pastedScreenshots[target];
+  if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
+  state.pastedScreenshots[target] = {
+    file,
+    previewUrl: URL.createObjectURL(file),
+  };
+  paintPastedScreenshot(target);
+  return true;
+}
+
+function seedDemoPastedScreenshot() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 960;
+  canvas.height = 540;
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#071a28";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = "#66d7e6";
+  context.lineWidth = 3;
+  context.strokeRect(34, 34, 892, 472);
+  context.fillStyle = "#effaff";
+  context.font = "600 34px sans-serif";
+  context.fillText("Clipboard screenshot", 78, 112);
+  context.fillStyle = "#9bb8c8";
+  context.font = "22px sans-serif";
+  context.fillText("Search every saved note, page and document.", 78, 164);
+  context.fillStyle = "#0d2a3d";
+  context.fillRect(78, 232, 804, 88);
+  context.fillStyle = "#66d7e6";
+  context.fillRect(78, 232, 8, 88);
+  state.pastedScreenshots.page = {
+    file: { name: "clipboard-example.png", size: 184320, type: "image/png" },
+    previewUrl: canvas.toDataURL("image/png"),
+  };
+}
+
+function paintPastedScreenshot(target) {
+  const zone = $(`[data-paste-zone="${target}"]`);
+  if (!zone) return;
+  const pasted = state.pastedScreenshots[target];
+  const submit = $(`[data-submit-screenshot="${target}"]`);
+  if (!pasted) {
+    zone.classList.remove("has-image");
+    zone.innerHTML = `
+      <span class="paste-zone-icon"><svg><use href="#icon-image"></use></svg></span>
+      <strong>${t("screenshotPasteTitle")}</strong>
+      <p>${t("screenshotPasteHint")}</p>
+      <span class="paste-shortcuts" aria-hidden="true">
+        <kbd>Ctrl</kbd><span>+</span><kbd>V</kbd>
+        <i>${state.lang === "en" ? "or" : "或"}</i>
+        <kbd>⌘</kbd><span>+</span><kbd>V</kbd>
+      </span>
+    `;
+    if (submit) submit.disabled = true;
+    return;
+  }
+  zone.classList.add("has-image");
+  zone.innerHTML = `
+    <span class="paste-preview-frame">
+      <img src="${pasted.previewUrl}" alt="${state.lang === "en" ? "Pasted screenshot preview" : "剪贴板截图预览"}" />
+    </span>
+    <span class="paste-preview-meta">
+      <span>
+        <strong>${t("screenshotPasteReady")}</strong>
+        <small>${escapeHtml(pasted.file.name || (state.lang === "en" ? "Clipboard image" : "剪贴板图片"))} · ${formatFileSize(pasted.file.size)}</small>
+      </span>
+      <button class="mini-action" type="button" data-clear-screenshot="${target}">${t("screenshotClear")}</button>
+    </span>
+  `;
+  if (submit) submit.disabled = false;
+}
+
+function paintSelectedFile(target, file) {
+  const container = target === "dialog" ? $("#dialogFields") : $("#captureContent");
+  if (!container) return;
+  const status = $("[data-file-selection]", container);
+  if (!status) return;
+  if (!file) {
+    status.hidden = true;
+    status.innerHTML = "";
+    return;
+  }
+  const image = isImageFile(file);
+  status.hidden = false;
+  status.innerHTML = `
+    <span class="selected-file-icon"><svg><use href="#${image ? "icon-image" : "icon-file"}"></use></svg></span>
+    <span class="selected-file-copy">
+      <strong>${escapeHtml(file.name)}</strong>
+      <small>${image ? (state.lang === "en" ? "Image file" : "图片文件") : (state.lang === "en" ? "Document" : "文档")} · ${formatFileSize(file.size)}</small>
+    </span>
+    <button class="mini-action" type="button" data-clear-file="${target}">${t("removeFile")}</button>
+  `;
+}
+
+function attachDocumentFileControls(container, target) {
+  const drop = $("[data-file-drop]", container);
+  const input = $("[data-file-input]", container);
+  if (!drop || !input) return;
+
+  const acceptFile = (file) => {
+    if (!file || (!isDocumentFile(file) && !isImageFile(file))) return;
+    state.selectedFiles[target] = file;
+    paintSelectedFile(target, file);
+  };
+
+  input.addEventListener("change", () => acceptFile(input.files?.[0]));
+  ["dragenter", "dragover"].forEach((type) => {
+    drop.addEventListener(type, (event) => {
+      event.preventDefault();
+      drop.classList.add("is-dragging");
+    });
+  });
+  ["dragleave", "drop"].forEach((type) => {
+    drop.addEventListener(type, (event) => {
+      event.preventDefault();
+      drop.classList.remove("is-dragging");
+    });
+  });
+  drop.addEventListener("drop", (event) => acceptFile(event.dataTransfer?.files?.[0]));
+}
+
 function renderCaptureForm(mode, target = "page") {
   const container = target === "dialog" ? $("#dialogFields") : $("#captureContent");
   const inputId = `${target}-title`;
@@ -970,19 +1176,27 @@ function renderCaptureForm(mode, target = "page") {
         <h3>${state.lang === "en" ? "One page, no crawling" : "只截图，不爬取"}</h3>
         <p>${state.lang === "en" ? "Only the page you submit is rendered. The system does not follow links or traverse the site." : "只渲染你明确提交的这一页；系统不会跟随链接或遍历站点。"}</p>
         <h3>${state.lang === "en" ? "Fallback" : "失败回退"}</h3>
-        <p>${state.lang === "en" ? "If rendering fails, you can upload a screenshot yourself." : "如果渲染失败，可以改为上传页面截图。"}</p>
+        <p>${state.lang === "en" ? "If rendering fails, paste a screenshot in the Screenshot tab." : "如果渲染失败，可以到截图入口粘贴页面截图。"}</p>
       </aside>
     `;
-  } else {
-    const isScreenshot = mode === "screenshot";
+  } else if (mode === "document") {
     container.innerHTML = `
       ${openTag}
-        <label class="file-drop" for="${fileId}">
-          <svg><use href="#${isScreenshot ? "icon-image" : "icon-file"}"></use></svg>
-          <p>${isScreenshot ? (state.lang === "en" ? "Drop or choose a screenshot" : "拖入或选择一张截图") : (state.lang === "en" ? "Drop or choose a document" : "拖入或选择一个文档")}</p>
+        <label class="file-drop" for="${fileId}" data-file-drop>
+          <svg><use href="#icon-file"></use></svg>
+          <p>${t("documentDropTitle")}</p>
           <small class="table-label">${t("formFileHint")}</small>
+          <small class="table-label">${t("documentDropHint")}</small>
         </label>
-        <input id="${fileId}" name="file" type="file" hidden accept="${isScreenshot ? "image/*" : ".pdf,.doc,.docx,.txt,.md"}" />
+        <input
+          id="${fileId}"
+          name="file"
+          type="file"
+          hidden
+          data-file-input
+          accept=".pdf,.doc,.docx,.txt,.md,.rtf,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
+        />
+        <div class="file-selection" data-file-selection hidden></div>
         <div class="field-group">
           <label for="${inputId}">${t("formNote")}</label>
           <input class="text-input" id="${inputId}" name="note" placeholder="可选：补充上下文" />
@@ -995,24 +1209,71 @@ function renderCaptureForm(mode, target = "page") {
         ` : ""}
       ${closeTag}
       <aside class="capture-side">
+        <h3>${state.lang === "en" ? "Documents and images" : "文档与图片"}</h3>
+        <p>${state.lang === "en" ? "Choose documents or JPG, PNG, and WebP images. Both use the same safety scan." : "可选择文档或 JPG、PNG、WebP 图片，二者使用同一套安全扫描。"}</p>
         <h3>${state.lang === "en" ? "Fail closed" : "安全优先"}</h3>
         <p>${t("safetyNote")}</p>
-        <h3>${state.lang === "en" ? "Original file" : "原始文件"}</h3>
-        <p>${state.lang === "en" ? "Screenshots keep the original only when no secret is detected. Otherwise only a redacted derivative remains." : "截图未检测到密钥时保留原图；检测到密钥时只保留脱敏派生图。"}</p>
       </aside>
     `;
-    const fileInput = $(`#${fileId}`);
-    fileInput?.addEventListener("change", () => {
-      const file = fileInput.files?.[0];
-      if (file) {
-        $(".file-drop p", container).textContent = file.name;
-      }
-    });
+    attachDocumentFileControls(container, target);
+    paintSelectedFile(target, state.selectedFiles[target]);
+  } else {
+    const pasted = state.pastedScreenshots[target];
+    container.innerHTML = `
+      ${openTag}
+        <div
+          class="paste-zone${pasted ? " has-image" : ""}"
+          data-paste-zone="${target}"
+          tabindex="0"
+          role="button"
+          aria-label="${t("screenshotPasteTitle")}"
+        ></div>
+        <div class="field-group paste-note-field">
+          <label for="${inputId}">${t("formNote")}</label>
+          <input class="text-input" id="${inputId}" name="note" placeholder="可选：补充上下文" />
+        </div>
+        ${target === "page" ? `
+          <div class="form-actions">
+            <button class="outline-button" type="button" data-view="home">${t("cancel")}</button>
+            <button class="primary-button" type="submit" data-submit-screenshot="${target}" disabled>${state.lang === "en" ? "Scan and organize" : "安全扫描并整理"}</button>
+          </div>
+        ` : ""}
+      ${closeTag}
+      <aside class="capture-side">
+        <h3>${t("screenshotClipboardOnly")}</h3>
+        <p>${state.lang === "en" ? "Click the paste area, copy a screenshot, then paste. This tab has no file chooser." : "点击粘贴区、复制截图后执行粘贴；这个入口不提供文件选择。"}</p>
+        <button class="text-link capture-fallback" type="button" data-switch-${target}="document">${t("goToDocument")}</button>
+        <h3>${state.lang === "en" ? "Original image" : "原始图片"}</h3>
+        <p>${state.lang === "en" ? "The original remains only when no secret is detected. Otherwise only a verified redacted image remains." : "未检测到密钥时保留原图；检测到密钥时只保留经过验证的脱敏派生图。"}</p>
+      </aside>
+    `;
+    paintPastedScreenshot(target);
+    const zone = $(`[data-paste-zone="${target}"]`, container);
+    window.requestAnimationFrame(() => zone?.focus());
   }
 }
 
 function renderCapturePage() {
   renderCaptureForm(state.captureMode, "page");
+}
+
+function switchCaptureMode(mode, target = "page") {
+  const container = target === "dialog" ? $("#dialogFields") : $("#captureContent");
+  const currentNote = $('input[name="note"]', container)?.value;
+  if (typeof currentNote === "string") state.notes[target] = currentNote;
+  if (target === "dialog") {
+    state.dialogMode = mode;
+    renderDialogFields();
+  } else {
+    state.captureMode = mode;
+    $$(".capture-tab").forEach((tab) => {
+      tab.classList.toggle("is-active", tab.dataset.captureMode === mode);
+    });
+    renderCapturePage();
+  }
+  const nextContainer = target === "dialog" ? $("#dialogFields") : $("#captureContent");
+  const nextNote = $('input[name="note"]', nextContainer);
+  if (nextNote) nextNote.value = state.notes[target];
 }
 
 function setLanguage(lang) {
@@ -1094,6 +1355,9 @@ function openCaptureDialog(mode = "manual") {
   renderDialogFields();
   const dialog = $("#captureDialog");
   if (!dialog.open) dialog.showModal();
+  if (mode === "screenshot") {
+    window.requestAnimationFrame(() => $('[data-paste-zone="dialog"]')?.focus());
+  }
 }
 
 function addItem({
@@ -1106,6 +1370,7 @@ function addItem({
   status = "processing",
   finalStatus = "done",
   finalCategory = "产品设计",
+  attachments = [],
 }) {
   const id = `k${Date.now()}`;
   const newItem = {
@@ -1121,6 +1386,7 @@ function addItem({
     updated: "刚刚",
     depth: "surface",
     confidence: 0.54,
+    attachments,
   };
   items.unshift(newItem);
   updateAllCounts();
@@ -1187,21 +1453,54 @@ function handleCaptureSubmit(form, target) {
       finalStatus: "review",
       tags: ["网页截图", "自动整理"],
     });
-  } else {
-    const file = formData.get("file");
-    if (file && file.size === 0) return;
-    const isScreenshot = mode === "screenshot";
+  } else if (mode === "document") {
+    const file = state.selectedFiles[target] || formData.get("file");
+    if (!file || file.size === 0) {
+      showToast(t("fileMissing"));
+      return;
+    }
+    const image = isImageFile(file);
+    const attachmentUrl = image ? URL.createObjectURL(file) : null;
     addItem({
-      title: isScreenshot ? "新的截图知识" : "新的文档知识",
-      body: note || (isScreenshot ? "截图正在做 OCR、密钥扫描和自动归类。" : "文档正在提取文字、扫描密钥和自动归类。"),
-      source: isScreenshot ? "screenshot" : "document",
-      sourceLabel: file?.name || (isScreenshot ? "截图" : "文档"),
+      title: image ? "新的图片知识" : "新的文档知识",
+      body: note || (image ? "图片正在提取可见文字、扫描密钥和自动归类。" : "文档正在提取文字、扫描密钥和自动归类。"),
+      source: "document",
+      sourceLabel: file.name,
       status: "processing",
       finalStatus: "review",
-      tags: [isScreenshot ? "截图分析" : "文档解析", "安全扫描"],
+      tags: [image ? "图片文字识别" : "文档解析", "安全扫描"],
+      attachments: image
+        ? [{ kind: "image", name: file.name, url: attachmentUrl, safety: "clean" }]
+        : [],
     });
+    state.selectedFiles[target] = null;
+  } else {
+    const pasted = state.pastedScreenshots[target];
+    if (!pasted?.file) {
+      showToast(t("screenshotPasteEmpty"));
+      return;
+    }
+    const attachmentUrl = pasted.file instanceof Blob
+      ? URL.createObjectURL(pasted.file)
+      : pasted.previewUrl;
+    addItem({
+      title: "新的截图知识",
+      body: note || "剪贴板截图正在做 OCR、密钥扫描和自动归类。",
+      source: "screenshot",
+      sourceLabel: pasted.file.name || "剪贴板截图",
+      status: "processing",
+      finalStatus: "review",
+      tags: ["截图分析", "剪贴板粘贴", "安全扫描"],
+      attachments: [{ kind: "image", name: pasted.file.name, url: attachmentUrl, safety: "clean" }],
+    });
+    clearPastedScreenshot(target);
   }
-  if (target === "dialog") $("#captureDialog").close();
+  state.notes[target] = "";
+  if (target === "dialog") {
+    $("#captureDialog").close();
+  } else {
+    renderCapturePage();
+  }
   renderHomeResults();
 }
 
@@ -1216,6 +1515,11 @@ function showToast(message) {
 function showView(view) {
   if (view === "detail" && !state.currentDetailId) view = "library";
   state.view = view;
+  const activeView = $(`#view-${view}`);
+  const canvas = $("main.canvas");
+  if (activeView && canvas && canvas.firstElementChild !== activeView) {
+    canvas.insertBefore(activeView, canvas.firstElementChild);
+  }
   $$(".view").forEach((section) => {
     section.hidden = section.id !== `view-${view}`;
   });
@@ -1245,6 +1549,32 @@ function restoreTrashEntry(entryId) {
 
 function bindEvents() {
   document.addEventListener("click", (event) => {
+    const captureFallback = event.target.closest("[data-switch-page], [data-switch-dialog]");
+    if (captureFallback) {
+      const target = captureFallback.hasAttribute("data-switch-dialog") ? "dialog" : "page";
+      switchCaptureMode("document", target);
+      return;
+    }
+    const clearScreenshot = event.target.closest("[data-clear-screenshot]");
+    if (clearScreenshot) {
+      clearPastedScreenshot(clearScreenshot.dataset.clearScreenshot);
+      return;
+    }
+    const clearFile = event.target.closest("[data-clear-file]");
+    if (clearFile) {
+      const target = clearFile.dataset.clearFile;
+      state.selectedFiles[target] = null;
+      const container = target === "dialog" ? $("#dialogFields") : $("#captureContent");
+      const input = $("[data-file-input]", container);
+      if (input) input.value = "";
+      paintSelectedFile(target, null);
+      return;
+    }
+    const pasteZone = event.target.closest("[data-paste-zone]");
+    if (pasteZone) {
+      pasteZone.focus();
+      return;
+    }
     const viewButton = event.target.closest("[data-view]");
     if (viewButton) {
       showView(viewButton.dataset.view);
@@ -1296,6 +1626,20 @@ function bindEvents() {
     }
   });
 
+  document.addEventListener("paste", (event) => {
+    const dialog = $("#captureDialog");
+    const target = dialog.open
+      ? (state.dialogMode === "screenshot" ? "dialog" : null)
+      : (state.view === "capture" && state.captureMode === "screenshot" ? "page" : null);
+    if (!target) return;
+    const imageItem = [...(event.clipboardData?.items || [])]
+      .find((item) => item.kind === "file" && item.type.startsWith("image/"));
+    if (!imageItem) return;
+    event.preventDefault();
+    const file = imageItem.getAsFile();
+    if (file) setPastedScreenshot(target, file);
+  });
+
   $("#searchForm").addEventListener("submit", (event) => {
     event.preventDefault();
     state.query = $("#searchInput").value;
@@ -1330,16 +1674,13 @@ function bindEvents() {
 
   $$(".capture-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      state.captureMode = tab.dataset.captureMode;
-      $$(".capture-tab").forEach((candidate) => candidate.classList.toggle("is-active", candidate === tab));
-      renderCapturePage();
+      switchCaptureMode(tab.dataset.captureMode, "page");
     });
   });
 
   $$(".dialog-tabs button").forEach((tab) => {
     tab.addEventListener("click", () => {
-      state.dialogMode = tab.dataset.dialogMode;
-      renderDialogFields();
+      switchCaptureMode(tab.dataset.dialogMode, "dialog");
     });
   });
 
@@ -1360,12 +1701,32 @@ function bindEvents() {
 function initialize() {
   bindEvents();
   setLanguage("zh");
+  const params = new URLSearchParams(window.location.search);
+  const requestedView = params.get("view");
+  const requestedMode = params.get("mode");
+  const requestedDialog = params.get("dialog");
+  if (["manual", "webpage", "document", "screenshot"].includes(requestedMode)) {
+    state.captureMode = requestedMode;
+  }
   renderHomeResults();
   renderDepthMap();
   renderQueuePreview();
   renderProcessing();
   renderTrash();
   renderCapturePage();
+  $$(".capture-tab").forEach((tab) => {
+    tab.classList.toggle("is-active", tab.dataset.captureMode === state.captureMode);
+  });
+  if (["home", "library", "capture", "processing", "trash", "settings"].includes(requestedView)) {
+    showView(requestedView);
+  }
+  if (["manual", "webpage", "document", "screenshot"].includes(requestedDialog)) {
+    openCaptureDialog(requestedDialog);
+  }
+  if (params.get("demoScreenshot") === "1" && state.captureMode === "screenshot") {
+    seedDemoPastedScreenshot();
+    renderCapturePage();
+  }
   updateStaticDynamicLabels();
   console.assert(
     Object.values(categoryCounts()).reduce((sum, count) => sum + count, 0) === items.length,

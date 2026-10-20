@@ -24,7 +24,7 @@ Open `http://127.0.0.1:8088/`.
 - Home: find saved knowledge and see what still needs organization.
 - Library: scan all saved material without a second search field.
 - Detail: read the full item, source trail, locked classification, and related knowledge.
-- Capture: manual text, one-page URL capture, document upload, and screenshot analysis.
+- Capture: manual text, one-page URL capture, document/image upload, and clipboard screenshot paste.
 - Processing: monitor provisional classification, failure, and retry.
 - Trash: restore or permanently remove deleted items.
 - Settings: manage AI service/content-type authorization, language, and retention.
@@ -36,6 +36,8 @@ Open `http://127.0.0.1:8088/`.
 - Save an internet candidate into the knowledge library.
 - Open a knowledge item and trigger re-analysis.
 - Create a manual item or switch among capture modes.
+- Paste a screenshot from the clipboard in the Screenshot tab; the tab intentionally has no file chooser.
+- Drop or choose a document or JPG/PNG/WebP image in the Document tab.
 - Toggle Chinese and English interface copy.
 - Restore a trashed item.
 - Switch application views in the rail or mobile bottom navigation.
@@ -58,6 +60,19 @@ implementation.
 
 - Taste source lint: `0 FAIL`, `0 WARN`
 - Taste browser inspection at 1440, 768, and 390 px: `0 FAIL`
-- One retained warning: 57% of text is below 13px. This is an intentional dense App Screen
-  decision: 13–14px carries content, while 11–12px is reserved for sublines, metadata, and chart
-  labels.
+- Screenshot empty state, pasted-preview state, and Document/Image state were reviewed separately.
+- Retained warnings: the compact form uses dense 11–12px helper text and a quiet lower page rest.
+  These are intentional App Screen choices, not decorative empty space.
+
+## Focused previews
+
+Open these URLs while the prototype server is running:
+
+```text
+http://127.0.0.1:8088/?view=capture&mode=screenshot
+http://127.0.0.1:8088/?view=capture&mode=screenshot&demoScreenshot=1
+http://127.0.0.1:8088/?view=capture&mode=document
+```
+
+`demoScreenshot=1` is a visual-review fixture only. Normal interaction uses a real ClipboardEvent;
+the Screenshot tab contains no file input.

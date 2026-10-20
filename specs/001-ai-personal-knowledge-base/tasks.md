@@ -93,7 +93,7 @@ P0 是 MVP 范围。完整发布仍需要 P1 和 P2，但在 P0 检查点通过�
 - [ ] T017 [P0] 在 `packages/config/src/env.ts` 和 `packages/config/src/env.test.ts` 中实现仅报告变量名称的 Zod 环境校验
 - [ ] T018 [P0] 在 `packages/db/src/client.ts`、`packages/db/src/migrate.ts` 和 `packages/db/drizzle.config.ts` 中配置 Drizzle、PostgreSQL 连接池和迁移执行
 - [ ] T019 [P0] 在 `packages/db/src/schema/auth.ts`、`apps/web/src/server/auth/auth.ts` 和 `packages/domain/src/auth/owner.ts` 中实现 Better Auth 单所有者引导、数据库会话、关闭注册以及 `instance_key=1` 唯一性
-- [ ] T020 [P0] 在 `packages/db/src/schema/knowledge.ts` 中创建 `knowledge_item`、`source` 和 `attachment` 模式，包含必填 `title` 长度 `1–300`、唯一 `UNIQUE(item_id)` 来源约束、唯一 `UNIQUE(storage_key)` 附件约束、生命周期/状态枚举、时间戳和 `version`
+- [ ] T020 [P0] 在 `packages/db/src/schema/knowledge.ts` 中创建 `knowledge_item`、`source` 和 `attachment` 模式，包含必填 `title` 长度 `1–300`、`source.input_method`、唯一 `UNIQUE(item_id)` 来源约束、唯一 `UNIQUE(storage_key)` 附件约束、生命周期/状态枚举、时间戳和 `version`
 - [ ] T021 [P0] 在 `packages/db/src/schema/jobs.ts` 中创建 `capture_job`、`processing_job` 和 `ai_analysis` 模式，包含非负尝试次数、安全错误、可空完成时间戳和 `UNIQUE(owner_id, idempotency_key)` 唯一约束
 - [ ] T022 [P0] 在 `packages/db/src/schema/classification.ts` 中创建 `category`、`tag`、`category_assignment`、`tag_assignment` 和 `tag_merge_suggestion` 模式，包含 `UNIQUE(item_id) WHERE superseded_at IS NULL`、`UNIQUE(item_id, tag_id) WHERE superseded_at IS NULL` 以及锁定/暂定状态
 - [ ] T023 [P0] 在 `packages/db/src/schema/governance.ts` 中创建 `ai_processing_authorization`、`external_search_candidate`、`request_idempotency` 和 `audit_event` 模式，包含活动范围唯一性、候选项过期、幂等唯一性和仅含元数据的审计字段
@@ -195,12 +195,12 @@ P0 是 MVP 范围。完整发布仍需要 P1 和 P2，但在 P0 检查点通过�
 **目标**：已接受的文本、文档、截图和单页 URL 导入会立即创建可搜索项目，并在后台安全
 完成提取。
 
-**独立测试**：导入一个文档、一张截图和一个本地/公开网页；验证即时可搜索性、来源保留、
+**独立测试**：导入一个文档、一个 JPG/PNG 图片文件、一张剪贴板截图和一个本地/公开网页；验证即时可搜索性、来源保留、
 密钥扫描以及不遍历链接。
 
 ### 用户故事 3 的测试
 
-- [ ] T075 [P1] [P] [US3] 在 `tests/contract/imports.test.ts` 中为文本、网页和上传导入端点添加 OpenAPI 契约测试
+- [ ] T075 [P1] [P] [US3] 在 `tests/contract/imports.test.ts` 中为文本、网页、文档/图片文件上传和剪贴板截图导入端点添加 OpenAPI 契约测试，覆盖合法 `screenshot+clipboard`、`document+file_upload` 组合和非法组合 `422`
 - [ ] T076 [P1] [P] [US3] 在 `tests/integration/import-safety.test.ts` 中为暂存拒绝、文档提取、OCR、脱敏图像和重试幂等性添加集成测试
 - [ ] T077 [P1] [P] [US3] 在 `tests/security/page-capture.test.ts` 中为回环/私有/CGNAT/IPv6 ULA/元数据/保留 IP、DNS 重绑定、凭据 URL、强制使用 80/443、最多三个重新校验的重定向、禁止 sitemap/预取/无限滚动/多页、单一顶层请求图以及无持久 Cookie/Service Worker/弹窗/下载添加 browser-worker E2E 安全测试
 
@@ -211,11 +211,11 @@ P0 是 MVP 范围。完整发布仍需要 P1 和 P2，但在 P0 检查点通过�
 - [ ] T080 [P1] [P] [US3] 在 `packages/domain/src/security/image-redactor.ts` 中实现图像敏感区域脱敏和脱敏副本持久化
 - [ ] T081 [P1] [P] [US3] 在 `packages/domain/src/import/url-safety.ts` 和 `infra/proxy/egress-proxy.ts` 中实现 URL 校验、连接时 DNS/IP 拒绝、重定向限制和出站代理集成
 - [ ] T082 [P1] [US3] 在 `apps/browser-worker/src/capture-page.ts` 和 `apps/browser-worker/src/queues.ts` 中实现隔离的 Playwright 单页采集 worker 及其专用 pg-boss 采集消费者，不进行链接发现且不保持持久会话
-- [ ] T083 [P1] [US3] 在 `apps/web/src/app/api/v1/imports/text/route.ts`、`apps/web/src/app/api/v1/imports/webpage/route.ts`、`apps/web/src/app/api/v1/imports/upload/route.ts`、`apps/web/src/app/api/v1/jobs/[jobId]/route.ts`、`apps/web/src/app/api/v1/jobs/[jobId]/retry/route.ts` 和 `apps/web/src/app/api/v1/jobs/[jobId]/cancel/route.ts` 中实现文本、网页和上传导入创建以及任务状态、重试和取消路由处理器
+- [ ] T083 [P1] [US3] 在 `apps/web/src/app/api/v1/imports/text/route.ts`、`apps/web/src/app/api/v1/imports/webpage/route.ts`、`apps/web/src/app/api/v1/imports/upload/route.ts`、`apps/web/src/app/api/v1/jobs/[jobId]/route.ts`、`apps/web/src/app/api/v1/jobs/[jobId]/retry/route.ts` 和 `apps/web/src/app/api/v1/jobs/[jobId]/cancel/route.ts` 中实现文本、网页、文档/图片文件和剪贴板截图导入，以及任务状态、重试和取消路由处理器
 - [ ] T084 [P1] [US3] 在 `apps/worker/src/jobs/process-import.ts` 中为已接受的导入实现提取、OCR、脱敏、处理任务和分类任务入队
-- [ ] T085 [P1] [P] [US3] 在 `apps/web/src/components/import/import-panel.tsx` 和 `apps/web/src/app/capture/page.tsx` 中构建文本、URL、文档和截图导入表单
+- [ ] T085 [P1] [P] [US3] 在 `apps/web/src/components/import/import-panel.tsx` 和 `apps/web/src/app/capture/page.tsx` 中构建文本、URL、文档/图片文件上传和剪贴板截图粘贴表单；截图页不得出现文件选择控件，并提供前往文档入口的安全回退
 - [ ] T086 [P1] [P] [US3] 在 `apps/web/src/components/import/import-status.tsx` 和 `apps/web/src/app/processing/page.tsx` 中构建导入扫描、拒绝、待处理、重试、截图回退和处理队列状态
-- [ ] T087 [P1] [US3] 在 `tests/e2e/imports.spec.ts` 中为所有导入模式和即时可搜索性添加 US3 端到端测试
+- [ ] T087 [P1] [US3] 在 `tests/e2e/imports.spec.ts` 中为所有导入模式和即时可搜索性添加 US3 端到端测试，覆盖真实剪贴板粘贴、截图页无文件/拖放/相册控件、剪贴板失败回退、文档以及 JPG/PNG/WebP 图片文件上传
 - [ ] T088 [P1] [US3] 在 `tests/e2e/taste-us3.spec.ts` 中为导入和处理页面应用 `design-taste-frontend`，包含截图证据、人工评审、修复以及 1440/768/390 检查
 - [ ] T089 [P1] [US3] 在 `tests/security/import-injection.test.ts` 中为文档文本、OCR 文本、网页采集和搜索摘要添加提示注入测试
 - [ ] T090 [P1] [US3] 在 `tests/performance/import-quality.test.ts` 中为 SC-004、SC-005 和即时搜索标准添加文本/文档/截图导入基准测试

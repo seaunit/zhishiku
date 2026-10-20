@@ -356,7 +356,7 @@ paths:
     post:
       tags: [导入]
       operationId: uploadKnowledgeAttachment
-      summary: 安全扫描并导入文档或截图。
+      summary: 安全扫描并导入文档、图片文件或剪贴板截图。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -365,7 +365,20 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [file]
+              required: [file, sourceType, inputMethod]
+              oneOf:
+                - properties:
+                    sourceType:
+                      const: screenshot
+                    inputMethod:
+                      const: clipboard
+                  required: [sourceType, inputMethod]
+                - properties:
+                    sourceType:
+                      const: document
+                    inputMethod:
+                      const: file_upload
+                  required: [sourceType, inputMethod]
               properties:
                 file:
                   type: string
@@ -373,13 +386,18 @@ paths:
                 sourceType:
                   type: string
                   enum: [document, screenshot]
+                  description: document 表示文档入口文件，screenshot 表示截图入口粘贴的剪贴板图片。
+                inputMethod:
+                  type: string
+                  enum: [file_upload, clipboard]
+                  description: document 使用 file_upload；screenshot 只能使用 clipboard。
                 note:
                   type: string
                   maxLength: 20000
                 billingTaskId:
                   type: string
                   format: uuid
-                  description: 付费文档提取或 OCR 的有效计费任务；缺失时只保存并等待整理。
+                  description: 付费文档、图片文字提取或 OCR 的有效计费任务；缺失时只保存并等待整理。
       responses:
         "202":
           description: 仅在完整安全扫描通过后接受上传；计费不可用时仍保存并通过状态等待付费 AI。
@@ -763,10 +781,13 @@ components:
           minimum: 0
     Source:
       type: object
-      required: [kind]
+      required: [kind, inputMethod]
       properties:
         kind:
           $ref: "#/components/schemas/SourceKind"
+        inputMethod:
+          type: string
+          enum: [manual, clipboard, file_upload, page_capture, api]
         url:
           type:
             - string
@@ -1156,7 +1177,7 @@ components:
       description: 浏览器工作进程只能打开此单个 URL，并须经过 SSRF 检查。
     ImportAccepted:
       type: object
-      required: [itemId, jobId, status]
+      required: [itemId, jobId, status, inputMethod]
       properties:
         itemId:
           type: string
@@ -1166,6 +1187,9 @@ components:
           format: uuid
         status:
           $ref: "#/components/schemas/ProcessingStatus"
+        inputMethod:
+          type: string
+          enum: [manual, clipboard, file_upload, page_capture, api]
         billing:
           oneOf:
             - $ref: "#/components/schemas/BillingTaskSummary"

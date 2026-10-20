@@ -135,6 +135,7 @@ erDiagram
 | `id` | uuid | 主键 |
 | `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE`；V1 中唯一 |
 | `kind` | enum | `manual`、`pasted_text`、`webpage`、`document`、`screenshot`、`internet_search` |
+| `input_method` | enum | `manual`、`clipboard`、`file_upload`、`page_capture`、`api` |
 | `url_sanitized` | text | 可为空；已移除片段标识；必须通过 URL 安全检查 |
 | `url_host` | text | 可为空；已规范化主机名 |
 | `url_sha256` | char(64) | 可为空；用于重复提示，不用于原始令牌搜索 |
@@ -147,6 +148,8 @@ erDiagram
 
 - V1 中使用 `UNIQUE(item_id)`，因为每个条目只有一个主要来源。
 - 插入前拒绝包含内嵌凭据或指向非公开目标的 URL。
+- `screenshot` 来源只能使用 `clipboard`；`document` 来源在文档入口使用 `file_upload`，
+  并允许附件媒体类型为文档或静态图片。
 - 不存储 Cookie、`Authorization` 请求头或完整提供商响应。
 
 ## 实体：附件
@@ -188,7 +191,7 @@ erDiagram
 | `owner_id` | uuid | 指向所有者的外键 |
 | `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
 | `source_id` | uuid | 指向来源的外键，可为空 |
-| `kind` | enum | `text`、`document`、`screenshot`、`webpage` |
+| `kind` | enum | `text`、`document`、`image_file`、`screenshot`、`webpage` |
 | `content_type` | enum | `text`、`document`、`image`、`webpage` |
 | `status` | enum | `queued`、`running`、`blocked_authorization`、`blocked_billing`、`succeeded`、`failed`、`cancelled` |
 | `attempt_count` | integer | 默认 0 |
@@ -204,6 +207,12 @@ erDiagram
 | `updated_at` | timestamptz | 必填 |
 
 **约束**：`UNIQUE(owner_id, idempotency_key)`。
+
+**输入方式约束**：
+
+- `screenshot` 采集任务只由用户主动粘贴剪贴板图片创建，不设置文件选择器。
+- `image_file` 采集任务由文档入口选择 JPG、PNG、WebP 等图片文件创建。
+- `webpage` 采集任务由浏览器单页渲染产生，与用户截图入口分开。
 
 ## 实体：处理任务
 
