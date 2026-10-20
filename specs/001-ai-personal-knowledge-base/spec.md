@@ -284,6 +284,8 @@
 - 多用户工作区、公开分享、评论和协作编辑。
 - 原生移动应用和浏览器扩展；移动浏览器访问由独立功能
   [003-mobile-web-access](../003-mobile-web-access/spec.md) 承载。
+- 正文富文本格式与内嵌图片由独立功能
+  [004-rich-text-editor](../004-rich-text-editor/spec.md) 承载；本功能原有正文、搜索和安全约束继续适用。
 - 对外部站点或来源进行自动持续监控。
 - 支付、订阅和计费工作流；点数购买及单次 AI 检索回答由独立功能
   [002-ai-credit-billing](../002-ai-credit-billing/spec.md) 承载，本功能保持单所有者模型。
