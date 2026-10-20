@@ -88,6 +88,9 @@ https://seaunit.site/app
 https://seaunit.site/kb
   -> new AI personal knowledge base, path-prefixed deployment
 
+https://seaunit.site/kb/pay/webhooks/waffo
+  -> new isolated Waffo bridge at 127.0.0.1:8091
+
 https://seaunit.site/bank/...
   -> existing public question-bank pages, unchanged
 
@@ -110,9 +113,15 @@ https://seaunit.site/pay/webhooks/...
 /kb/settings
 /kb/api/...
 /kb/_next/...
+/kb/pricing
+/kb/billing
+/kb/settings/billing
+/kb/pay/webhooks/waffo
 ```
 
 新应用不得复用现有的 `/api`、`/auth`、`/assets` 或 `/app` 路由前缀。
+识海 Waffo 通知必须由独立桥接处理，详细契约见
+[002 部署方案](../002-ai-credit-billing/deployment.md)。
 
 ## Nginx 共存规则
 
@@ -120,10 +129,13 @@ https://seaunit.site/pay/webhooks/...
 2. 为新的双产品门户添加精确匹配的 `location = /`。
 3. 在 SPA catch-all 规则之前添加 `/kb`，并在代理时保留 `/kb` 前缀。
 4. 将知识库应用绑定到 `127.0.0.1:3000`；不得公开暴露 3000 端口。
-5. 积极缓存带哈希的 `_next/static` 资源，但不得缓存 HTML 或搜索响应。
-6. 使用独立的 session cookie 名称和限定于 `/kb` 的路径；不得替换现有应用的 cookie。
-7. 仅针对 `/kb` 将 `client_max_body_size` 设置为已批准的上传限制。
-8. 在部署流程中保留 Nginx 验证与回滚步骤：
+5. 将 Waffo 桥接绑定到 `127.0.0.1:8091`，不得占用拾题 `8090`。
+6. 在通用 `/kb/` 之前添加精确 `location = /kb/pay/webhooks/waffo`，原样保留请求体、
+   Waffo 签名头且关闭缓存和敏感访问日志。
+7. 积极缓存带哈希的 `_next/static` 资源，但不得缓存 HTML、搜索或支付响应。
+8. 使用独立的 session cookie 名称和限定于 `/kb` 的路径；不得替换现有应用的 cookie。
+9. 仅针对 `/kb` 将 `client_max_body_size` 设置为已批准的上传限制；Waffo 回调阈值单独限制。
+10. 在部署流程中保留 Nginx 验证与回滚步骤：
 
 ```bash
 sudo nginx -t
@@ -141,6 +153,21 @@ location = / {
 
 location = /kb {
     return 308 /kb/;
+}
+
+location = /kb/pay/webhooks/waffo {
+    proxy_pass http://127.0.0.1:8091/webhooks/waffo;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_request_buffering on;
+    proxy_buffering off;
+    client_max_body_size 1m;
+    access_log off;
+}
+
+location ^~ /kb/api/internal/ {
+    return 404;
 }
 
 location /kb/_next/static/ {
@@ -222,6 +249,7 @@ location /kb/ {
 ```text
 /opt/zhishiku/                 application release
 /etc/zhishiku/kb.env           environment file, mode 600
+/etc/zhishiku/billing.env      Waffo bridge environment, mode 600
 /var/lib/zhishiku/             durable data if local storage is used
 /var/log/zhishiku/             optional log directory; journald preferred
 ```
@@ -232,14 +260,20 @@ location /kb/ {
 zhishiku-web.service
 zhishiku-worker.service
 zhishiku-browser-worker.service
+zhishiku-billing-bridge.service
 ```
 
-Web 服务应仅绑定到 `127.0.0.1:3000`。Worker 服务不得公开暴露端口。现有的 Node.js 20 安装不满足计划中的 Node.js 24 运行时；请安装独立的 Node 24 运行时或使用容器镜像。
+Web 服务应仅绑定到 `127.0.0.1:3000`；Waffo 桥接仅绑定到 `127.0.0.1:8091`。
+Worker 服务不得公开暴露端口。桥接不拥有数据库、知识内容或点数账本凭据。现有的
+Node.js 20 安装不满足计划中的 Node.js 24 运行时；请安装独立的 Node.js 24 运行时或
+使用容器镜像。
 
 ## 环境变量与密钥规则
 
 - 不得将知识库密钥追加到 `/etc/shuati/env`。
 - 在 `/etc/zhishiku/kb.env` 创建独立的环境变量文件，模式为 `600`。
+- 在 `/etc/zhishiku/billing.env` 创建只供 Waffo 桥接读取的环境文件；Web/Worker 不读取
+  Waffo 私钥。
 - 使用独立凭据，并在可能的情况下使用与现有应用不同的 DeepSeek 密钥。
 - 绝不将真实密钥放入仓库、Nginx 配置、systemd unit 文件、日志或本文档。
 - 启动验证可以打印缺失的变量名，但绝不能打印变量值。
@@ -264,27 +298,50 @@ TRASH_RETENTION_DAYS
 BACKUP_RETENTION_DAYS
 MAX_UPLOAD_BYTES
 LOG_LEVEL
+APP_ENV
+BILLING_DB_ENV
+BILLING_ENABLED
+BILLING_BRIDGE_URL
+APP_TO_BRIDGE_SECRET
+BRIDGE_TO_APP_SECRET
+BILLING_CATALOG_VERSION
+CHECKOUT_SUCCESS_URL
+BILLING_WEBHOOK_URL
+REFUND_SUPPORT_URL
+REFUND_RESPONSE_TARGET
 ```
+
+桥接环境文件只保存 `WAFFO_ENV`、商户/店铺标识、私钥、`WAFFO_PRODUCT_MAP`、
+`INTERNAL_EVENT_URL` 和内部服务密钥的变量名。完整名称与红线见
+[002 部署方案](../002-ai-credit-billing/deployment.md)。
+测试与生产必须使用独立物理 PostgreSQL 数据库，`BILLING_DB_ENV` 不一致时启动失败。
 
 ## 部署顺序
 
 1. 记录现有 Nginx 配置和服务的发布快照。
 2. 验证当前的健康检查端点。
-3. 在 `127.0.0.1:3000` 上部署知识库运行时，不配置公共路由。
-4. 通过 Nginx 在本地验证 `/kb`。
-5. 添加门户和根路径精确匹配 location。
-6. 运行 `nginx -t`；如果失败，恢复之前的配置。
-7. 验证 `/`、`/app`、`/kb`、`/api/*`、`/bank/*` 和 `/pay/*`。
-8. 检查 cookie、登录/退出、搜索、上传、AI 授权和回收站。
-9. 至少监控内存、磁盘、Nginx 错误和 systemd 重启一天。
+3. 执行计费数据库迁移，保持 `BILLING_ENABLED=false`。
+4. 在 `127.0.0.1:3000` 上部署知识库运行时，在 `127.0.0.1:8091` 上部署 Waffo 桥接，
+   不配置公共路由。
+5. 通过 Nginx 在本地验证 `/kb` 和安全健康端点。
+6. 添加门户、根路径和 `/kb/pay/webhooks/waffo` 精确匹配 location。
+7. 运行 `nginx -t`；如果失败，恢复之前的配置。
+8. 使用 Waffo 测试环境验证购买、重复通知、漏通知主动对账、退款和回调回滚。
+9. 验证 `/`、`/app`、`/kb`、`/api/*`、`/bank/*`、`/pay/*` 和证书。
+10. 检查 cookie、登录/退出、搜索、上传、AI 授权、点数额度、扣费、退款和回收站。
+11. 经产品与测试批准后启用生产 Waffo；P0/P1 门禁未通过时保持购买关闭。
+12. 至少监控内存、磁盘、Nginx 错误、桥接重启、对账积压和 systemd 重启一天。
 
 ## 回滚
 
 - 保留带时间戳的 Nginx 备份。
 - 同时回退根门户 location 和 `/kb` 路由。
+- 恢复 Waffo 回调变更前的 Nginx 配置，并将 `BILLING_ENABLED=false`。
+- 停止 `zhishiku-billing-bridge.service`，但保留订单、支付事件、点数账本、退款和对账数据。
 - 停止并禁用知识库 unit 或容器。
 - 应用回滚期间不得删除知识库数据。
-- 重新检查现有应用的 `/`、`/app`、`/api`、`/bank` 和支付路由。
+- 对回滚窗口内的可靠支付执行主动对账，避免已付款未到账。
+- 重新检查现有应用的 `/`、`/app`、`/api`、`/bank`、`/pay` 和支付侧车。
 
 ## 在单独变更前明确不在范围内
 

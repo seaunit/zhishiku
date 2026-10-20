@@ -1,0 +1,225 @@
+openapi: 3.1.0
+info:
+  title: 识海 Waffo 计费桥接内部契约
+  version: 1.0.0
+  description: >
+    billing-bridge 仅处理 Waffo 商品、收银台、签名通知和受控查询。它不读取识海数据库、
+    用户知识正文、点数余额或退款业务规则。除公开通知外，所有接口要求内部服务密钥。
+servers:
+  - url: http://127.0.0.1:8091
+    description: 仅限回环地址访问的桥接服务
+tags:
+  - name: 健康检查
+  - name: 收银台
+  - name: 对账查询
+  - name: Waffo 通知
+paths:
+  /health:
+    get:
+      tags: [健康检查]
+      operationId: getBridgeHealth
+      summary: 检查 Waffo 桥接配置和环境，不返回凭据。
+      security: []
+      responses:
+        "200":
+          description: 桥接状态；不得返回私钥或完整环境配置。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BridgeHealth"
+  /checkout:
+    post:
+      tags: [收银台]
+      operationId: createWaffoCheckout
+      summary: 为识海订单创建或恢复 Waffo 收银台会话。
+      security:
+        - internalSecret: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: 必须稳定使用本地 orderId；桥接按此恢复响应丢失的会话。
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+      responses:
+        "200":
+          description: 已创建或复用收银台。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutResponse"
+        "400":
+          description: 请求字段无效。
+        "401":
+          description: 内部服务认证失败。
+        "409":
+          description: 现有会话与订单或环境冲突。
+        "502":
+          description: Waffo 暂时不可用。
+  /orders/status:
+    post:
+      tags: [对账查询]
+      operationId: queryWaffoOrderStatus
+      summary: 受控查询订单状态，不返回原始支付载荷。
+      security:
+        - internalSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderStatusQuery"
+      responses:
+        "200":
+          description: 规范化订单状态。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NormalizedStatus"
+        "401":
+          description: 内部服务认证失败。
+        "404":
+          description: Waffo 无法找到匹配订单。
+        "502":
+          description: Waffo 暂时不可用；允许重试。
+  /webhooks/waffo:
+    post:
+      tags: [Waffo 通知]
+      operationId: receiveWaffoWebhookAtBridge
+      summary: 使用原始请求体验证 Waffo 签名并转发安全化事件。
+      security: []
+      parameters:
+        - name: X-Waffo-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: 已验签并安全接收；安全化事件已持久化后即使进入人工复核冲突也返回成功，不再要求 Waffo 重试。
+        "400":
+          description: 请求体无效。
+        "401":
+          description: 签名无效。
+        "500":
+          description: 临时转发失败，允许 Waffo 重试。
+components:
+  securitySchemes:
+    internalSecret:
+      type: apiKey
+      in: header
+      name: X-Internal-Secret
+  schemas:
+    BridgeHealth:
+      type: object
+      required: [ok, configured, environment, dryRun]
+      properties:
+        ok:
+          type: boolean
+        configured:
+          type: boolean
+        environment:
+          type: string
+          enum: [test, production]
+        dryRun:
+          type: boolean
+    CheckoutRequest:
+      type: object
+      required:
+        - orderId
+        - sku
+        - amountMinor
+        - currency
+        - buyerIdentity
+        - successUrl
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          enum: [kb_pack_9, kb_pack_29, kb_pack_99]
+        amountMinor:
+          type: integer
+          enum: [900, 2900, 9900]
+        currency:
+          type: string
+          const: CNY
+        buyerIdentity:
+          type: string
+          description: 不透明买家标识；不得记录明文邮箱或知识内容。
+        successUrl:
+          type: string
+          format: uri
+      additionalProperties: false
+    CheckoutResponse:
+      type: object
+      required: [sessionId, checkoutUrl, expiresAt, environment, productId]
+      properties:
+        sessionId:
+          type: string
+        checkoutUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        environment:
+          type: string
+          enum: [test, production]
+        productId:
+          type: string
+    OrderStatusQuery:
+      type: object
+      required: [orderId, providerSessionId]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        providerSessionId:
+          type: string
+    NormalizedStatus:
+      type: object
+      required: [environment, status, productMatch, checkedAt, payloadHash]
+      properties:
+        environment:
+          type: string
+          enum: [test, production]
+        status:
+          type: string
+          enum: [pending, paid, closed, refunded, mismatch, unavailable]
+        amountMinor:
+          type:
+            - integer
+            - "null"
+        currency:
+          type:
+            - string
+            - "null"
+        productId:
+          type:
+            - string
+            - "null"
+        productMatch:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+        payloadHash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"

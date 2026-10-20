@@ -39,6 +39,12 @@ erDiagram
   TAG_ASSIGNMENT ||--o{ TAG_MERGE_SUGGESTION : 接收
   OWNER_ACCOUNT ||--o{ EXTERNAL_SEARCH_CANDIDATE : 查看
   OWNER_ACCOUNT ||--o{ AUDIT_EVENT : 执行
+  OWNER_ACCOUNT ||--|| CREDIT_ACCOUNT : 拥有
+  OWNER_ACCOUNT ||--o{ PAYMENT_ORDER : 创建
+  OWNER_ACCOUNT ||--o{ AI_BILLING_TASK : 发起
+  CREDIT_ACCOUNT ||--o{ CREDIT_BATCH : 包含
+  PAYMENT_ORDER ||--o| CREDIT_BATCH : 生成
+  AI_BILLING_TASK ||--|| CREDIT_RESERVATION : 预留
 ```
 
 ## 实体：所有者账户
@@ -184,7 +190,7 @@ erDiagram
 | `source_id` | uuid | 指向来源的外键，可为空 |
 | `kind` | enum | `text`、`document`、`screenshot`、`webpage` |
 | `content_type` | enum | `text`、`document`、`image`、`webpage` |
-| `status` | enum | `queued`、`running`、`blocked_authorization`、`succeeded`、`failed`、`cancelled` |
+| `status` | enum | `queued`、`running`、`blocked_authorization`、`blocked_billing`、`succeeded`、`failed`、`cancelled` |
 | `attempt_count` | integer | 默认 0 |
 | `scheduled_at` | timestamptz | 必填 |
 | `started_at` | timestamptz | 可为空 |
@@ -213,9 +219,10 @@ erDiagram
 | `service_code` | text | 类似枚举的提供商标识符 |
 | `content_type` | enum | `text`、`document`、`image`、`webpage`、`internet_result` |
 | `authorization_id` | uuid | 指向授权的外键，可为空，`ON DELETE RESTRICT` |
+| `billing_task_id` | uuid | 指向 002 的 AI 计费任务；付费 AI 必填，非 AI 任务可为空 |
 | `content_hash` | char(64) | 精确获批载荷的哈希 |
 | `explicit_confirmation_at` | timestamptz | 外部调用必填 |
-| `status` | enum | `queued`、`running`、`blocked_authorization`、`succeeded`、`failed`、`cancelled` |
+| `status` | enum | `queued`、`running`、`blocked_authorization`、`blocked_billing`、`succeeded`、`failed`、`cancelled` |
 | `attempt_count` | integer | 默认 0 |
 | `scheduled_at` | timestamptz | 必填 |
 | `started_at` | timestamptz | 可为空 |
@@ -229,6 +236,39 @@ erDiagram
 | `updated_at` | timestamptz | 必填 |
 
 **约束**：`UNIQUE(owner_id, idempotency_key)`。
+
+## 计费集成实体
+
+订单、点数账户、点数批次、账本、AI 报价、预留、退款、支付事件和对账的完整字段与状态机
+由 [002 数据模型](../002-ai-credit-billing/data-model.md) 定义。本功能只声明以下集成边界，
+不复制计费字段：
+
+| 001 实体 | 002 关系 | 规则 |
+|----------|----------|------|
+| 所有者账户 | `credit_account` 一对一 | 单所有者对应唯一点数账户 |
+| 处理任务 | `ai_billing_task` 多对一 | 付费 AI 必须引用有效计费任务 |
+| 知识条目 | `ai_billing_task.item_id` | 任务可关联条目，但账本不随条目硬删除 |
+| 采集任务 | `ai_billing_task.job_id` | 同一采集任务可包含多个成功或失败的计费步骤 |
+| 外部搜索候选 | `ai_billing_task` | 搜索 3 点和单次回答 2 点分别报价 |
+| 审计事件 | 计费异常/审计 | 业务审计不替代财务账本 |
+
+**强制规则**：
+
+1. 付费 AI 的 `processing_job.billing_task_id` 不得为空。
+2. `billing_task_id` 必须属于同一所有者，处于 `RESERVED` 或 `RUNNING`，且未过期。
+3. 同一处理任务不得复用已结算的计费任务；用户主动重跑必须创建新任务。
+4. 计费任务不是有效状态时，处理任务保持 `blocked_billing`，不调用外部 AI。
+5. 余额不足返回 `402` 时，知识条目仍可创建并处于可搜索的待整理状态。
+6. 点数、订单、退款和账本不得因知识条目、采集任务或处理任务删除而级联删除。
+
+`processing_job.status` 增加一个集成值：
+
+```text
+blocked_billing
+```
+
+它表示内容已保存，但缺少报价、余额、自动扣点授权或计费服务不可用；恢复余额或授权后可
+创建新的计费任务并重新排队。
 
 ## 实体：AI 分析
 
@@ -495,8 +535,12 @@ queued -> running -> succeeded
                   -> failed
                   -> cancelled
 queued/running -> blocked_authorization
+queued/running -> blocked_billing
+blocked_billing -> queued        （获得有效计费任务后）
 可重试的 failed -> queued
 ```
+
+付费 AI 任务没有有效 `billing_task_id` 时不得从 `queued` 进入 `running`。
 
 ### 分类分配
 
@@ -566,6 +610,7 @@ active -> revoked
 | 处理任务 | 90 天 |
 | 审计事件 | 365 天 |
 | 授权历史 | 账户存续期间 |
+| 订单、点数批次、账本、支付事件和退款 | 至少 24 个月，见 002 |
 
 永久删除顺序：
 
@@ -590,3 +635,7 @@ active -> revoked
 8. 高置信度密钥绝不会进入持久文本、索引、日志或对象存储。
 9. 无法扫描的内容在持久化前会被拒绝。
 10. 已过期的回收条目无法从当前数据或旧备份恢复。
+11. 所有付费 AI 调用都必须引用有效计费任务和预留。
+12. 计费任务实际扣费不得超过用户确认的报价上限。
+13. 体验点、购买点和退款批次的变更必须通过 002 的只追加账本。
+14. 知识删除不得删除订单、支付事件、点数账本或退款事实。

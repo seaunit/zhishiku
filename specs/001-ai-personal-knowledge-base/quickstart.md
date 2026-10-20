@@ -19,7 +19,7 @@
 根据已提交的 `.env.example` 创建本地 `.env`。示例文件只包含变量名和安全占位符，不包含真实凭据。
 
 ```dotenv
-APP_ENV=development
+APP_ENV=test
 APP_BASE_URL=http://localhost:3000
 SESSION_SECRET=replace-me
 DATABASE_URL=postgresql://app:replace-me@localhost:5432/zhishiku
@@ -36,9 +36,20 @@ TRASH_RETENTION_DAYS=30
 BACKUP_RETENTION_DAYS=30
 MAX_UPLOAD_BYTES=26214400
 LOG_LEVEL=info
+BILLING_DB_ENV=test
+BILLING_ENABLED=false
+BILLING_BRIDGE_URL=http://127.0.0.1:8091
+APP_TO_BRIDGE_SECRET=replace-me
+BRIDGE_TO_APP_SECRET=replace-me
+BILLING_CATALOG_VERSION=2026-10-mvp-test
+CHECKOUT_SUCCESS_URL=http://localhost:3000/kb/billing/return
+BILLING_WEBHOOK_URL=https://seaunit.site/kb/pay/webhooks/waffo
+REFUND_SUPPORT_URL=https://support.example.invalid/refund
+REFUND_RESPONSE_TARGET=3 个工作日
 ```
 
 当某个值缺失时，应用必须让功能特定的启动检查失败，并且只显示变量名。应用绝不能打印变量值。
+Waffo 私钥只允许出现在独立桥接环境文件中，不得出现在 Web/Worker 的 `.env`。
 
 ## 启动计划中的技术栈
 
@@ -56,6 +67,7 @@ pnpm dev
 - Meilisearch：内部网络或本地诊断端口
 - S3/MinIO：内部网络或本地诊断端口
 - Worker 和 browser worker：不开放公共端口
+- Waffo 计费桥接：`127.0.0.1:8091`，仅本机访问
 
 ## 生产环境共存
 
@@ -65,9 +77,11 @@ pnpm dev
 https://seaunit.site/       -> portal with 拾题 and 知识库 entries
 https://seaunit.site/app    -> existing 拾题 SPA
 https://seaunit.site/kb     -> new knowledge base
+https://seaunit.site/kb/pay/webhooks/waffo -> 识海 Waffo 桥接 127.0.0.1:8091
 ```
 
 现有的 `/api`、`/bank`、`/pay` 和 `/apk` 路由必须继续由现有服务处理。知识库应用必须使用 `/kb` 和 `/kb/api`，绑定到 `127.0.0.1:3000`，并通过现有 Nginx 代理。当前主机内存有限；安装或启动应用技术栈前，请参阅 [deployment.md](deployment.md)。
+识海回调不得进入拾题 `/pay/webhooks/**`。
 
 ## 验证场景
 
@@ -91,11 +105,26 @@ https://seaunit.site/kb     -> new knowledge base
 
 1. 在未授权的情况下保存一个新的文本项目。
 2. 确认该项目在等待分类期间保持可用且可搜索。
-3. 为选定的提供商和 `text` 内容类型授予分类权限。
-4. 确认该项目获得摘要、分类和至少一个标签。
-5. 模拟低置信度，并确认出现临时结果和审核标记，同时不会阻止搜索。
-6. 修正分类或标签，并确认该字段变为锁定状态。
-7. 运行重新分析，并确认锁定字段不会改变。
+3. 为选定的提供商和 `text` 内容类型授予分类权限；确认隐私授权本身不会开启自动扣点。
+4. 在余额充足且自动扣点已单独授权时保存新内容，确认保存前显示 5 点预估并预留。
+5. 确认该项目获得摘要、分类和至少一个标签，成功后只结算 5 点。
+6. 模拟低置信度但非空的暂定结果，并确认出现审核标记且不阻止搜索。
+7. 修正分类或标签，并确认该字段变为锁定状态。
+8. 运行重新分析，确认需要新报价/计费任务，且锁定字段不会改变。
+
+### 3.1 点数购买与 AI 计费
+
+1. 打开 `/kb/pricing`，确认三档识海 SKU、价格、点数、一次性属性、退款入口和客服渠道。
+2. 使用 Waffo 测试环境购买最低档，确认返回页先显示“确认中”。
+3. 确认可靠通知或主动查询到账后，400 点只增加一次。
+4. 重放通知、金额不符和测试事件进入生产，确认均不重复加点或跨环境入账。
+5. 发起网页截图分析 + 自动归类组合，确认分项 10 + 5 点、总上限 15 点和余额充足时预留。
+6. 模拟归类失败，确认只结算成功的 10 点并释放 5 点。
+7. 将余额降到 14 点，确认组合任务整体不执行、原内容保留，并返回缺少 1 点。
+8. 运行 100 组并发扣费，确认不透支、不重复扣费。
+9. 发送全额退款测试事件，确认只回收原订单批次剩余点数，不产生负余额。
+
+完整付费验收见 [002 quickstart](../002-ai-credit-billing/quickstart.md)。
 
 ### 4. 密钥扫描与脱敏
 
@@ -165,6 +194,20 @@ https://seaunit.site/kb     -> new knowledge base
 - 两种语言下文字都不会溢出控件。
 - 键盘焦点、标签、对话框和破坏性操作确认均可访问。
 
+### 11. 计费环境与密钥安全
+
+1. 在两个不同位置放置 Waffo 私钥、内部密钥和签名金丝雀。
+2. 确认 Web/Worker 环境文件不包含 Waffo 私钥。
+3. 扫描仓库、日志、截图、DOM、API、数据库和制品，确认没有原始值。
+4. 将测试商户、商品或回调地址放入生产配置，确认启动失败关闭。
+
+### 12. 拾题零影响回归
+
+1. 记录部署前 `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`、证书和认证结果。
+2. 部署识海计费桥接与 `/kb/pay/webhooks/waffo`，执行测试通知和回滚。
+3. 确认拾题支付 `/pay/webhooks/**`、`shuati-payments.service`、MySQL、Redis 和 Cookie 不变。
+4. 比较部署前后基线，任何差异都阻止发布。
+
 ## 自动化命令
 
 实现创建工作区和脚本后，以下命令将成为发布门禁：
@@ -178,6 +221,9 @@ pnpm test:contract
 pnpm test:e2e
 pnpm test:a11y
 pnpm test:security
+pnpm test:contract:billing
+pnpm test:e2e:billing
+pnpm test:load:billing
 pnpm test:perf
 pnpm build
 ```
@@ -209,3 +255,5 @@ pnpm build
 - [data-model.md](data-model.md)
 - [deployment.md](deployment.md)
 - [contracts/openapi.yaml](contracts/openapi.yaml)
+- [002 计费规格](../002-ai-credit-billing/spec.md)
+- [002 计费契约](../002-ai-credit-billing/contracts/openapi.yaml)

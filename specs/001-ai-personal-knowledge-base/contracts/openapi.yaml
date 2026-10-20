@@ -5,6 +5,7 @@ info:
   description: >
     面向单一所有者 AI 个人知识库的内部 HTTP 契约。
     权威数据存储为私有资源；互联网搜索和 AI 调用需要用户显式操作并提供匹配的授权。
+    付费 AI 还必须引用 002 计费契约中的有效报价/计费任务；余额不足返回 402 且不启动 AI。
 servers:
   - url: http://localhost:3000/kb
     description: 使用与生产环境兼容的 /kb 基础路径的本地实现
@@ -16,6 +17,7 @@ tags:
   - name: 导入
   - name: 任务
   - name: 授权
+  - name: 计费集成
   - name: 回收站
   - name: 健康检查
 paths:
@@ -24,6 +26,7 @@ paths:
       tags: [健康检查]
       security: []
       operationId: getHealth
+      summary: 检查知识库及可选计费能力。
       responses:
         "200":
           description: 服务健康状态和功能可用性。
@@ -75,6 +78,7 @@ paths:
       summary: 仅将查询发送给已授权的互联网搜索提供商。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/BillingTaskId"
       requestBody:
         required: true
         content:
@@ -92,6 +96,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
         "422":
           $ref: "#/components/responses/ValidationError"
         "429":
@@ -100,12 +106,19 @@ paths:
     post:
       tags: [搜索, 知识]
       operationId: saveExternalCandidate
+      summary: 将已确认的互联网候选保存为知识条目。
       parameters:
         - $ref: "#/components/parameters/CandidateId"
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveExternalCandidateRequest"
       responses:
         "201":
-          description: 已基于该候选创建 active 知识条目。
+          description: 已基于该候选创建 active 知识条目；计费不可用时仍保存并标记待整理，不返回 402。
           content:
             application/json:
               schema:
@@ -122,6 +135,7 @@ paths:
     get:
       tags: [知识]
       operationId: listKnowledgeItems
+      summary: 分页列出 active 知识条目。
       parameters:
         - name: status
           in: query
@@ -165,7 +179,7 @@ paths:
               $ref: "#/components/schemas/CreateKnowledgeItemRequest"
       responses:
         "201":
-          description: 条目已创建。处理状态可能仍为等待中。
+          description: 条目已创建。计费不可用或余额不足时仍保存并标记待整理，不返回 402。
           content:
             application/json:
               schema:
@@ -182,6 +196,7 @@ paths:
     get:
       tags: [知识]
       operationId: getKnowledgeItem
+      summary: 获取单个 active 知识条目。
       responses:
         "200":
           description: 完整的 active 条目。
@@ -196,6 +211,7 @@ paths:
     patch:
       tags: [知识]
       operationId: updateKnowledgeItem
+      summary: 更新知识条目并执行版本冲突检查。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -222,6 +238,7 @@ paths:
     delete:
       tags: [知识, 回收站]
       operationId: moveKnowledgeItemToTrash
+      summary: 将知识条目移入回收站并立即移出检索。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
@@ -265,9 +282,11 @@ paths:
     post:
       tags: [知识, 任务]
       operationId: reanalyzeKnowledgeItem
+      summary: 使用新计费任务重新分析知识条目。
       parameters:
         - $ref: "#/components/parameters/ItemId"
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/BillingTaskId"
       responses:
         "202":
           description: 已接受重新分析请求。可能需要新的授权。
@@ -279,12 +298,15 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
         "409":
           $ref: "#/components/responses/Conflict"
   /api/v1/imports/text:
     post:
       tags: [导入]
       operationId: importText
+      summary: 导入文本并创建可立即检索的条目。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -295,7 +317,7 @@ paths:
               $ref: "#/components/schemas/TextImportRequest"
       responses:
         "202":
-          description: 已接受 active 条目和后台任务。
+          description: 已接受 active 条目和后台任务；付费 AI 不可用时仍保存内容并标记待整理。
           content:
             application/json:
               schema:
@@ -308,6 +330,7 @@ paths:
     post:
       tags: [导入]
       operationId: importWebpage
+      summary: 采集用户明确提交的单个网页截图并创建条目。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -318,7 +341,7 @@ paths:
               $ref: "#/components/schemas/WebpageImportRequest"
       responses:
         "202":
-          description: 已接受 active 条目和单页采集任务。
+          description: 已接受 active 条目和单页采集任务；计费不可用时仍保存 URL 并标记待整理。
           content:
             application/json:
               schema:
@@ -333,6 +356,7 @@ paths:
     post:
       tags: [导入]
       operationId: uploadKnowledgeAttachment
+      summary: 安全扫描并导入文档或截图。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -352,9 +376,13 @@ paths:
                 note:
                   type: string
                   maxLength: 20000
+                billingTaskId:
+                  type: string
+                  format: uuid
+                  description: 付费文档提取或 OCR 的有效计费任务；缺失时只保存并等待整理。
       responses:
         "202":
-          description: 仅在完整安全扫描通过后接受上传。
+          description: 仅在完整安全扫描通过后接受上传；计费不可用时仍保存并通过状态等待付费 AI。
           content:
             application/json:
               schema:
@@ -369,6 +397,7 @@ paths:
     get:
       tags: [任务]
       operationId: getJob
+      summary: 查询任务状态和安全错误。
       parameters:
         - $ref: "#/components/parameters/JobId"
       responses:
@@ -386,6 +415,7 @@ paths:
     post:
       tags: [任务]
       operationId: retryJob
+      summary: 使用新的计费上下文重试可恢复任务。
       parameters:
         - $ref: "#/components/parameters/JobId"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -406,6 +436,7 @@ paths:
     post:
       tags: [任务]
       operationId: cancelJob
+      summary: 取消任务并释放未消费计费预留。
       parameters:
         - $ref: "#/components/parameters/JobId"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -426,6 +457,7 @@ paths:
     get:
       tags: [授权]
       operationId: listAIAuthorizations
+      summary: 列出 active 与历史 AI 外发授权。
       responses:
         "200":
           description: active 和已撤销的授权历史。
@@ -440,6 +472,7 @@ paths:
     post:
       tags: [授权]
       operationId: grantAIAuthorization
+      summary: 为指定服务和内容类型授予隐私授权。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -463,6 +496,7 @@ paths:
     delete:
       tags: [授权]
       operationId: revokeAIAuthorization
+      summary: 撤销指定范围未来的 AI 外发授权。
       parameters:
         - name: authorizationId
           in: path
@@ -482,6 +516,7 @@ paths:
     get:
       tags: [回收站]
       operationId: listTrash
+      summary: 分页列出回收站条目。
       parameters:
         - name: cursor
           in: query
@@ -507,6 +542,7 @@ paths:
     post:
       tags: [回收站]
       operationId: restoreKnowledgeItem
+      summary: 恢复回收站中的知识条目。
       parameters:
         - $ref: "#/components/parameters/ItemId"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -525,6 +561,7 @@ paths:
     delete:
       tags: [回收站]
       operationId: permanentlyDeleteKnowledgeItem
+      summary: 永久清除知识条目及关联内容。
       parameters:
         - $ref: "#/components/parameters/ItemId"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -577,6 +614,14 @@ components:
       schema:
         type: string
         format: uuid
+    BillingTaskId:
+      name: Billing-Task-Id
+      in: header
+      required: false
+      description: 002 计费任务标识；缺失时不得执行付费 AI，但内容仍可保存为待整理。
+      schema:
+        type: string
+        format: uuid
   responses:
     Unauthorized:
       description: 需要身份认证。
@@ -618,12 +663,19 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    PaymentRequired:
+      description: 纯付费执行点数不足且尚未保存内容；保存类接口不返回 402，报价过期返回 409，缺少计费任务保存为待整理。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InsufficientPointsError"
   schemas:
     ProcessingStatus:
       type: string
       enum:
         - not_requested
         - awaiting_authorization
+        - blocked_billing
         - pending
         - running
         - partial
@@ -673,6 +725,42 @@ components:
           type: object
           additionalProperties:
             type: string
+    InsufficientPointsError:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          required: [requiredPoints, availablePoints, shortfallPoints]
+          properties:
+            code:
+              const: INSUFFICIENT_POINTS
+            requiredPoints:
+              type: integer
+              minimum: 1
+            availablePoints:
+              type: integer
+              minimum: 0
+            shortfallPoints:
+              type: integer
+              minimum: 1
+    BillingTaskSummary:
+      type: object
+      required: [billingTaskId, status, maxPoints, settledPoints]
+      properties:
+        billingTaskId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [QUOTED, CONFIRMED, RESERVED, RUNNING, SETTLED, RELEASED, INSUFFICIENT, EXPIRED, CANCELLED, MANUAL_REVIEW]
+        maxPoints:
+          type: integer
+          minimum: 1
+        settledPoints:
+          type: integer
+          minimum: 0
+        balanceAfter:
+          type: integer
+          minimum: 0
     Source:
       type: object
       required: [kind]
@@ -837,6 +925,10 @@ components:
             - string
             - "null"
           format: uri
+        billingTaskId:
+          type: string
+          format: uuid
+          description: 可选的自动整理计费任务；缺失时只保存并标记待整理。
     UpdateKnowledgeItemRequest:
       type: object
       required: [expectedVersion]
@@ -939,6 +1031,10 @@ components:
         explicitConsent:
           type: boolean
           const: true
+        includeAnswer:
+          type: boolean
+          default: false
+          description: false 为 3 点搜索；true 为搜索 3 点加单次回答 2 点。
     ExternalSearchCandidate:
       type: object
       required: [candidateId, title, url, snippet, provider]
@@ -966,6 +1062,22 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ExternalSearchCandidate"
+        answer:
+          type:
+            - string
+            - "null"
+          description: includeAnswer=true 且回答成功时的单次回答；无依据或失败时为空。
+        billing:
+          oneOf:
+            - $ref: "#/components/schemas/BillingTaskSummary"
+            - type: "null"
+    SaveExternalCandidateRequest:
+      type: object
+      properties:
+        billingTaskId:
+          type: string
+          format: uuid
+          description: 可选自动整理计费任务；缺失时保存为待整理。
     AIAuthorizationRequest:
       type: object
       required: [serviceCode, contentType, purpose, consentTextVersion]
@@ -1023,6 +1135,10 @@ components:
         note:
           type: string
           maxLength: 20000
+        billingTaskId:
+          type: string
+          format: uuid
+          description: 可选自动整理计费任务；缺失时不执行付费 AI。
     WebpageImportRequest:
       type: object
       required: [url]
@@ -1033,6 +1149,10 @@ components:
         note:
           type: string
           maxLength: 20000
+        billingTaskId:
+          type: string
+          format: uuid
+          description: 单页截图分析和后续整理的有效计费任务；缺失时保存并等待整理。
       description: 浏览器工作进程只能打开此单个 URL，并须经过 SSRF 检查。
     ImportAccepted:
       type: object
@@ -1046,6 +1166,10 @@ components:
           format: uuid
         status:
           $ref: "#/components/schemas/ProcessingStatus"
+        billing:
+          oneOf:
+            - $ref: "#/components/schemas/BillingTaskSummary"
+            - type: "null"
     JobAccepted:
       type: object
       required: [jobId, status]
@@ -1055,7 +1179,7 @@ components:
           format: uuid
         status:
           type: string
-          enum: [queued, running, blocked_authorization, succeeded, failed, cancelled]
+          enum: [queued, running, blocked_authorization, blocked_billing, succeeded, failed, cancelled]
     Job:
       type: object
       required: [id, kind, status, attemptCount, createdAt, updatedAt]
@@ -1067,7 +1191,7 @@ components:
           type: string
         status:
           type: string
-          enum: [queued, running, blocked_authorization, succeeded, failed, cancelled]
+          enum: [queued, running, blocked_authorization, blocked_billing, succeeded, failed, cancelled]
         attemptCount:
           type: integer
           minimum: 0

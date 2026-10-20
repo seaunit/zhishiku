@@ -1,0 +1,1424 @@
+openapi: 3.1.0
+info:
+  title: 识海 AI 点数计费 API
+  version: 1.0.0
+  description: >
+    单所有者识海应用的计费公开契约。服务端是套餐价格、AI 点率、报价、余额、订单和退款的
+    唯一权威。客户端只能提交目录标识、数量和幂等键，不能提交权威金额或点数。
+servers:
+  - url: http://localhost:3000/kb
+    description: 使用生产兼容 /kb 基础路径的本地接口
+security:
+  - sessionCookie: []
+tags:
+  - name: 计费目录
+  - name: 点数账户
+  - name: 订单与支付
+  - name: AI 报价
+  - name: 自动扣点
+  - name: 退款
+  - name: 管理员计费
+  - name: 内部事件
+paths:
+  /api/v1/billing/catalog:
+    get:
+      tags: [计费目录]
+      operationId: getBillingCatalog
+      summary: 获取当前环境的三档一次性点数包与 AI 点率。
+      responses:
+        "200":
+          description: 当前有效目录版本。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingCatalog"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/billing/account:
+    get:
+      tags: [点数账户]
+      operationId: getCreditAccount
+      summary: 获取当前可用、预留、体验点和购买点余额。
+      responses:
+        "200":
+          description: 当前点数账户投影。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/billing/ledger:
+    get:
+      tags: [点数账户]
+      operationId: listCreditLedger
+      summary: 按时间倒序查询不可变点数明细。
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: operationType
+          in: query
+          schema:
+            $ref: "#/components/schemas/LedgerOperationType"
+      responses:
+        "200":
+          description: 点数明细页。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/billing/orders:
+    get:
+      tags: [订单与支付]
+      operationId: listBillingOrders
+      summary: 查询当前所有者的点数包订单。
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/OrderStatus"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: 订单页。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [订单与支付]
+      operationId: createBillingOrder
+      summary: 基于当前目录创建或恢复待支付订单。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: 已创建订单。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentOrder"
+        "200":
+          description: 幂等请求返回已有订单，或复用有效待支付订单。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentOrder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/billing/orders/{orderId}:
+    get:
+      tags: [订单与支付]
+      operationId: getBillingOrder
+      summary: 查询订单状态；返回页不触发到账。
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          description: 当前订单状态。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentOrder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/billing/orders/{orderId}/checkout:
+    post:
+      tags: [订单与支付]
+      operationId: openBillingCheckout
+      summary: 创建或恢复该订单唯一有效的 Waffo 收银台会话。
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: 可用收银台会话。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutSession"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /api/v1/billing/auto-charge:
+    get:
+      tags: [自动扣点]
+      operationId: getAutoChargePolicy
+      summary: 获取独立的自动整理扣点授权和限额。
+      responses:
+        "200":
+          description: 当前自动扣点设置。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutoChargePolicy"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [自动扣点]
+      operationId: updateAutoChargePolicy
+      summary: 开启、关闭或调整自动整理扣点上限。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAutoChargePolicyRequest"
+      responses:
+        "200":
+          description: 已更新并保留授权历史。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutoChargePolicy"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/billing/preflights:
+    post:
+      tags: [AI 报价]
+      operationId: createBillingPreflight
+      summary: 免费预检文档字符或网页视图上限并返回短期 preflightId。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePreflightRequest"
+      responses:
+        "201":
+          description: 已生成服务端认可的报价依据。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingPreflight"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          description: 文件或页面视图超过已批准上限。
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/billing/quotes:
+    post:
+      tags: [AI 报价]
+      operationId: createBillingQuote
+      summary: 根据服务端目录生成组合 AI 任务费用上限。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuoteRequest"
+      responses:
+        "201":
+          description: 已生成有有效期的分项报价。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingQuote"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/billing/quotes/{quoteId}/confirm:
+    post:
+      tags: [AI 报价]
+      operationId: confirmBillingQuote
+      summary: 确认费用上限并为 AI 任务原子预留点数。
+      parameters:
+        - $ref: "#/components/parameters/QuoteId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmQuoteRequest"
+      responses:
+        "200":
+          description: 任务已预留，可交给现有 AI 执行链路。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingTask"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/billing/tasks/{taskId}:
+    get:
+      tags: [AI 报价]
+      operationId: getBillingTask
+      summary: 查询报价、全部预留、分步骤结算和最终状态。
+      parameters:
+        - $ref: "#/components/parameters/BillingTaskId"
+      responses:
+        "200":
+          description: 计费任务详情。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingTask"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/billing/tasks/{taskId}/cancel:
+    post:
+      tags: [AI 报价]
+      operationId: cancelBillingTask
+      summary: 取消未开始任务并释放预留；已开始任务按取消结果结算。
+      parameters:
+        - $ref: "#/components/parameters/BillingTaskId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: 已接受取消。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingTask"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/billing/refunds:
+    get:
+      tags: [退款]
+      operationId: listRefundCases
+      summary: 查询退款处理状态和最终结论。
+      responses:
+        "200":
+          description: 退款案例列表。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RefundCase"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/billing/refunds/{refundId}:
+    get:
+      tags: [退款]
+      operationId: getRefundCase
+      summary: 查询单项退款、回收点数和人工复核期限。
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: 退款案例。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundCase"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/admin/billing/summary:
+    get:
+      tags: [管理员计费]
+      operationId: getAdminBillingSummary
+      summary: 按日期、订单、状态和套餐汇总财务与点数事实。
+      security:
+        - adminSessionCookie: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: 脱敏财务汇总。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinanceSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/billing/refunds/{refundId}/resolve:
+    post:
+      tags: [管理员计费]
+      operationId: resolveAdminRefundCase
+      summary: 由授权管理员记录退款最终结论和未回收点数。
+      security:
+        - adminSessionCookie: []
+      parameters:
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundResolutionRequest"
+      responses:
+        "200":
+          description: 已形成最终退款结论。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundCase"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/billing/adjustments:
+    post:
+      tags: [管理员计费]
+      operationId: createAdminCreditAdjustment
+      summary: 通过只追加账本进行受控人工点数调整。
+      security:
+        - adminSessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManualAdjustmentRequest"
+      responses:
+        "201":
+          description: 已追加账本并保留审计事实。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LedgerEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /pay/webhooks/waffo:
+    post:
+      tags: [内部事件]
+      operationId: receiveWaffoWebhook
+      summary: 接收 Waffo 原始通知；由桥接使用签名验证。
+      security: []
+      description: >
+        该路径由独立 Waffo 桥接处理，不依赖登录 Cookie。桥接不读取知识正文，只在验签后
+        转发安全化事件。
+      parameters:
+        - name: X-Waffo-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: 事件已安全接收、重复忽略或进入人工复核；已持久化后桥接向 Waffo 返回成功。
+        "400":
+          description: 无法解析事件。
+        "401":
+          description: 签名无效或缺失。
+        "500":
+          description: 临时持久化失败，允许供应商重试。
+  /api/internal/billing/waffo-events:
+    post:
+      tags: [内部事件]
+      operationId: ingestNormalizedWaffoEvent
+      summary: 桥接向识海转发已验签的安全化支付事件。
+      security:
+        - internalSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NormalizedWaffoEvent"
+      responses:
+        "200":
+          description: 事件已应用或识别为重复。
+        "400":
+          description: 事件结构无效。
+        "401":
+          description: 内部服务认证失败。
+        "409":
+          description: 事件与本地订单事实冲突，已进入人工复核。
+        "500":
+          description: 临时处理失败，允许桥接安全重试。
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: zhishiku.session_token
+    adminSessionCookie:
+      type: apiKey
+      in: cookie
+      name: zhishiku.session_token
+      description: 必须同时具有受控管理员角色；普通会话返回 403。
+    internalSecret:
+      type: apiKey
+      in: header
+      name: X-Internal-Secret
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    QuoteId:
+      name: quoteId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BillingTaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Unauthorized:
+      description: 需要身份认证。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: 缺少隐私授权、自动扣点授权或所需权限。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: 资源不存在或不属于当前所有者。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: 状态冲突、幂等键复用冲突或报价已过期。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: 请求验证失败且不回显敏感内容。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    PaymentRequired:
+      description: 点数不足，任务未启动且未扣费。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InsufficientPointsError"
+    ServiceUnavailable:
+      description: 支付目录或桥接暂时不可用；现有余额不变。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    Environment:
+      type: string
+      enum: [test, production]
+    OrderStatus:
+      type: string
+      enum: [PENDING, CONFIRMING, PAID, CLOSED, REFUNDING, REFUNDED, EXCEPTION]
+    BillingTaskStatus:
+      type: string
+      enum:
+        - QUOTED
+        - CONFIRMED
+        - RESERVED
+        - RUNNING
+        - SETTLED
+        - RELEASED
+        - INSUFFICIENT
+        - EXPIRED
+        - CANCELLED
+        - MANUAL_REVIEW
+    LedgerOperationType:
+      type: string
+      enum:
+        - trial_grant
+        - purchase_grant
+        - reserve
+        - reserve_release
+        - settle
+        - refund_recover
+        - manual_adjustment
+    BillingFeature:
+      type: string
+      enum:
+        - classify
+        - webpage_vision
+        - document_extract
+        - screenshot_ocr
+        - internet_search
+        - ai_answer
+    BillingUnit:
+      type: string
+      enum: [entry, view, per_10k_chars, image, query, answer]
+    ErrorResponse:
+      type: object
+      required: [code, message, requestId, retryable]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+        retryable:
+          type: boolean
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+    InsufficientPointsError:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          required: [requiredPoints, availablePoints, shortfallPoints]
+          properties:
+            code:
+              const: INSUFFICIENT_POINTS
+            requiredPoints:
+              type: integer
+              minimum: 1
+            availablePoints:
+              type: integer
+              minimum: 0
+            shortfallPoints:
+              type: integer
+              minimum: 1
+    BillingCatalog:
+      type: object
+      required: [environment, versionCode, packs, aiRates, refundPolicy]
+      properties:
+        environment:
+          $ref: "#/components/schemas/Environment"
+        versionCode:
+          type: string
+        packs:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/PointPack"
+        aiRates:
+          type: array
+          minItems: 6
+          items:
+            $ref: "#/components/schemas/AIRate"
+        refundPolicy:
+          $ref: "#/components/schemas/RefundPolicy"
+    PointPack:
+      type: object
+      required: [sku, name, priceMinor, currency, points, oneTime]
+      properties:
+        sku:
+          type: string
+          enum: [kb_pack_9, kb_pack_29, kb_pack_99]
+        name:
+          type: string
+        priceMinor:
+          type: integer
+          enum: [900, 2900, 9900]
+        currency:
+          type: string
+          const: CNY
+        points:
+          type: integer
+          enum: [400, 1400, 5000]
+        oneTime:
+          type: boolean
+          const: true
+    AIRate:
+      type: object
+      required: [feature, unit, pointsPerUnit, description]
+      properties:
+        feature:
+          $ref: "#/components/schemas/BillingFeature"
+        unit:
+          $ref: "#/components/schemas/BillingUnit"
+        pointsPerUnit:
+          type: integer
+          minimum: 1
+        description:
+          type: string
+    RefundPolicy:
+      type: object
+      required: [summary, supportChannel, responseTarget, pointsTransferable]
+      properties:
+        summary:
+          type: string
+        supportChannel:
+          type: string
+        responseTarget:
+          type: string
+          const: 3 个工作日
+        pointsTransferable:
+          type: boolean
+          const: false
+    CreditAccount:
+      type: object
+      required: [availablePoints, reservedPoints, trialPoints, purchasedPoints, updatedAt]
+      properties:
+        availablePoints:
+          type: integer
+          minimum: 0
+        reservedPoints:
+          type: integer
+          minimum: 0
+        trialPoints:
+          type: integer
+          minimum: 0
+        purchasedPoints:
+          type: integer
+          minimum: 0
+        updatedAt:
+          type: string
+          format: date-time
+    LedgerEntry:
+      type: object
+      required:
+        - id
+        - operationType
+        - availableDelta
+        - reservedDelta
+        - consumedDelta
+        - availableAfter
+        - createdAt
+      properties:
+        id:
+          type: string
+        operationType:
+          $ref: "#/components/schemas/LedgerOperationType"
+        availableDelta:
+          type: integer
+        reservedDelta:
+          type: integer
+        consumedDelta:
+          type: integer
+        availableAfter:
+          type: integer
+          minimum: 0
+        reservedAfter:
+          type: integer
+          minimum: 0
+        referenceType:
+          type: string
+        referenceId:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    LedgerPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LedgerEntry"
+        nextCursor:
+          type:
+            - string
+            - "null"
+    CreateOrderRequest:
+      type: object
+      required: [sku]
+      properties:
+        sku:
+          type: string
+          enum: [kb_pack_9, kb_pack_29, kb_pack_99]
+    PaymentOrder:
+      type: object
+      required:
+        - id
+        - sku
+        - environment
+        - amountMinor
+        - currency
+        - points
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        environment:
+          $ref: "#/components/schemas/Environment"
+        amountMinor:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          const: CNY
+        points:
+          type: integer
+          minimum: 1
+        providerProductId:
+          type:
+            - string
+            - "null"
+          description: 收银台创建后由桥接返回并保存的商品快照。
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        checkoutUrl:
+          type:
+            - string
+            - "null"
+          format: uri
+        paidAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        closedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    OrderPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentOrder"
+        nextCursor:
+          type:
+            - string
+            - "null"
+    CheckoutSession:
+      type: object
+      required: [orderId, checkoutUrl, expiresAt, environment]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        checkoutUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        environment:
+          $ref: "#/components/schemas/Environment"
+    AutoChargePolicy:
+      type: object
+      required:
+        - featureScope
+        - enabled
+        - maxPointsPerTask
+        - maxPointsPerDay
+        - timezone
+        - consentTextVersion
+        - version
+        - updatedAt
+      properties:
+        featureScope:
+          type: string
+          const: classify
+        enabled:
+          type: boolean
+        maxPointsPerTask:
+          type: integer
+          minimum: 1
+          maximum: 100
+        maxPointsPerDay:
+          type: integer
+          minimum: 1
+          maximum: 500
+        timezone:
+          type: string
+        consentTextVersion:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        updatedAt:
+          type: string
+          format: date-time
+    UpdateAutoChargePolicyRequest:
+      type: object
+      required:
+        - enabled
+        - maxPointsPerTask
+        - maxPointsPerDay
+        - consentTextVersion
+        - expectedVersion
+      properties:
+        enabled:
+          type: boolean
+        maxPointsPerTask:
+          type: integer
+          minimum: 1
+          maximum: 100
+        maxPointsPerDay:
+          type: integer
+          minimum: 1
+          maximum: 500
+        consentTextVersion:
+          type: string
+          minLength: 1
+          description: 每次修改都必须提供当前确认的授权文本版本，包括关闭授权。
+        expectedVersion:
+          type: integer
+          minimum: 1
+    QuoteLineRequest:
+      type: object
+      required: [feature, quantity]
+      properties:
+        feature:
+          $ref: "#/components/schemas/BillingFeature"
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    CreatePreflightRequest:
+      type: object
+      required: [kind, mediaType, sizeBytes]
+      properties:
+        kind:
+          type: string
+          enum: [document, screenshot, webpage]
+        mediaType:
+          type: string
+        sizeBytes:
+          type: integer
+          minimum: 1
+        pageCount:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+        viewCount:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+    BillingPreflight:
+      type: object
+      required:
+        - preflightId
+        - measuredCharactersUpperBound
+        - viewCount
+        - pricingBasis
+        - expiresAt
+      properties:
+        preflightId:
+          type: string
+          format: uuid
+        measuredCharactersUpperBound:
+          type: integer
+          minimum: 0
+        viewCount:
+          type: integer
+          minimum: 1
+        pricingBasis:
+          type: string
+          enum: [document_chars, screenshot_image, webpage_view]
+        expiresAt:
+          type: string
+          format: date-time
+    CreateQuoteRequest:
+      type: object
+      required: [operation, lines]
+      properties:
+        operation:
+          type: string
+          enum:
+            - manual_auto_classify
+            - webpage_import
+            - document_import
+            - screenshot_import
+            - reanalyze
+            - internet_search
+            - internet_search_with_answer
+        itemId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        preflightId:
+          type:
+            - string
+            - "null"
+          description: 文档字符或网页视图数量的免费预检标识。
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/QuoteLineRequest"
+        useAutoCharge:
+          type: boolean
+          default: false
+    QuoteLine:
+      type: object
+      required: [feature, unit, quantity, pointsPerUnit, maxPoints, successRule]
+      properties:
+        feature:
+          $ref: "#/components/schemas/BillingFeature"
+        unit:
+          $ref: "#/components/schemas/BillingUnit"
+        quantity:
+          type: integer
+          minimum: 1
+        pointsPerUnit:
+          type: integer
+          minimum: 1
+        maxPoints:
+          type: integer
+          minimum: 1
+        successRule:
+          type: string
+    BillingQuote:
+      type: object
+      required:
+        - quoteId
+        - status
+        - lines
+        - maxPoints
+        - availablePoints
+        - expiresAt
+        - autoChargeEligible
+      properties:
+        quoteId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/BillingTaskStatus"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuoteLine"
+        maxPoints:
+          type: integer
+          minimum: 1
+        availablePoints:
+          type: integer
+          minimum: 0
+        projectedRemainingPoints:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+        autoChargeEligible:
+          type: boolean
+    ConfirmQuoteRequest:
+      type: object
+      required: [expectedMaxPoints, explicitConsent]
+      properties:
+        expectedMaxPoints:
+          type: integer
+          minimum: 1
+        explicitConsent:
+          type: boolean
+          const: true
+    BillingTask:
+      type: object
+      required:
+        - id
+        - status
+        - lines
+        - maxPoints
+        - settledPoints
+        - reservedPoints
+        - expiresAt
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/BillingTaskStatus"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuoteLine"
+        maxPoints:
+          type: integer
+          minimum: 1
+        settledPoints:
+          type: integer
+          minimum: 0
+        reservedPoints:
+          type: integer
+          minimum: 0
+        expiresAt:
+          type: string
+          format: date-time
+        autoChargeApplied:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RefundCase:
+      type: object
+      required:
+        - id
+        - orderId
+        - status
+        - refundAmountMinor
+        - expectedRecoveryPoints
+        - recoveredPoints
+        - unrecoveredPoints
+        - reviewDueAt
+        - version
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - noticed
+            - verifying
+            - waiting_task_settlement
+            - recovering
+            - recovered
+            - partially_recovered
+            - rejected
+            - manual_review
+        refundAmountMinor:
+          type: integer
+          minimum: 0
+        expectedRecoveryPoints:
+          type: integer
+          minimum: 0
+        recoveredPoints:
+          type: integer
+          minimum: 0
+        unrecoveredPoints:
+          type: integer
+          minimum: 0
+        reviewDueAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          minimum: 1
+        resolution:
+          type:
+            - string
+            - "null"
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+    FinanceSummary:
+      type: object
+      required:
+        - from
+        - to
+        - orderCount
+        - grossAmountMinor
+        - refundedAmountMinor
+        - pointsGranted
+        - pointsConsumed
+        - pointsRefundRecovered
+        - pointsUnrecovered
+        - ordersByStatus
+        - ordersBySku
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        orderCount:
+          type: integer
+          minimum: 0
+        grossAmountMinor:
+          type: integer
+          minimum: 0
+        refundedAmountMinor:
+          type: integer
+          minimum: 0
+        pointsGranted:
+          type: integer
+          minimum: 0
+        pointsConsumed:
+          type: integer
+          minimum: 0
+        pointsRefundRecovered:
+          type: integer
+          minimum: 0
+        pointsUnrecovered:
+          type: integer
+          minimum: 0
+        ordersByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+        ordersBySku:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+    RefundResolutionRequest:
+      type: object
+      required:
+        - outcome
+        - recoveredPoints
+        - unrecoveredPoints
+        - resolutionNoteSafe
+        - expectedVersion
+      properties:
+        outcome:
+          type: string
+          enum: [recovered, partially_recovered, rejected]
+        recoveredPoints:
+          type: integer
+          minimum: 0
+        unrecoveredPoints:
+          type: integer
+          minimum: 0
+        resolutionNoteSafe:
+          type: string
+          maxLength: 2000
+        expectedVersion:
+          type: integer
+          minimum: 1
+    ManualAdjustmentRequest:
+      type: object
+      required:
+        - points
+        - direction
+        - reasonCode
+        - referenceId
+      properties:
+        points:
+          type: integer
+          minimum: 1
+        direction:
+          type: string
+          enum: [credit, debit]
+        reasonCode:
+          type: string
+          enum: [support_compensation, accounting_correction, refund_writeoff]
+        referenceId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        noteSafe:
+          type: string
+          maxLength: 2000
+    NormalizedWaffoEvent:
+      type: object
+      required:
+        - environment
+        - eventType
+        - sourceEventKey
+        - productMatch
+        - receivedAt
+        - payloadHash
+      properties:
+        environment:
+          $ref: "#/components/schemas/Environment"
+        eventType:
+          type: string
+          enum: [paid, refund, expired, conflict]
+        sourceEventKey:
+          type: string
+          minLength: 1
+          description: 通知使用供应商事件/投递键；查询使用稳定查询结果键。
+        providerEventId:
+          type:
+            - string
+            - "null"
+        deliveryId:
+          type:
+            - string
+            - "null"
+        orderId:
+          type:
+            - string
+            - "null"
+        providerOrderId:
+          type:
+            - string
+            - "null"
+        providerSessionId:
+          type:
+            - string
+            - "null"
+        providerRefundId:
+          type:
+            - string
+            - "null"
+        providerProductId:
+          type:
+            - string
+            - "null"
+        productMatch:
+          type: boolean
+        amountMinor:
+          type:
+            - integer
+            - "null"
+        currency:
+          type:
+            - string
+            - "null"
+        refundAmountMinor:
+          type:
+            - integer
+            - "null"
+        reasonCode:
+          type:
+            - string
+            - "null"
+        signatureStatus:
+          type: string
+          enum: [valid, invalid, not_applicable]
+        payloadHash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        receivedAt:
+          type: string
+          format: date-time

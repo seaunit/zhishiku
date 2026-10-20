@@ -4,7 +4,8 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 
 ## 项目状态
 
-当前处于需求、宪法与实施计划阶段，尚未创建应用代码。
+当前处于需求、宪法、实施计划与任务阶段，尚未创建应用代码。功能 001 定义个人知识库，
+功能 002 定义 AI 点数计费与 Waffo 支付；真实收费在 P0/P1 门禁通过前保持关闭。
 
 ## 核心文档
 
@@ -17,6 +18,13 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 - [部署共存方案](specs/001-ai-personal-knowledge-base/deployment.md)
 - [验证指南](specs/001-ai-personal-knowledge-base/quickstart.md)
 - [OpenAPI 契约](specs/001-ai-personal-knowledge-base/contracts/openapi.yaml)
+- [付费功能规格](specs/002-ai-credit-billing/spec.md)
+- [付费实施计划](specs/002-ai-credit-billing/plan.md)
+- [计费数据模型](specs/002-ai-credit-billing/data-model.md)
+- [计费 OpenAPI](specs/002-ai-credit-billing/contracts/openapi.yaml)
+- [Waffo 桥接契约](specs/002-ai-credit-billing/contracts/waffo-bridge.yaml)
+- [付费验收指南](specs/002-ai-credit-billing/quickstart.md)
+- [付费任务表](specs/002-ai-credit-billing/tasks.md)
 
 ## 交互原型
 
@@ -44,3 +52,9 @@ python -m http.server 8088 --bind 127.0.0.1 --directory prototype
 - 知识库部署在现有 `seaunit.site` 的 `/kb` 路径。
 - 不得影响现有应用的 `/api`、`/app`、`/bank`、`/pay`、`/apk`、证书或认证配置。
 - 所有密钥仅通过服务器环境变量或受管密钥服务提供，不得进入仓库。
+- 识海使用独立 `kb_pack_*` 商品、Waffo 桥接、订单、点数账本和
+  `/kb/pay/webhooks/waffo`；不得复用拾题 `pack_*`、`8090` 侧车或 `/pay` 路由。
+- 测试与生产计费使用独立物理 PostgreSQL 数据库、环境文件和密钥，不能只靠 schema 或
+  环境字段隔离。
+- AI 付费采用一次性点数制。所有付费 AI 必须经过服务端报价、确认、预留和成功步骤结算；
+  自动整理扣点默认关闭，余额不足不得阻止内容保存和本地检索。
