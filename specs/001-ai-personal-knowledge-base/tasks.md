@@ -254,18 +254,20 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 详情：注册页包含邮箱、图形验证码、邮箱验证码、密码和确认密码；发送邮箱验证码前必须消费
   Kaptcha 图形验证码。邮箱验证码为 6 位安全随机数字，默认 10 分钟过期、哈希保存、最多尝试
   5 次，重发立即替换旧码。同一邮箱 60 秒冷却、每小时 5 次，同一 IP 每小时 20 次；SMTP 失败
-  不留下可用验证码。已有所有者或并发创建时统一返回 `REGISTRATION_CLOSED`。
+  不留下可用验证码。已有所有者或并发创建时统一返回 `REGISTRATION_CLOSED`。验证码邮件使用
+  识海蓝色系统风格 HTML，附带纯文本回退、醒目的 6 位验证码、10 分钟有效期和系统邮件页脚。
 - 临时邮箱：仓库内置高置信度域名清单，按规范化域名的精确值或子域边界拒绝；
   `daniel.parkerca61598b@mailinator.com` 必须拒绝，`notmailinator.com` 和普通邮箱中的类似
   局部名称允许。
-- 验证：邮箱策略 4 项、验证码服务 8 项、注册服务 4 项、SMTP 适配器 1 项、注册控制器 6 项、
+- 验证：邮箱策略 4 项、验证码服务 8 项、注册服务 4 项、邮件模板 2 项、SMTP MIME 1 项、
+  注册控制器 6 项、
   登录/注册前端 API 8 项；注册页 mock E2E、临时邮箱拒绝 E2E、真实空库注册 E2E；
-  后端全量 32 项、Vitest 14 项、Playwright 9 项通过；Taste app-screen 0 FAIL/0 WARN 和
+  后端全量 34 项、Vitest 14 项、Playwright 9 项通过；Taste app-screen 0 FAIL/0 WARN 和
   inspector 0 FAIL/1 个可解释的品牌面板空带警告。独立测试子智能体验收 0 功能失败。
 - 证据：`EmailAddressPolicyTest`、`EmailVerificationServiceTest`、
-  `RegistrationServiceTest`、`SmtpRegistrationEmailSenderTest`、
+  `RegistrationServiceTest`、`RegistrationEmailTemplateTest`、`SmtpRegistrationEmailSenderTest`、
   `AuthControllerRegistrationTest`、`frontend/kb-web/e2e/registration-live.spec.ts`、
-  `.taste-skill/registration-after/`。
+  `.taste-skill/registration-after/`、`.taste-skill/registration-email/`。
 - 覆盖：FR-002、FR-069 至 FR-073；单所有者边界、SMTP、邮箱验证码与临时邮箱过滤。
 - 风险与回滚：邮箱验证码与频控缓存为单实例内存数据，重启后失效；多实例前需共享缓存。
   注册只创建唯一所有者，不扩展多用户。回滚时关闭注册入口并恢复登录页，不影响现有 owner 数据。

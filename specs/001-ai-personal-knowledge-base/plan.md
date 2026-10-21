@@ -94,6 +94,7 @@ OWASP Dependency-Check
    发码前必须通过图形验证码，邮箱码使用 6 位安全随机数字、哈希缓存、一次性消费、尝试上限和
    邮箱/IP 频率控制；受控域名清单拒绝临时邮箱。会话 Cookie 独立命名为 `zhishiku_session`，
    路径为 `/kb`，启用 CSRF、SameSite 和安全属性。
+   注册邮件使用识海蓝色系统样式的表格式 HTML，并提供纯文本回退和移动端适配。
 
 6. **PostgreSQL 任务表替代 pg-boss。**
    Worker 使用事务租约、`SKIP LOCKED`、尝试次数、退避时间、幂等键和死信状态处理任务。
