@@ -85,8 +85,9 @@
 - 生产使用 GitHub 固定 tag 或 commit 触发原生 Nginx、systemd 部署，不假设服务器使用 Docker。
 - `https://seaunit.site/` 是 SEAUNIT 双应用门户，必须同时提供拾题和识海入口；门户安装到
   `/opt/seaunit-portal/current`。
-- 门户发布只能替换 Nginx 中精确的 `location = /`，并保留 `/app`、`/login`、`/bank`、`/api`、
-  `/pay`、`/apk`、证书、Cookie 和支付 sidecar 的现有行为。
+- 门户发布只能替换 Nginx 中精确的 `location = /`，增加独立的 `/seaunit-portal/` 静态资源
+  location，并保留 `/app`、`/login`、`/bank`、`/api`、`/pay`、`/apk`、证书、Cookie 和支付
+  sidecar 的现有行为。
 - `/kb/` 与根门户的 Nginx 改动必须先备份，执行 `nginx -t`，失败时恢复配置和上一 release。
 - 不得为门户部署修改或重启拾题的 MySQL、Redis、认证、支付服务或既有环境文件。
 

@@ -64,9 +64,11 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 - `/kb/assets/`：带长期缓存的 Vue 静态资源。
 - `/app`、`/login`、`/api`、`/bank`、`/pay`、`/apk`：继续由现有拾题应用处理。
 
-脚本把门户安装到 `/opt/seaunit-portal/releases/`，由 `current` 指向当前版本。对现有
-`shuati.conf` 只做两项受管理修改：把精确的 `location = /` 替换为静态门户，并注入一行受管理
-的 `/kb` `include`。修改前备份，`nginx -t` 失败时自动恢复配置和上一 release。
+脚本把门户安装到 `/opt/seaunit-portal/releases/`，由 `current` 指向当前版本。门户样式、脚本和
+字体使用独立的 `/seaunit-portal/` 路径，不与拾题现有资源冲突。对现有 `shuati.conf` 只做三项
+受管理修改：把精确的 `location = /` 替换为静态门户，增加 `/seaunit-portal/` 静态资源
+location，并注入一行受管理的 `/kb` `include`。修改前备份，`nginx -t` 失败时自动恢复配置和
+上一 release。
 
 ## 回滚
 

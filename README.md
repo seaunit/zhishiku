@@ -140,8 +140,8 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 - 服务只监听 `127.0.0.1:8082`，公开入口为 `/kb/`。
 - 静态门户安装到 `/opt/seaunit-portal/current`，根路径 `/` 同时提供拾题和识海入口。
 - 保留上一 release；健康检查失败时自动切回。
-- 只替换现有 Nginx 配置中精确的 `location = /`，并注入受管理的 `/kb` 片段；`nginx -t`
-  失败时恢复配置备份。
+- 只替换现有 Nginx 配置中精确的 `location = /`，增加独立的 `/seaunit-portal/` 静态资源
+  location，并注入受管理的 `/kb` 片段；`nginx -t` 失败时恢复配置备份。
 - 不修改拾题进程、MySQL、Redis、支付 sidecar 或 `/app`、`/login`、`/api`、`/bank`、
   `/pay` 路由。
 

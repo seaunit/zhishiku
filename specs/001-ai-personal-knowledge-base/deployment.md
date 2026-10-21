@@ -88,6 +88,12 @@ location = / {
     try_files /index.html =404;
 }
 
+location ^~ /seaunit-portal/ {
+    root /opt/seaunit-portal/current;
+    try_files $uri =404;
+    add_header Cache-Control "public, max-age=3600";
+}
+
 location = /kb {
     return 308 /kb/;
 }
@@ -127,8 +133,9 @@ location /kb/ {
 }
 ```
 
-最终配置必须基于现有 Nginx 文件做增量修改：只替换精确的 `location = /`，再注入 `/kb`
-include。执行 `nginx -t` 后 reload；失败时恢复 Nginx 备份和上一门户 release。
+最终配置必须基于现有 Nginx 文件做增量修改：替换精确的 `location = /`，增加独立的
+`/seaunit-portal/` 静态资源 location，再注入 `/kb` include。执行 `nginx -t` 后 reload；
+失败时恢复 Nginx 备份和上一门户 release。
 
 ## 数据库
 

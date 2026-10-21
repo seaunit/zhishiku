@@ -294,6 +294,17 @@ PORTAL_STAGE_DIR="$PORTAL_ROOT/.deploy-$RELEASE_ID"
 install -d -m 0755 "$PORTAL_ROOT/releases"
 install -d -m 0755 "$PORTAL_STAGE_DIR"
 cp -a "$SOURCE_DIR/deploy/portal/." "$PORTAL_STAGE_DIR/"
+install -d -m 0755 "$PORTAL_STAGE_DIR/seaunit-portal/fonts"
+install -m 0644 \
+  "$SOURCE_DIR/deploy/portal/styles.css" \
+  "$PORTAL_STAGE_DIR/seaunit-portal/styles.css"
+install -m 0644 \
+  "$SOURCE_DIR/deploy/portal/app.js" \
+  "$PORTAL_STAGE_DIR/seaunit-portal/app.js"
+install -m 0644 \
+  "$SOURCE_DIR/deploy/portal/assets/fonts/libre-franklin.woff2" \
+  "$SOURCE_DIR/deploy/portal/assets/fonts/source-serif-4.woff2" \
+  "$PORTAL_STAGE_DIR/seaunit-portal/fonts/"
 printf '%s\n' "$SOURCE_SHA" > "$PORTAL_STAGE_DIR/VERSION"
 chmod -R u=rwX,go=rX "$PORTAL_STAGE_DIR"
 mv "$PORTAL_STAGE_DIR" "$PORTAL_RELEASE_DIR"
@@ -343,6 +354,33 @@ if "root /opt/seaunit-portal/current;" not in text:
         f"{indent}location = / {{\n",
         f"{indent}    root /opt/seaunit-portal/current;\n",
         f"{indent}    try_files /index.html =404;\n",
+        f"{indent}}}\n",
+    ]
+    changed = True
+
+if "location ^~ /seaunit-portal/" not in "".join(lines):
+    start = next(
+        (index for index, line in enumerate(lines) if line.strip() == "location = / {"),
+        None,
+    )
+    if start is None:
+        raise SystemExit("Could not find the managed root location block.")
+    depth = 0
+    end = None
+    for index in range(start, len(lines)):
+        depth += lines[index].count("{") - lines[index].count("}")
+        if depth == 0:
+            end = index
+            break
+    if end is None:
+        raise SystemExit("Could not find the end of the managed root location block.")
+    indent = lines[start][: len(lines[start]) - len(lines[start].lstrip())]
+    lines[end + 1 : end + 1] = [
+        "\n",
+        f"{indent}location ^~ /seaunit-portal/ {{\n",
+        f"{indent}    root /opt/seaunit-portal/current;\n",
+        f"{indent}    try_files $uri =404;\n",
+        f'{indent}    add_header Cache-Control "public, max-age=3600";\n',
         f"{indent}}}\n",
     ]
     changed = True
