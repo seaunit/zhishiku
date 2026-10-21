@@ -123,8 +123,8 @@ Vitest/Vue Test Utils，E2E 使用 Playwright，富文本 JSON 契约由 Vue 与
 - [x] T073 [P1] 在 `tests/e2e/richtext-zero-impact.spec.ts` 中验证 `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`、Cookie、证书和 sidecar
 - [x] T074 [P1] 在 `artifacts/acceptance/rich-text.md` 中映射 FR-001 至 FR-057、SC-001 至 SC-019
 - [ ] T075 [P1] 在新环境执行 [quickstart.md](quickstart.md) 并写入 `artifacts/rich-text/quickstart-report.md`
-- [ ] T081 [P0] 修复生产富文本图片粘贴的 libvips 依赖，安装系统包并在部署切换前执行真实图片规范化检查
-- [ ] T082 [P0] 修复部署健康检查和门户内容检查在 `pipefail` 下的 `curl | grep -q` 竞态，避免成功 release 被误回滚
+- [x] T081 [P0] 修复生产富文本图片粘贴的 libvips 依赖，安装系统包并在部署切换前执行真实图片规范化检查
+- [x] T082 [P0] 修复部署健康检查和门户内容检查在 `pipefail` 下的 `curl | grep -q` 竞态，避免成功 release 被误回滚
 
 ## 阶段 9：P2 加固
 
@@ -286,28 +286,41 @@ FR/SC 映射、风险和回滚。
 ### 完成记录：T081
 
 - 日期：2026-10-22
-- 状态：待验证
-- 执行子智能体：开发、测试
-- Git commit：未提交
+- 状态：已完成
+- 执行子智能体：产品、开发、测试
+- Git commit：`cf76f88`
 - 摘要：修复生产富文本粘贴图片因缺少 libvips 而失败的问题。
-- 详情：待完成。
-- 验证：待完成。
-- 证据：待完成。
+- 详情：`provision-ubuntu.sh` 安装 `libvips-tools`；`deploy.sh` 把 `vips` 加入必需命令，并在切换
+  release 前调用 `check-image-normalizer.sh`，用仓库内真实 PNG 执行 `vips autorot` 和
+  `[strip]` 元数据清理。缺少命令、规范化失败或输出为空时，部署在停止现有服务前终止。
+- 验证：缺失依赖模拟返回退出码 1 和中文提示；生产安装 `vips-8.15.1`，以 `zhishiku` 服务
+  用户完成 1×1 PNG 和 640×480 PNG 规范化；部署脚本内置检查输出
+  `[preflight] libvips 图片规范化检查通过：vips-8.15.1`。
+- 证据：`deploy/scripts/check-image-normalizer.sh`、`deploy/scripts/deploy.sh`、
+  `deploy/scripts/provision-ubuntu.sh`、`tests/fixtures/rich-text/images/pixel.png.base64`、
+  `artifacts/001/deployment-verification.md`。
 - 覆盖：FR-010、FR-013、FR-021、FR-048。
-- 风险与回滚：待完成。
+- 风险与回滚：当前只验证了规范化、方向和元数据清理命令，真实密钥脱敏与 OCR 仍由后续任务
+  承接。回滚应用 release 不卸载系统包；如需完全回滚，删除新增部署检查并恢复上一 release。
 
 ### 完成记录：T082
 
 - 日期：2026-10-22
-- 状态：待验证
+- 状态：已完成
 - 执行子智能体：开发、测试
-- Git commit：未提交
+- Git commit：`48cdb70`
 - 摘要：修复部署脚本将已启动 release 误判为健康检查失败的问题。
-- 详情：待完成。
-- 验证：待完成。
-- 证据：待完成。
+- 详情：健康检查和首页内容检查不再使用 `set -o pipefail` 下的
+  `curl | grep -q`，改为先保存完整响应，再用 Bash 字符串匹配判断。新增部署脚本回归检查，
+  同时确认 libvips 安装、命令预检和真实 PNG 冒烟未被后续修改移除。
+- 验证：`node tests/deploy/verify-deploy-scripts.mjs` 先因旧管道写法失败，修复后通过；
+  GitHub Raw 部署脚本 `bash -n` 通过；`v0.1.20-mvp` 部署退出码 0，API 健康、门户内容、
+  原拾题入口和服务状态全部通过。
+- 证据：`tests/deploy/verify-deploy-scripts.mjs`、`deploy/scripts/deploy.sh`、
+  `artifacts/001/deployment-verification.md`。
 - 覆盖：项目宪法 VII、VIII、IX；FR-048。
-- 风险与回滚：待完成。
+- 风险与回滚：本次未改变业务 API 或数据库，回滚部署脚本即可；若旧版本仍含管道竞态，
+  部署可能再次出现误回滚，不应作为常规回退目标。
 
 ### 未完成与外部阻塞
 
