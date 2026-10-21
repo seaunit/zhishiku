@@ -40,33 +40,28 @@ public class OwnerService implements ApplicationRunner {
   }
 
   @Transactional(readOnly = true)
-  public OwnerAccountEntity requireOwner() {
-    return repository
-        .findByInstanceKey((short) 1)
-        .orElseThrow(() -> new BadCredentialsException("Owner is not initialized."));
-  }
-
-  @Transactional(readOnly = true)
   public Optional<OwnerAccountEntity> findByEmail(String email) {
     return repository.findByEmailNormalized(email.strip().toLowerCase());
   }
 
   @Transactional(readOnly = true)
   public boolean isRegistrationOpen() {
-    return repository.count() == 0;
+    return properties.registration().enabled();
   }
 
   @Transactional
   public OwnerAccountEntity createOwner(String email, String password, String locale) {
-    if (repository.count() > 0) {
-      throw new IllegalStateException("Owner is already initialized.");
-    }
     if (password == null || password.length() < 12 || password.length() > 256) {
       throw new IllegalArgumentException("Password must be between 12 and 256 characters.");
     }
+    String normalizedEmail = email.strip().toLowerCase();
+    if (repository.existsByEmailNormalized(normalizedEmail)) {
+      throw new site.seaunit.zhishiku.auth.registration.EmailAlreadyRegisteredException();
+    }
     String normalizedLocale = "en".equals(locale) ? "en" : "zh-CN";
     return repository.save(
-        OwnerAccountEntity.create(email, passwordEncoder.encode(password), normalizedLocale));
+        OwnerAccountEntity.create(
+            normalizedEmail, passwordEncoder.encode(password), normalizedLocale));
   }
 
   @Transactional

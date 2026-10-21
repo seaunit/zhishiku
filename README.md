@@ -4,7 +4,7 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 
 ## 项目状态
 
-当前已完成可运行的 MVP：带一次性图形验证码的单所有者登录、未初始化实例的邮箱验证注册、
+当前已完成可运行的 MVP：带一次性图形验证码的多账号登录、公开邮箱验证注册、
 富文本知识录入与编辑、正文图片、知识列表、详情查看和 PostgreSQL 单框搜索。AI 自动分类、
 网页采集、OCR、外部搜索、冲突恢复和
 Waffo 点数计费仍在后续任务中，真实收费在 P0/P1 门禁通过前保持关闭。
@@ -72,8 +72,8 @@ pnpm dev
 ```
 
 访问 `http://127.0.0.1:4173/kb/`。`local` profile 会使用开发占位账号
-`owner@zhishiku.local` 和密码 `local-dev-password-change-me` 初始化唯一所有者；生产环境必须通过
-环境变量覆盖并保持 `KB_AUTO_BOOTSTRAP=false`。
+`owner@zhishiku.local` 和密码 `local-dev-password-change-me` 初始化一个本地开发账号；生产环境
+必须通过环境变量覆盖并保持 `KB_AUTO_BOOTSTRAP=false`。占位账号只用于开发，不限制其他账号注册。
 
 后端测试：
 
@@ -150,9 +150,11 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 命令行参数或部署日志。每次部署都会重新提示；直接回车保留现有值，输入新值才更新。
 首次安装脚本和内部部署共享同一轮提示，不会重复询问。
 
-未预置所有者的新实例可以在 `/kb/register` 通过 SMTP 邮箱验证码创建唯一所有者；已有所有者
-后注册入口自动关闭。临时邮箱域名清单随仓库发布，`mailinator.com` 及其子域会被拒绝。
+任何用户都可以在 `/kb/register` 通过图形验证码、SMTP 邮箱验证码和密码确认创建账号。每个账号
+独立隔离知识、附件、搜索、会话、点数和账本，不提供团队共享或跨账号访问。邮箱必须全局唯一；
+临时邮箱域名清单随仓库发布，`mailinator.com` 及其子域会被拒绝。
 
-首次部署生成的初始账号和密码保存在服务器的 `/root/zhishiku-initial-password`，权限为 `600`。
-登录成功后应立即删除该文件。详细的手工检查和回滚说明见
+部署脚本预置的初始开发/运维账号和密码保存在服务器的 `/root/zhishiku-initial-password`，
+权限为 `600`；它不是唯一账号，也不会关闭公开注册。首次登录后应立即删除该文件。详细的手工
+检查和回滚说明见
 [部署共存方案](specs/001-ai-personal-knowledge-base/deployment.md)。

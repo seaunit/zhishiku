@@ -19,7 +19,7 @@ Playwright Java browser worker 独立进程。
 **备选方案**：
 
 - Next.js/Node：生态成熟，但不符合当前维护偏好。
-- 纯微服务/Kubernetes：单所有者产品不需要，拒绝。
+- 纯微服务/Kubernetes：当前多账号隔离和 MVP 规模不需要，拒绝。
 - 每个角色独立 JVM：资源浪费；MVP 使用同一 JAR 的 API/Worker profile，browser worker
   独立。
 
@@ -76,17 +76,20 @@ Playwright Java browser worker 独立进程。
 - 安全、策略和永久格式错误不重试。
 - 同一 `(item revision, job type)` 使用稳定幂等键。
 
-## 决策 6：Spring Security 单所有者认证
+## 决策 6：Spring Security 多账号认证与隔离
 
-**决策**：使用 Spring Security、Spring Session JDBC、一次性 bootstrap token 和邮箱验证注册。
-注册仅适用于尚未创建所有者的空实例；唯一所有者创建后立即关闭。
+**决策**：使用 Spring Security、Spring Session JDBC 和公开邮箱验证注册。每个邮箱可创建一个
+独立账号，已有账号不会关闭注册；同一邮箱重复注册必须被拒绝。
 
 **规则**：
 
 - 密码使用 BCrypt 或 Argon2 强哈希。
 - 会话 Cookie 名 `zhishiku_session`，路径 `/kb`，数据库持久化。
 - 启用 CSRF、SameSite、安全 Cookie 和会话撤销。
-- 所有受保护请求校验 `owner_id`。
+- 所有受保护请求从会话取得账号 ID，并以兼容字段 `owner_id` 校验知识、附件、搜索、会话、
+  点数、订单和账本的数据边界；不得接受客户端覆盖账号 ID。
+- 知识、附件、上传、搜索、会话、AI 授权、点数、订单、退款和账本均按账号隔离。
+- 不提供团队成员、跨账号共享、账号间转赠或公开分享。
 - 邮箱码发码前校验图形验证码；密码需要二次确认；邮箱码使用哈希缓存、一次性消费、频控和
   临时邮箱域名拒绝。
 
@@ -156,6 +159,7 @@ Playwright Java browser worker 独立进程。
 - `/kb/settings`
 - `/kb/setup`
 - `/kb/login`
+- `/kb/register`
 
 `vue-i18n` 默认 `zh-CN`，完整提供 `en`。用户输入不自动翻译。Taste 检查覆盖
 1440/768/390/360 和移动横屏。

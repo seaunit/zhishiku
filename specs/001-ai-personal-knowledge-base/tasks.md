@@ -36,12 +36,14 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 
 ## 阶段 2：安全、认证与共享基础
 
-- [ ] T014 [P0] [P] [US1] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/auth/` 中先验证 bootstrap、密码、会话、CSRF、Cookie 路径和撤销
+- [x] T014 [P0] [P] [US1] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/auth/` 中先验证多账号公开注册、邮箱唯一、图形/邮箱验证码、频控、临时邮箱拒绝、跨账号隔离、密码、会话、CSRF、Cookie 路径和撤销
 - [ ] T015 [P0] [P] [US1] 在 `backend/kb-core/src/test/java/site/seaunit/zhishiku/domain/` 和 `backend/kb-app/src/test/java/site/seaunit/zhishiku/jobs/` 中为乐观锁、保留期、双 Worker `SKIP LOCKED`、租约过期、fencing token 和旧结果拒绝编写失败测试
-- [x] T016 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/` 中实现 Spring Security、BCrypt/Argon2、Session JDBC、一次性所有者初始化及 CSRF/login/logout/setup 端点
+- [x] T016 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/` 中实现 Spring Security、BCrypt/Argon2、Session JDBC、多账号公开注册、按账号隔离及 CSRF/login/logout/register 端点；兼容字段 `owner_id` 的语义为账号 ID
 - [x] T081 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/captcha/` 和登录页中实现 Kaptcha 图形验证码、Caffeine 服务端缓存、一次性登录校验与中文错误刷新
-- [x] T082 [P0] [US1] 在注册 API、SMTP 和注册页中实现单所有者邮箱验证初始化、确认密码、6 位邮箱验证码、频控、一次性使用与临时邮箱域名拒绝
-- [x] T083 [P0] [US1] 在登录页始终显示注册入口，由注册页按实例状态呈现注册表单或“注册已关闭”，避免注册状态接口关闭或失败时入口消失
+- [x] T082 [P0] [US1] 在注册 API、SMTP 和注册页中实现多账号公开邮箱验证注册、邮箱唯一、确认密码、6 位邮箱验证码、频控、一次性使用与临时邮箱域名拒绝
+- [x] T083 [P0] [US1] 在登录页始终显示注册入口，注册页始终允许新邮箱创建账号；已有账号不得关闭其他邮箱的注册，状态接口失败也不得隐藏入口
+- [x] T084 [P0] [US1] 更新项目宪法、协作约定、README 和 001/002 SDD 文档，将识海从单所有者模型改为多账号公开注册、按账号隔离知识、附件、搜索、会话、点数、订单和账本；保留 `owner_id` 兼容字段但语义为账号 ID，不扩展团队共享
+- [x] T085 [P0] [US1] 在数据库迁移、账号服务、注册 API、登录响应和前端注册页中落实多账号模型；移除实例唯一键，允许已初始化实例继续注册新邮箱，并验证两个账号之间的知识、搜索和详情访问隔离
 - [x] T017 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/persistence/` 中实现 BaseEntity、UUID、时间戳和 `@Version`
 - [ ] T018 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/jobs/` 中实现 PostgreSQL 任务表、租约、指数退避和 `SKIP LOCKED`
 - [ ] T019 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/storage/` 中实现 S3 暂存、内容哈希、MIME 检测、正式附件提升和对象清理
@@ -294,6 +296,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-002、FR-069 至 FR-073；单所有者边界、SMTP、邮箱验证码与临时邮箱过滤。
 - 风险与回滚：邮箱验证码与频控缓存为单实例内存数据，重启后失效；多实例前需共享缓存。
   注册只创建唯一所有者，不扩展多用户。回滚时关闭注册入口并恢复登录页，不影响现有 owner 数据。
+- 治理修订（2026-10-22）：本记录描述旧版单所有者实现，已被 T084 的多账号隔离规格取代；
+  其中的注册关闭和唯一所有者结论不得作为当前验收依据。
 
 ### 完成记录：T083
 
@@ -312,3 +316,50 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-002、US1；注册入口可发现性、关闭状态说明和单所有者约束。
 - 风险与回滚：已有所有者的实例仍不能创建第二个账户；注册页只显示关闭说明。回滚时恢复登录页
   条件入口，不影响既有账户、会话或注册数据。
+- 治理修订（2026-10-22）：本记录中的注册关闭规则已被 T084 废止；当前注册页必须允许新邮箱
+  创建独立账号。
+
+### 完成记录：T084
+
+- 日期：2026-10-22
+- 状态：已完成（仅文档）
+- 执行子智能体：产品、开发
+- Git commit：未提交
+- 摘要：将项目治理和 001/002 SDD 文档从单所有者模型改为多账号隔离模型。
+- 详情：宪法升级为 2.0.0，新增公开注册、邮箱验证码、图形验证码、频控、临时邮箱拒绝、
+  邮箱全局唯一和按账号隔离要求；统一 `owner_id` 为账号 ID 的兼容字段语义；明确每个账号
+  独立拥有知识、附件、上传、搜索、会话、授权、点数、订单、退款和账本；保留禁止团队共享、
+  跨账号读取和转赠的边界。同步更新 AGENTS、README、001 的规格/计划/研究/数据模型/
+  快速验证及 002 的规格/研究/数据模型。
+- 验证：使用关键词检索复核单所有者、唯一所有者、注册关闭、团队共享和 `owner_id` 语义；
+  `git diff --check` 检查文档空白错误；核对宪法版本为 `2.0.0`、最后修订日期为
+  `2026-10-22`。
+- 证据：`.specify/memory/constitution.md`、`AGENTS.md`、`README.md`、`specs/001-ai-personal-knowledge-base/`
+  中受影响的 SDD 文档、`specs/002-ai-credit-billing/spec.md`、
+  `specs/002-ai-credit-billing/research.md`、`specs/002-ai-credit-billing/data-model.md`。
+- 覆盖：FR-001、FR-002、FR-069 至 FR-073、FR-077、SC-018、SC-024；多账号注册与隔离边界。
+- 风险与回滚：本任务只修改文档，不修改代码、前端、测试或部署；对应运行实现由 T085 完成。
+  回滚时恢复旧文档版本会重新引入不兼容的单所有者治理，必须先获得产品批准。
+
+### 完成记录：T085
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：开发、测试
+- Git commit：未提交
+- 摘要：将运行代码和前端从实例单所有者改为多账号公开注册和按账号隔离。
+- 详情：新增 V0006 迁移，移除 `owner_account.instance_key` 唯一约束和列，保留邮箱唯一约束并
+  回填 `email_verified_at`；注册状态由 `REGISTRATION_ENABLED` 控制，默认开启，已有账号不再
+  关闭其他邮箱注册。登录和 `/me` 从当前认证邮箱解析账号；重复邮箱返回
+  `EMAIL_ALREADY_REGISTERED`。前端注册页不再依赖注册关闭状态，始终显示账户创建表单。
+- 验证：独立 PostgreSQL 18.1 全新数据库成功执行 V0001→V0004→V0005→V0006；通过两个浏览器
+  上下文注册两个账号，账号 A 创建知识后，账号 B 列表为 0、详情访问返回 400、搜索命中为 0；
+  `registration-status` 返回 `open=true`。后端 111 项与前端 41 项测试通过，注册相关
+  Playwright 3 项和真实多账号隔离 Playwright 1 项通过。
+- 证据：`backend/kb-app/src/main/resources/db/migration/V0006__multi_account.sql`、
+  `backend/kb-app/src/test/java/site/seaunit/zhishiku/owner/OwnerServiceTest.java`、
+  `frontend/kb-web/e2e/app.spec.ts`、`tests/e2e/multi-account-isolation.spec.ts`、
+  `artifacts/001/multi-account-verification.md`。
+- 覆盖：FR-001、FR-002、FR-069 至 FR-073、FR-077、SC-018、SC-024。
+- 风险与回滚：V0006 为向前迁移；回滚应用版本不会恢复实例唯一键，旧版本不能安全写入多账号
+  数据库。团队共享、成员邀请、跨账号转赠和公开分享仍不在范围内。

@@ -17,6 +17,7 @@ app:
     max-entries: 1000
     expose-answer: true
   registration:
+    enabled: true
     code-ttl-seconds: 600
     resend-cooldown-seconds: 60
     send-window-seconds: 3600

@@ -72,19 +72,24 @@ KB_OWNER_PASSWORD=local-dev-password-change-me
 并在首次初始化后设置 `KB_AUTO_BOOTSTRAP=false`。任何 AI、S3 或 Waffo 密钥只能放在
 服务器受限环境文件或受管密钥服务中。
 
+`KB_OWNER_EMAIL` 和 `KB_OWNER_PASSWORD` 是预置开发账号的兼容变量名，不代表实例只能有一个
+所有者；生产公开注册不依赖这两个变量。
+
 ## 验证场景
 
 ### 当前可验证范围
 
-1. 使用本地占位账号登录，或使用生产服务器 `/root/zhishiku-initial-password` 中的一次性凭据。
+1. 使用本地占位账号或任一已注册账号登录；如生产服务器保留
+   `/root/zhishiku-initial-password`，它只是预置账号，不是唯一账号。
 2. 创建富文本条目，插入正文图片并保存。
 3. 打开详情，确认安全富文本和图片正常显示。
 4. 使用首页单一搜索框按标题、正文和标签信息检索。
 5. 在 390px 和 360px 宽度检查导航、编辑器和详情无横向溢出。
 6. 确认 `/kb/api/actuator/health` 返回 `{"status":"UP"}`。
-7. 在空数据库打开 `/kb/register`，使用图形验证码、SMTP 邮箱验证码和两次一致密码创建唯一所有者；
-   注册后确认 `/kb/api/v1/auth/registration-status` 返回 `open=false`。
-8. 使用 `daniel.parkerca61598b@mailinator.com` 请求注册验证码，确认返回临时邮箱拒绝且没有 SMTP 投递。
+7. 打开 `/kb/register`，使用图形验证码、SMTP 邮箱验证码和两次一致密码注册账号；再使用另一
+   邮箱注册第二个账号，确认已有账号不关闭注册。
+8. 使用两个账号分别创建知识，确认列表、详情、搜索、附件和会话互不可见。
+9. 使用 `daniel.parkerca61598b@mailinator.com` 请求注册验证码，确认返回临时邮箱拒绝且没有 SMTP 投递。
 
 以下第 3 小节及之后的部分包含尚未实现的完整目标能力；任务表未完成项不得据此宣称已上线。
 
@@ -92,13 +97,14 @@ KB_OWNER_PASSWORD=local-dev-password-change-me
 
 1. 打开 `/kb/login`，确认加载一次性图形验证码，并可点击验证码换图。
 2. 使用错误验证码登录，确认返回验证码错误、自动换图，且密码认证没有被调用。
-3. 使用正确验证码和本地占位账号或生产一次性凭据登录；确认同一验证码不能再次使用。
-4. 确认 Spring Security 会话写入 PostgreSQL，首次初始化后不能再次创建所有者。
+3. 使用正确验证码和任一已注册账号登录；确认同一验证码不能再次使用。
+4. 确认 Spring Security 会话写入 PostgreSQL，且新邮箱仍可继续注册独立账号。
 5. 确认匿名访问 `/kb/` 会跳转到 `/kb/login`。
 6. 检查 Cookie 名为 `zhishiku_session`、路径 `/kb`、具备 HttpOnly/SameSite/安全属性。
 7. 获取 `/kb/api/v1/auth/csrf`，确认缺少或错误 `X-XSRF-TOKEN` 的写请求返回 403。
 8. 退出登录并确认会话撤销。
-9. 已存在所有者时重新打开 `/kb/register`，确认注册关闭且不能覆盖现有账户。
+9. 使用重复邮箱注册，确认返回冲突或安全拒绝；使用新邮箱注册，确认仍可创建独立账号。
+10. 交替登录两个账号，确认知识、附件、搜索、点数和账本均按账号隔离。
 
 ### 2. 手动保存与 PostgreSQL 搜索
 

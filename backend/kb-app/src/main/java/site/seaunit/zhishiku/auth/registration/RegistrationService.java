@@ -20,14 +20,18 @@ public class RegistrationService {
   }
 
   public boolean isRegistrationOpen() {
-    return ownerService.isRegistrationOpen() && verificationService.isRegistrationOpen();
+    return verificationService.isRegistrationOpen();
   }
 
   public EmailCodeIssued issueEmailCode(String email, String ipAddress) {
     if (!isRegistrationOpen()) {
       throw new RegistrationClosedException();
     }
-    return verificationService.issueCode(email, ipAddress);
+    String normalizedEmail = emailPolicy.normalizeAndValidate(email);
+    if (ownerService.findByEmail(normalizedEmail).isPresent()) {
+      throw new EmailAlreadyRegisteredException();
+    }
+    return verificationService.issueCode(normalizedEmail, ipAddress);
   }
 
   public String register(RegisterCommand command) {
@@ -38,12 +42,15 @@ public class RegistrationService {
       throw new PasswordConfirmationMismatchException();
     }
     String email = emailPolicy.normalizeAndValidate(command.email());
+    if (ownerService.findByEmail(email).isPresent()) {
+      throw new EmailAlreadyRegisteredException();
+    }
     verificationService.consumeCode(email, command.emailCode());
     try {
       ownerService.createOwner(email, command.password(), command.locale());
       return email;
-    } catch (IllegalStateException | DataIntegrityViolationException error) {
-      throw new RegistrationClosedException();
+    } catch (DataIntegrityViolationException error) {
+      throw new EmailAlreadyRegisteredException();
     }
   }
 

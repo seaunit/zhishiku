@@ -3,7 +3,8 @@ info:
   title: Zhishiku 个人知识 API
   version: 1.0.0
   description: >
-    面向单一所有者 AI 个人知识库的内部 HTTP 契约。
+    面向多账号隔离式 AI 个人知识库的内部 HTTP 契约。每个账号只访问自己的知识、
+    附件、搜索、会话和 AI 授权；兼容字段 ownerId 的语义是当前账号 ID。
     权威数据存储为私有资源；互联网搜索和 AI 调用需要用户显式操作并提供匹配的授权。
     付费 AI 还必须引用 002 计费契约中的有效报价/计费任务；余额不足返回 402 且不启动 AI。
 servers:
@@ -60,7 +61,7 @@ paths:
       tags: [认证]
       security: []
       operationId: getRegistrationStatus
-      summary: 查询当前实例是否仍允许创建唯一所有者。
+      summary: 查询公开账号注册是否启用。
       responses:
         "200":
           description: 注册开关状态。
@@ -90,7 +91,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/RegistrationEmailCodeResponse"
         "409":
-          description: 当前实例已完成所有者初始化，注册关闭。
+          description: 邮箱已注册，或注册功能被明确关闭。
           content:
             application/json:
               schema:
@@ -121,8 +122,8 @@ paths:
     post:
       tags: [认证]
       security: []
-      operationId: registerOwner
-      summary: 使用邮箱验证码和确认密码创建唯一所有者。
+      operationId: registerAccount
+      summary: 使用邮箱验证码和确认密码创建独立账号。
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -133,13 +134,13 @@ paths:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
         "201":
-          description: 唯一所有者已创建；客户端随后进入登录页。
+          description: 账号已创建；客户端随后进入登录页。
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/RegistrationResponse"
         "409":
-          description: 所有者已存在或并发请求已完成初始化。
+          description: 邮箱已注册，或注册功能被明确关闭。
           content:
             application/json:
               schema:
@@ -164,8 +165,8 @@ paths:
     post:
       tags: [认证]
       security: []
-      operationId: loginOwner
-      summary: 使用唯一所有者凭据创建数据库会话。
+      operationId: loginAccount
+      summary: 使用账号凭据创建数据库会话。
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -202,7 +203,7 @@ paths:
   /api/v1/auth/logout:
     post:
       tags: [认证]
-      operationId: logoutOwner
+      operationId: logoutAccount
       summary: 撤销当前数据库会话。
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
@@ -218,7 +219,7 @@ paths:
       tags: [认证]
       security: []
       operationId: bootstrapOwner
-      summary: 使用一次性 bootstrap token 创建唯一所有者并关闭公开初始化。
+      summary: 使用一次性 bootstrap token 创建引导账号；不关闭公开注册。
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -229,7 +230,7 @@ paths:
               $ref: "#/components/schemas/BootstrapOwnerRequest"
       responses:
         "201":
-          description: 唯一所有者已创建。
+          description: 引导账号已创建。
           content:
             application/json:
               schema:
@@ -980,6 +981,7 @@ components:
       properties:
         open:
           type: boolean
+          description: 是否允许新邮箱注册；已有账号不会使该值变为 false。
     RegistrationEmailCodeRequest:
       type: object
       required: [email, captchaId, captchaCode]
@@ -1061,6 +1063,7 @@ components:
         ownerId:
           type: string
           format: uuid
+          description: 当前已认证账号 ID；字段名仅为兼容保留。
         email:
           type: string
           format: email

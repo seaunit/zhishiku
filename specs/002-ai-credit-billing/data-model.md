@@ -19,7 +19,9 @@
 - 测试与生产必须使用独立物理 PostgreSQL 数据库和独立连接串。每个应用实例启动时以
   `BILLING_DB_ENV` 校验所连数据库身份；禁止在同一个数据库中仅靠 schema 或行字段隔离
   两套账本。
-- `owner_id` 始终来自已认证会话；客户端不能提交余额、价格、点率或环境作为权威值。
+- `owner_id` 是兼容字段名，语义为账号 ID。它始终来自已认证会话；同一账号独立拥有知识、
+  附件、点数、订单、退款和账本，客户端不能提交账号 ID、余额、价格、点率或环境作为权威值。
+- 多账号不等于团队：不得提供跨账号知识或点数共享、成员邀请、账号间转赠或团队账本。
 - 账本、支付事件和退款结论是只追加事实；账户余额和批次剩余量是可重算投影。
 - 不在数据库保存银行卡号、CVC、Waffo 私钥、签名原文、完整通知载荷或用户知识正文。
 - 计费表不随知识条目删除级联删除；财务保留至少 24 个月。
@@ -51,6 +53,9 @@ erDiagram
   REFUND_CASE ||--o{ REFUND_RECOVERY : 回收
   CREDIT_BATCH ||--o{ REFUND_RECOVERY : 来源
 ```
+
+关系图中的 `OWNER_ACCOUNT` 是既有兼容名称，逻辑实体为“账号”；表中的 `owner_id` 同样只是
+账号 ID 的兼容字段名。
 
 ## 实体：计费目录版本
 
@@ -126,7 +131,7 @@ erDiagram
 | 字段 | 类型 | 规则 |
 |------|------|------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者，`ON DELETE RESTRICT` |
+| `owner_id` | uuid | 账号 ID（兼容字段名），`ON DELETE RESTRICT` |
 | `pack_id` | uuid | 指向点数包快照，`ON DELETE RESTRICT` |
 | `sku_snapshot` | text | 订单创建时识海 SKU，跨目录版本保持不变 |
 | `catalog_version_id` | uuid | 订单创建时目录版本 |
@@ -220,7 +225,7 @@ erDiagram
 
 | 字段 | 类型 | 规则 |
 |------|------|------|
-| `owner_id` | uuid | 主键，指向所有者 |
+| `owner_id` | uuid | 主键；账号 ID（兼容字段名） |
 | `available_points` | integer | 非负投影 |
 | `reserved_points` | integer | 非负投影 |
 | `trial_points` | integer | 非负投影 |
@@ -244,7 +249,7 @@ erDiagram
 | 字段 | 类型 | 规则 |
 |------|------|------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `source_type` | enum | `trial`、`purchase`、`manual_adjustment` |
 | `order_id` | uuid | 购买批次必填；其他来源为空 |
 | `environment` | enum | 必填 |
@@ -263,7 +268,7 @@ erDiagram
 - `UNIQUE(order_id) WHERE source_type = 'purchase'`。
 - `remaining_points >= 0`、`reserved_points >= 0`。
 - `remaining_points >= reserved_points`。
-- 体验点批次在同一所有者中最多一个未关闭记录。
+- 体验点批次在同一账号中最多一个未关闭记录。
 - 退款只能冻结与目标订单关联的购买批次。
 
 ## 实体：账本明细
@@ -273,7 +278,7 @@ erDiagram
 | 字段 | 类型 | 规则 |
 |------|------|------|
 | `id` | bigint | 标识列主键 |
-| `owner_id` | uuid | 指向所有者 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `batch_id` | uuid | 可为空；账户级调整可为空 |
 | `entry_scope` | enum | `account` 或 `batch` |
 | `operation_type` | enum | 见下 |
@@ -320,7 +325,7 @@ erDiagram
 | 字段 | 类型 | 规则 |
 |------|------|------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `job_id` | uuid | 可空；关联 001 的采集/处理任务 |
 | `item_id` | uuid | 可空；关联知识条目 |
 | `catalog_version_id` | uuid | 报价使用目录版本 |
@@ -381,7 +386,7 @@ erDiagram
 **约束**：
 
 - `UNIQUE(billing_task_id, content_hash)`；不同 asset 指向同一内容时只保留一个计费资源。
-- 资产必须属于同一所有者，处于可安全分析状态，且报价请求明确选择了该资产。
+- 资产必须属于同一账号，处于可安全分析状态，且报价请求明确选择了该资产。
 - 报价响应只返回 `assetId`、内容哈希、媒体类型和大小，不返回存储键、URL 或图片内容。
 - `screenshot_ocr` 与正文图片 OCR/vision 的数量按唯一资源行计算；正文重复引用不增加数量。
 
@@ -393,7 +398,7 @@ erDiagram
 |------|------|------|
 | `id` | uuid | 主键 |
 | `billing_task_id` | uuid | 唯一外键 |
-| `owner_id` | uuid | 指向所有者 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `status` | enum | `reserved`、`settling`、`settled`、`releasing`、`released`、`expired`、`manual_review` |
 | `reserved_points` | integer | 正数 |
 | `settled_points` | integer | 非负 |
@@ -436,7 +441,7 @@ erDiagram
 | 字段 | 类型 | 规则 |
 |------|------|------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `feature_scope` | enum | MVP 主要为 `classify` |
 | `enabled` | boolean | 默认 false |
 | `max_points_per_task` | integer | 默认 15，范围 1–100 |
@@ -447,7 +452,7 @@ erDiagram
 | `revoked_at` | timestamptz | 可为空 |
 | `version` | integer | 乐观并发控制 |
 
-**约束**：同一所有者、功能范围最多一个 active 授权。
+**约束**：同一账号、功能范围最多一个 active 授权。
 
 ## 实体：每日自动消费额度
 
@@ -456,7 +461,7 @@ erDiagram
 | 字段 | 类型 | 规则 |
 |------|------|------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `usage_date` | date | 按用户时区计算 |
 | `auto_reserved_points` | integer | 非负 |
 | `auto_settled_points` | integer | 非负 |
@@ -534,7 +539,7 @@ erDiagram
 | 字段 | 类型 | 规则 |
 |------|------|------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 可为空 |
+| `owner_id` | uuid | 可为空；账号 ID（兼容字段名） |
 | `order_id` | uuid | 可为空 |
 | `billing_task_id` | uuid | 可为空 |
 | `refund_case_id` | uuid | 可为空 |
@@ -678,7 +683,7 @@ verifying -> manual_review -> recovered/partially_recovered/rejected
 | 计费异常 | 至少 24 个月 |
 | 自动扣点授权历史 | 账户存续期间 |
 
-订单和账本不得因知识条目、采集任务或所有者普通业务数据删除而级联消失。若未来需要删除
+订单和账本不得因知识条目、采集任务或账号普通业务数据删除而级联消失。若未来需要删除
 账户，必须另行定义财务保留、匿名化和法定删除规则。
 
 ## 关键不变量
@@ -693,3 +698,5 @@ verifying -> manual_review -> recovered/partially_recovered/rejected
 8. 首次可靠支付事实不得被后续相反事件自动撤销。
 9. 过期任务的迟到结果不得产生新扣费。
 10. 支付、账本和退款证据不得包含真实密钥、签名原文或完整支付载荷。
+11. 所有订单、批次、预留、账本、退款和自动扣点授权只对所属账号可见和可操作；跨账号引用
+    必须视为无效或安全拒绝。

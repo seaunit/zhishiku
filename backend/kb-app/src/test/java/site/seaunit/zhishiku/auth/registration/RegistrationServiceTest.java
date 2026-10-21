@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,6 @@ class RegistrationServiceTest {
 
   @BeforeEach
   void setUp() {
-    when(ownerService.isRegistrationOpen()).thenReturn(true);
     when(verificationService.isRegistrationOpen()).thenReturn(true);
     registrationService =
         new RegistrationService(
@@ -46,7 +46,7 @@ class RegistrationServiceTest {
   }
 
   @Test
-  void createsTheOwnerOnlyAfterEmailCodeIsConsumed() {
+  void createsAnAccountOnlyAfterEmailCodeIsConsumed() {
     RegistrationService.RegisterCommand command =
         new RegistrationService.RegisterCommand(
             "  Owner@Example.COM. ",
@@ -56,6 +56,7 @@ class RegistrationServiceTest {
             "zh-CN");
     OwnerAccountEntity owner = OwnerAccountEntity.create("owner@example.com", "hash", "zh-CN");
     when(verificationService.consumeCode("owner@example.com", "123456")).thenReturn(true);
+    when(ownerService.findByEmail("owner@example.com")).thenReturn(Optional.empty());
     when(ownerService.createOwner("owner@example.com", "correct-horse-battery", "zh-CN"))
         .thenReturn(owner);
 
@@ -66,7 +67,7 @@ class RegistrationServiceTest {
   }
 
   @Test
-  void mapsConcurrentOwnerCreationToRegistrationClosed() {
+  void mapsConcurrentDuplicateRegistrationToEmailAlreadyRegistered() {
     RegistrationService.RegisterCommand command =
         new RegistrationService.RegisterCommand(
             "owner@example.com",
@@ -75,27 +76,21 @@ class RegistrationServiceTest {
             "123456",
             "zh-CN");
     when(verificationService.consumeCode("owner@example.com", "123456")).thenReturn(true);
+    when(ownerService.findByEmail("owner@example.com")).thenReturn(Optional.empty());
     when(ownerService.createOwner("owner@example.com", "correct-horse-battery", "zh-CN"))
-        .thenThrow(new IllegalStateException("already initialized"));
+        .thenThrow(new DataIntegrityViolationException("duplicate email"));
 
     assertThatThrownBy(() -> registrationService.register(command))
-        .isInstanceOf(RegistrationClosedException.class);
+        .isInstanceOf(EmailAlreadyRegisteredException.class);
   }
 
   @Test
-  void mapsUniqueConstraintRaceToRegistrationClosed() {
-    RegistrationService.RegisterCommand command =
-        new RegistrationService.RegisterCommand(
-            "owner@example.com",
-            "correct-horse-battery",
-            "correct-horse-battery",
-            "123456",
-            "zh-CN");
-    when(verificationService.consumeCode("owner@example.com", "123456")).thenReturn(true);
-    when(ownerService.createOwner("owner@example.com", "correct-horse-battery", "zh-CN"))
-        .thenThrow(new DataIntegrityViolationException("unique owner"));
+  void rejectsAnEmailThatAlreadyHasAnAccountBeforeSendingAnotherCode() {
+    OwnerAccountEntity existing = OwnerAccountEntity.create("owner@example.com", "hash", "zh-CN");
+    when(ownerService.findByEmail("owner@example.com")).thenReturn(Optional.of(existing));
 
-    assertThatThrownBy(() -> registrationService.register(command))
-        .isInstanceOf(RegistrationClosedException.class);
+    assertThatThrownBy(() -> registrationService.issueEmailCode("owner@example.com", "127.0.0.1"))
+        .isInstanceOf(EmailAlreadyRegisteredException.class);
+    verify(verificationService, never()).issueCode("owner@example.com", "127.0.0.1");
   }
 }

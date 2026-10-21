@@ -12,7 +12,9 @@
 - 时间戳使用 `timestamptz`，并以 UTC 存储。
 - 除仅追加的行外，所有可变业务行都包含 `version integer NOT NULL DEFAULT 1`，用于乐观
   并发控制。
-- `owner_id` 保留在按所有者隔离的数据中，以便执行显式访问检查，但产品限定为单一所有者。
+- `owner_id` 是兼容字段名，语义为账号 ID。它只从已认证会话取得，用于隔离知识、附件、上传、
+  搜索、会话、点数、订单和账本；客户端不得覆盖。系统支持多个独立账号，但不提供团队空间、
+  跨账号共享或转赠。
 - 枚举值由 PostgreSQL 枚举或带检查约束的文本列实现。状态转换在领域层强制执行，并在
   数据库边界进行测试。
 - JSONB 仅存储经过验证且带模式版本的投影。不存储原始提供商响应、原始密钥或无界提取
@@ -48,19 +50,23 @@ erDiagram
   AI_BILLING_TASK ||--|| CREDIT_RESERVATION : 预留
 ```
 
-## 实体：所有者账户
+关系图中的 `OWNER_ACCOUNT` / `owner_account` 是既有兼容名称，逻辑实体为“账号”，不得解释为
+实例唯一所有者。
 
-**用途**：表示唯一的私有所有者。
+## 实体：账号（兼容表 `owner_account`）
 
-**实现说明**：使用 Spring Security 凭据模型、一次性 bootstrap token、邮箱验证初始化和
-Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会话表由 Spring Session 管理。
-密码使用 BCrypt 或 Argon2 强哈希；邮箱注册仅在表为空时开放，创建所有者后永久关闭。
+**用途**：表示一个可独立登录并隔离数据的账号。
+
+**实现说明**：使用 Spring Security 凭据模型、公开邮箱验证注册和 Spring Session JDBC。
+`owner_account` 作为兼容表名保存账号和密码哈希；会话表由 Spring Session 管理。密码使用
+BCrypt 或 Argon2 强哈希。注册要求图形验证码、邮箱验证码、两次一致密码、频控和临时邮箱域名
+拒绝；已有账号不关闭注册。
 
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
-| `instance_key` | smallint | 固定值 `1`；唯一 |
-| `email_normalized` | citext | 唯一、必填、已规范化 |
+| `email_normalized` | text | 唯一、必填、已小写规范化 |
+| `email_verified_at` | timestamptz | 通过邮箱验证码确认后必填 |
 | `password_hash` | text | BCrypt 或 Argon2 强哈希；不得保存明文 |
 | `locale` | text | `zh-CN` 或 `en`；默认 `zh-CN` |
 | `created_at` | timestamptz | 必填 |
@@ -69,13 +75,13 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 
 **约束**：
 
-- `UNIQUE(instance_key)` 防止创建第二个所有者。
-- `UNIQUE(email_normalized)` 防止出现重复身份。
-- 引导或邮箱注册初始化完成后禁用注册入口。
+- `UNIQUE(email_normalized)` 防止同一邮箱重复注册。
+- 可创建多个账号；不得用实例级唯一键限制账号数量。
+- 邮箱验证、图形验证码、频控和临时邮箱域名拒绝必须通过后才能创建账号。
 
 ## 临时安全状态：注册邮箱验证码
 
-**用途**：在不新增业务表的前提下，限制唯一所有者初始化的邮箱验证和发送频率。
+**用途**：在不新增业务表的前提下，限制账号注册的邮箱验证和发送频率。
 
 **实现说明**：使用有界 Caffeine 缓存保存邮箱验证码哈希、随机盐、过期时间、尝试次数、发送冷却
 和 IP 频率窗口。验证码永远不进入知识内容、数据库业务表、日志或生产响应。
@@ -95,18 +101,18 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 ## 实体：认证会话（Spring Session JDBC）
 
 **用途**：表示已认证的浏览器会话。会话主表、属性和过期索引由 Spring Session JDBC 管理，
-应用只保存 owner principal 和必要的安全元数据。
+应用只保存账号 principal 和必要的安全元数据。
 
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `primary_id` | char(36) | Spring Session 主键 |
 | `session_id` | char(36) | 唯一会话标识 |
-| `owner_id` | uuid | 指向所有者的外键，`ON DELETE CASCADE` |
+| `owner_id` | uuid | 账号 ID（兼容字段名），`ON DELETE CASCADE` |
 | `creation_time` | bigint | Spring Session 时间 |
 | `last_access_time` | bigint | 最后访问时间 |
 | `max_inactive_interval` | integer | 最大空闲秒数 |
 | `expiry_time` | bigint | 绝对过期时间 |
-| `principal_name` | text | 所有者 principal |
+| `principal_name` | text | 账号 principal |
 | `attributes_json` | text | Spring Session 序列化属性，不得保存密码或密钥 |
 
 **索引**：
@@ -122,7 +128,7 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者的外键，`ON DELETE RESTRICT` |
+| `owner_id` | uuid | 账号 ID（兼容字段名），`ON DELETE RESTRICT` |
 | `title` | text | 必填、去除首尾空白，长度 1–300 个字符 |
 | `body` | text | 已脱敏文本；提取期间可以为空 |
 | `body_migration_state` | enum | `not_required`、`pending`、`completed`、`failed`；控制旧纯文本到富文本的过渡 |
@@ -204,6 +210,7 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
+| `owner_id` | uuid | 账号 ID（兼容字段名），`ON DELETE CASCADE` |
 | `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
 | `source_id` | uuid | 指向来源的外键，可为空，`ON DELETE SET NULL` |
 | `kind` | enum | `document`、`image`、`screenshot`、`derived_redacted_image` |
@@ -222,6 +229,7 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 **规则**：
 
 - 被拒绝的附件不会创建持久附件行或 S3 对象。
+- 附件必须按 `owner_id` 直接隔离；每次对象读取、签名 URL 生成和删除都必须同时校验账号。
 - 暂存产物使用受限的临时存储桶，并会自动过期。
 - 包含密钥的图片会替换为脱敏后的派生图片；原始图片绝不会提升到持久存储。
 - 如果无法确定扫描或脱敏是否完整，请求将失败，并删除所有暂存产物。
@@ -233,7 +241,7 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者的外键 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
 | `source_id` | uuid | 指向来源的外键，可为空 |
 | `kind` | enum | `text`、`document`、`image_file`、`screenshot`、`webpage` |
@@ -246,7 +254,7 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 | `lease_expires_at` | timestamptz | 可为空 |
 | `error_code` | text | 仅允许安全代码 |
 | `error_message_safe` | text | 不得包含内容、URL 凭据、文件名或提供商正文 |
-| `idempotency_key` | text | 按所有者/操作保持稳定 |
+| `idempotency_key` | text | 按账号/操作保持稳定 |
 | `version` | integer | 乐观并发控制 |
 | `created_at` | timestamptz | 必填 |
 | `updated_at` | timestamptz | 必填 |
@@ -266,7 +274,7 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者的外键 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
 | `capture_job_id` | uuid | 指向采集任务的外键，可为空 |
 | `kind` | enum | `extract`、`ocr`、`classify`、`index`、`redact_image`、`purge` |
@@ -299,7 +307,7 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 
 | 001 实体 | 002 关系 | 规则 |
 |----------|----------|------|
-| 所有者账户 | `credit_account` 一对一 | 单所有者对应唯一点数账户 |
+| 账号 | `credit_account` 一对一 | 每个账号拥有且只能访问自己的唯一点数账户 |
 | 处理任务 | `ai_billing_task` 多对一 | 付费 AI 必须引用有效计费任务 |
 | 知识条目 | `ai_billing_task.item_id` | 任务可关联条目，但账本不随条目硬删除 |
 | 采集任务 | `ai_billing_task.job_id` | 同一采集任务可包含多个成功或失败的计费步骤 |
@@ -309,7 +317,7 @@ Spring Session JDBC。`owner_account` 保存唯一所有者和密码哈希；会
 **强制规则**：
 
 1. 付费 AI 的 `processing_job.billing_task_id` 不得为空。
-2. `billing_task_id` 必须属于同一所有者，处于 `RESERVED` 或 `RUNNING`，且未过期。
+2. `billing_task_id` 必须属于同一账号，处于 `RESERVED` 或 `RUNNING`，且未过期。
 3. 同一处理任务不得复用已结算的计费任务；用户主动重跑必须创建新任务。
 4. 计费任务不是有效状态时，处理任务保持 `blocked_billing`，不调用外部 AI。
 5. 余额不足返回 `402` 时，知识条目仍可创建并处于可搜索的待整理状态。
@@ -331,7 +339,7 @@ blocked_billing
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者的外键 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `item_id` | uuid | 指向条目的外键，`ON DELETE CASCADE` |
 | `processing_job_id` | uuid | 可为空的外键，唯一 |
 | `service_code` | text | 提供商标识符 |
@@ -350,7 +358,7 @@ blocked_billing
 **规则**：
 
 - 绝不持久化原始提示词或未经验证的模型输出。
-- 关联条目 ID 必须引用该所有者处于 active 状态的条目，否则应丢弃。
+- 关联条目 ID 必须引用该账号处于 active 状态的条目，否则应丢弃。
 - 如果 `input_hash` 与当前脱敏修订版本不匹配，则忽略迟到的结果。
 
 ## 实体：分类
@@ -465,7 +473,7 @@ UNIQUE(item_id, tag_id) WHERE superseded_at IS NULL
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者的外键，`ON DELETE CASCADE` |
+| `owner_id` | uuid | 账号 ID（兼容字段名），`ON DELETE CASCADE` |
 | `service_code` | text | 提供商/服务标识符 |
 | `content_type` | enum | `text`、`document`、`image`、`webpage`、`internet_result` |
 | `purpose` | text | 受控值，例如 `classify`、`search`、`fetch`、`vision` |
@@ -490,7 +498,7 @@ WHERE revoked_at IS NULL
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者的外键 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `session_id` | uuid | 表示当前搜索会话的不透明标识 |
 | `provider` | text | 搜索提供商标识符 |
 | `title` | text | 提供商标题，已为显示目的清理 |
@@ -517,7 +525,7 @@ WHERE revoked_at IS NULL
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | bigint | 标识列主键 |
-| `actor_type` | enum | `owner`、`system` |
+| `actor_type` | enum | `owner`、`system`；`owner` 为兼容值，语义是账号操作者 |
 | `actor_id` | uuid | 可为空 |
 | `action` | text | 类似枚举的操作代码 |
 | `entity_type` | text | 受控实体名称 |
@@ -535,7 +543,7 @@ WHERE revoked_at IS NULL
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
-| `owner_id` | uuid | 指向所有者的外键，`ON DELETE CASCADE` |
+| `owner_id` | uuid | 账号 ID（兼容字段名），`ON DELETE CASCADE` |
 | `scope` | text | 路由/操作标识符 |
 | `idempotency_key` | text | 客户端提供的键 |
 | `request_hash` | char(64) | 方法、路由和已验证请求体的哈希 |
@@ -623,7 +631,7 @@ active -> revoked
 | 字段 | 类型 | 规则 |
 |------|------|------|
 | `item_id` | uuid | 主键，指向 `knowledge_item`，`ON DELETE CASCADE` |
-| `owner_id` | uuid | 指向所有者 |
+| `owner_id` | uuid | 账号 ID（兼容字段名） |
 | `title_text` | text | 已脱敏标题 |
 | `body_text` | text | 正文纯文本投影 |
 | `note_text` | text | 已脱敏备注 |
@@ -677,7 +685,7 @@ Meilisearch 仅在 PostgreSQL 搜索基准失败后作为可重建派生索引�
 - 当前标签：`(tag_id) WHERE superseded_at IS NULL`。
 - 待审核项：`(status) WHERE superseded_at IS NULL AND status IN ('provisional')`。
 - 重复来源提示：`source(url_sha256)`。
-- 附件：`(item_id)`、`(sha256)`、`(storage_state)`。
+- 附件：`(owner_id, item_id)`、`(owner_id, sha256)`、`(owner_id, storage_state)`。
 - 外部候选：`(owner_id, session_id, expires_at)`。
 - 审计：`(entity_type, entity_id, occurred_at DESC)` 和 `(occurred_at)`。
 
@@ -722,3 +730,5 @@ Meilisearch 仅在 PostgreSQL 搜索基准失败后作为可重建派生索引�
 12. 计费任务实际扣费不得超过用户确认的报价上限。
 13. 体验点、购买点和退款批次的变更必须通过 002 的只追加账本。
 14. 知识删除不得删除订单、支付事件、点数账本或退款事实。
+15. 任何跨账号读取、写入、搜索、附件访问、计费预留或账本结算都必须失败；账号 ID 只能来自
+    已认证会话，不能来自客户端可覆盖的业务字段。

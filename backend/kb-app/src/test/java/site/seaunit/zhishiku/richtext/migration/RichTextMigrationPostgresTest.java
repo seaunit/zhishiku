@@ -46,10 +46,10 @@ class RichTextMigrationPostgresTest {
 
     configuration.load().clean();
     assertThat(configuration.target("0004").load().migrate().migrationsExecuted).isEqualTo(2);
-    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(1);
+    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(2);
     assertThat(configuration.load().migrate().migrationsExecuted).isZero();
     configuration.load().clean();
-    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(3);
+    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(4);
 
     try (Connection connection = POSTGRES.createConnection("");
         Statement statement = connection.createStatement()) {
@@ -72,6 +72,16 @@ class RichTextMigrationPostgresTest {
               queryLong(
                   statement,
                   "SELECT count(*) FROM information_schema.columns WHERE table_name = 'rich_document' AND column_name = 'version'"))
+          .isEqualTo(1);
+      assertThat(
+              queryLong(
+                  statement,
+                  "SELECT count(*) FROM information_schema.columns WHERE table_name = 'owner_account' AND column_name = 'instance_key'"))
+          .isZero();
+      assertThat(
+              queryLong(
+                  statement,
+                  "SELECT count(*) FROM information_schema.columns WHERE table_name = 'owner_account' AND column_name = 'email_verified_at'"))
           .isEqualTo(1);
       try (ResultSet result =
           statement.executeQuery(
@@ -102,9 +112,9 @@ class RichTextMigrationPostgresTest {
     jdbc.update(
         """
         INSERT INTO owner_account
-          (id, instance_key, email_normalized, password_hash, locale,
+          (id, email_normalized, email_verified_at, password_hash, locale,
            created_at, updated_at, version)
-        VALUES (?, 1, 'owner@example.com', 'hash', 'zh-CN', now(), now(), 1)
+        VALUES (?, 'owner@example.com', now(), 'hash', 'zh-CN', now(), now(), 1)
         """,
         ownerId);
     jdbc.update(
