@@ -99,6 +99,7 @@ erDiagram
 | `owner_id` | uuid | 指向所有者的外键，`ON DELETE RESTRICT` |
 | `title` | text | 必填、去除首尾空白，长度 1–300 个字符 |
 | `body` | text | 已脱敏文本；提取期间可以为空 |
+| `body_migration_state` | enum | `not_required`、`pending`、`completed`、`failed`；控制旧纯文本到富文本的过渡 |
 | `note` | text | 用户编写并已脱敏的文本 |
 | `processing_status` | enum | 参见处理状态 |
 | `processing_error_code` | text | 仅允许安全代码 |
@@ -125,6 +126,24 @@ erDiagram
 
 `processing_status` 从不作为默认搜索的过滤条件。只要条目处于 active 状态，即使处理正在
 等待、暂定或已失败，仍然可被搜索。
+
+### 富文本正文扩展
+
+功能 [004 富文本编辑器](../004-rich-text-editor/data-model.md) 在保留 `body` 纯文本投影的
+基础上增加一对一 `rich_document`：
+
+| 关系 | 规则 |
+|------|------|
+| `knowledge_item` 1:1 `rich_document` | 结构化正文、schema 版本、图片引用和纯文本投影 |
+| `rich_document` 1:N `rich_image_reference` | 只引用已完成扫描和脱敏的附件 |
+| `rich_document` 1:N `rich_document_revision` | 保留有限修订窗口，支持冲突和迁移 |
+
+详细字段、图片配额、状态和不变量由 004 数据模型定义。搜索索引和 AI 输入继续使用
+`knowledge_item.body` 的纯文本投影，不读取结构化 JSON 或附件存储键。
+
+迁移状态为 `pending` 或 `failed` 时，API 返回 `bodyDocument=null`，客户端只能以 `body`
+只读过渡并提示迁移状态；迁移完成后才开放富文本编辑。列表和搜索结果使用不含完整
+`bodyDocument` 的摘要 DTO，避免分页响应携带大正文。
 
 ## 实体：来源
 

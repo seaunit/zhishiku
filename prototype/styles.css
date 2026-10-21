@@ -1082,6 +1082,13 @@ mark {
   margin-bottom: 18px;
 }
 
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .detail-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 306px;
@@ -1345,6 +1352,260 @@ mark {
   font-weight: 500;
 }
 
+.rich-field {
+  gap: 9px;
+}
+
+.field-label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.editor-shell {
+  overflow: hidden;
+  background: var(--ground);
+  border: 1px solid var(--control);
+  border-radius: var(--radius-control);
+}
+
+.editor-shell:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  padding: 5px 6px;
+  overflow-x: auto;
+  background: var(--raised);
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: thin;
+}
+
+.editor-tool {
+  display: inline-grid;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  place-items: center;
+}
+
+.editor-tool:hover,
+.editor-tool[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--active, #0d293a);
+  border-color: var(--control);
+}
+
+.editor-tool:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+}
+
+.editor-tool svg {
+  width: 14px;
+  height: 14px;
+}
+
+.editor-tool-divider {
+  flex: none;
+  width: 1px;
+  height: 19px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+.rich-editor {
+  min-height: 250px;
+  padding: 16px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.72;
+  outline: none;
+}
+
+.rich-editor:empty::before {
+  color: var(--faint);
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
+.rich-editor p,
+.rich-prose p {
+  margin: 0 0 12px;
+}
+
+.rich-editor h2,
+.rich-prose h2 {
+  margin: 20px 0 8px;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.rich-editor h3,
+.rich-prose h3 {
+  margin: 18px 0 7px;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.rich-editor h4,
+.rich-prose h4 {
+  margin: 16px 0 6px;
+  font-size: 14px;
+}
+
+.rich-editor ul,
+.rich-editor ol,
+.rich-prose ul,
+.rich-prose ol {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.rich-editor li,
+.rich-prose li {
+  margin-bottom: 4px;
+}
+
+.rich-editor blockquote,
+.rich-prose blockquote {
+  margin: 14px 0;
+  padding: 8px 0 8px 13px;
+  color: var(--muted);
+  border-left: 2px solid var(--accent);
+}
+
+.rich-editor pre,
+.rich-prose pre {
+  margin: 14px 0;
+  padding: 12px;
+  overflow-x: auto;
+  color: var(--text);
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.rich-editor code,
+.rich-prose code {
+  padding: 1px 4px;
+  color: var(--accent);
+  background: var(--raised);
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.rich-editor pre code,
+.rich-prose pre code {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.rich-editor a,
+.rich-prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.rich-editor hr,
+.rich-prose hr {
+  margin: 20px 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.editor-inline-image,
+.rich-prose figure {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0;
+}
+
+.image-caption-action {
+  justify-self: start;
+  min-height: 28px;
+  padding: 0 8px;
+  color: var(--muted);
+  background: var(--raised);
+  border: 1px solid var(--control);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.image-caption-action:hover,
+.image-caption-action:focus-visible {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.image-conversion-placeholder {
+  display: grid;
+  min-height: 160px;
+  padding: 18px;
+  color: var(--muted);
+  background: var(--raised);
+  border: 1px dashed var(--control);
+  font-size: 12px;
+  place-items: center;
+  text-align: center;
+}
+
+.editor-inline-image img,
+.rich-prose figure img {
+  display: block;
+  width: 100%;
+  max-height: 340px;
+  object-fit: contain;
+  background: var(--ground);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.editor-inline-image figcaption,
+.rich-prose figcaption {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.remote-image-placeholder {
+  display: inline-block;
+  padding: 4px 8px;
+  color: var(--muted);
+  background: var(--raised);
+  border: 1px dashed var(--control);
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.editor-hint {
+  padding: 7px 10px;
+  color: var(--faint);
+  background: var(--raised);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+
 .text-input,
 .text-area,
 .capture-form input,
@@ -1417,6 +1678,11 @@ mark {
   margin-top: 5px;
 }
 
+.file-picker-button {
+  min-height: 40px;
+  margin-top: 12px;
+}
+
 .file-selection {
   display: flex;
   align-items: center;
@@ -1469,6 +1735,7 @@ mark {
 }
 
 .paste-zone {
+  position: relative;
   display: flex;
   min-height: 214px;
   flex-direction: column;
@@ -1485,14 +1752,37 @@ mark {
 }
 
 .paste-zone:hover,
-.paste-zone:focus-visible {
+.paste-zone:focus-within {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 5%, var(--ground));
 }
 
-.paste-zone:focus-visible {
+.paste-zone:focus-within {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
+}
+
+.paste-capture {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  opacity: 0;
+  background: transparent;
+  border: 0;
+  resize: none;
+  cursor: text;
+}
+
+.paste-visual {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
 }
 
 .paste-zone-icon {
@@ -1531,7 +1821,7 @@ mark {
   gap: 5px;
   margin-top: 4px;
   color: var(--faint);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .paste-shortcuts kbd {
@@ -1542,7 +1832,7 @@ mark {
   border: 1px solid var(--control);
   border-radius: 4px;
   font-family: var(--font);
-  font-size: 10px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -1559,6 +1849,14 @@ mark {
   border-style: solid;
   cursor: default;
   text-align: left;
+}
+
+.paste-zone.has-image .paste-capture {
+  pointer-events: none;
+}
+
+.paste-zone.has-image .paste-visual {
+  display: block;
 }
 
 .paste-preview-frame {
@@ -1981,7 +2279,7 @@ input[type="checkbox"]:checked::before {
 
   .app-shell {
     display: block;
-    padding-bottom: 64px;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
   }
 
   .rail {
@@ -1994,8 +2292,8 @@ input[type="checkbox"]:checked::before {
     display: flex;
     flex-direction: row;
     width: 100%;
-    height: 64px;
-    padding: 0 8px;
+    height: calc(64px + env(safe-area-inset-bottom));
+    padding: 0 8px env(safe-area-inset-bottom);
     border-top: 1px solid var(--border);
     border-right: 0;
   }
@@ -2250,6 +2548,25 @@ input[type="checkbox"]:checked::before {
     padding: 16px;
   }
 
+  .editor-tool {
+    width: 44px;
+    height: 44px;
+  }
+
+  .editor-toolbar {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .editor-tool-divider {
+    display: none;
+  }
+
+  .rich-editor {
+    min-height: 220px;
+    padding: 14px;
+  }
+
   .paste-zone {
     min-height: 184px;
     padding: 18px 14px;
@@ -2271,6 +2588,16 @@ input[type="checkbox"]:checked::before {
 
   .file-selection {
     align-items: flex-start;
+  }
+
+  .mini-action {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  .paste-capture {
+    min-height: 184px;
   }
 
   .settings-panel {
@@ -2300,7 +2627,13 @@ input[type="checkbox"]:checked::before {
 
   .toast {
     right: 16px;
-    bottom: 80px;
+    bottom: calc(80px + env(safe-area-inset-bottom));
     left: 16px;
+  }
+}
+
+@media (max-width: 560px) and (max-height: 500px) {
+  .rich-editor {
+    min-height: 96px;
   }
 }

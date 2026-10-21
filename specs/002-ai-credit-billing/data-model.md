@@ -360,6 +360,28 @@ erDiagram
 - `settled_points <= max_line_points`。
 - 所有报价行 `max_line_points` 之和等于任务 `max_points`。
 
+## 实体：AI 报价图片资源
+
+**用途**：保存用户明确选择分析、并由服务端解析后的唯一安全图片资源，防止同一内容重复计费。
+
+| 字段 | 类型 | 规则 |
+|------|------|------|
+| `id` | uuid | 主键 |
+| `billing_task_id` | uuid | 指向 AI 计费任务，`ON DELETE CASCADE` |
+| `asset_id` | uuid | 请求中选中的安全 upload/attachment ID |
+| `content_hash` | char(64) | 规范化且已安全处理图片的 SHA-256 |
+| `media_type` | text | 规范化 MIME |
+| `normalized_size_bytes` | bigint | 非负 |
+| `counted_quantity` | integer | 固定为 1 |
+| `created_at` | timestamptz | 必填 |
+
+**约束**：
+
+- `UNIQUE(billing_task_id, content_hash)`；不同 asset 指向同一内容时只保留一个计费资源。
+- 资产必须属于同一所有者，处于可安全分析状态，且报价请求明确选择了该资产。
+- 报价响应只返回 `assetId`、内容哈希、媒体类型和大小，不返回存储键、URL 或图片内容。
+- `screenshot_ocr` 与正文图片 OCR/vision 的数量按唯一资源行计算；正文重复引用不增加数量。
+
 ## 实体：点数预留
 
 **用途**：冻结一个 AI 任务的费用上限。

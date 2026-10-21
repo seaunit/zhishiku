@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta
       name="description"
       content="识海：自动归类、标签与检索的个人 AI 知识库交互原型"
@@ -302,10 +302,16 @@
                 <svg><use href="#icon-arrow"></use></svg>
                 <span data-i18n="backToLibrary">返回知识库</span>
               </button>
-              <button class="outline-button" id="reanalyzeButton" type="button">
-                <svg><use href="#icon-sparkles"></use></svg>
-                <span data-i18n="reanalyze">重新分析</span>
-              </button>
+              <div class="detail-actions">
+                <button class="outline-button" id="editItemButton" type="button">
+                  <svg><use href="#icon-file"></use></svg>
+                  <span data-i18n="edit">编辑</span>
+                </button>
+                <button class="outline-button" id="reanalyzeButton" type="button">
+                  <svg><use href="#icon-sparkles"></use></svg>
+                  <span data-i18n="reanalyze">重新分析</span>
+                </button>
+              </div>
             </div>
             <article class="detail-layout" id="detailContent"></article>
           </section>
@@ -321,12 +327,12 @@
             </div>
             <section class="panel capture-workbench">
               <div class="capture-tabs" role="tablist" aria-label="采集方式">
-                <button class="capture-tab is-active" data-capture-mode="manual" role="tab">手动录入</button>
-                <button class="capture-tab" data-capture-mode="webpage" role="tab">网页链接</button>
-                <button class="capture-tab" data-capture-mode="document" role="tab">文档</button>
-                <button class="capture-tab" data-capture-mode="screenshot" role="tab">截图</button>
+                <button class="capture-tab is-active" data-capture-mode="manual" role="tab" aria-selected="true" aria-controls="captureContent">手动录入</button>
+                <button class="capture-tab" data-capture-mode="webpage" role="tab" aria-selected="false" aria-controls="captureContent" tabindex="-1">网页链接</button>
+                <button class="capture-tab" data-capture-mode="document" role="tab" aria-selected="false" aria-controls="captureContent" tabindex="-1">文档</button>
+                <button class="capture-tab" data-capture-mode="screenshot" role="tab" aria-selected="false" aria-controls="captureContent" tabindex="-1">截图</button>
               </div>
-              <div class="capture-content" id="captureContent"></div>
+              <div class="capture-content" id="captureContent" role="tabpanel"></div>
             </section>
           </section>
 
@@ -429,23 +435,23 @@
       </div>
     </div>
 
-    <dialog class="capture-dialog" id="captureDialog">
+    <dialog class="capture-dialog" id="captureDialog" aria-labelledby="captureDialogTitle">
       <form method="dialog" class="dialog-frame" id="captureForm" data-capture-form="dialog">
         <div class="dialog-heading">
           <div>
-            <h2 data-i18n="captureDialogTitle">采集一条知识</h2>
+            <h2 id="captureDialogTitle" data-i18n="captureDialogTitle">采集一条知识</h2>
           </div>
           <button class="icon-button" value="cancel" aria-label="关闭">
             <svg><use href="#icon-x"></use></svg>
           </button>
         </div>
-        <div class="dialog-tabs">
-          <button type="button" class="is-active" data-dialog-mode="manual">文字</button>
-          <button type="button" data-dialog-mode="webpage">网页</button>
-          <button type="button" data-dialog-mode="document">文档</button>
-          <button type="button" data-dialog-mode="screenshot">截图</button>
+        <div class="dialog-tabs" role="tablist" aria-label="采集方式">
+          <button type="button" class="is-active" data-dialog-mode="manual" role="tab" aria-selected="true" aria-controls="dialogFields">文字</button>
+          <button type="button" data-dialog-mode="webpage" role="tab" aria-selected="false" aria-controls="dialogFields" tabindex="-1">网页</button>
+          <button type="button" data-dialog-mode="document" role="tab" aria-selected="false" aria-controls="dialogFields" tabindex="-1">文档</button>
+          <button type="button" data-dialog-mode="screenshot" role="tab" aria-selected="false" aria-controls="dialogFields" tabindex="-1">截图</button>
         </div>
-        <div class="dialog-fields" id="dialogFields"></div>
+        <div class="dialog-fields" id="dialogFields" role="tabpanel"></div>
         <div class="dialog-safety">
           <svg><use href="#icon-lock"></use></svg>
           <span data-i18n="safetyNote">提交前会扫描密钥；无法完整扫描的文件会被拒绝。</span>

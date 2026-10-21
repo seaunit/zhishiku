@@ -1,0 +1,380 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seaunit.site/kb/contracts/rich-text.schema.json",
+  "title": "识海结构化富文本文档",
+  "description": "知识正文的受限 ProseMirror 子集。此 schema 只验证结构形状；嵌套深度、可见字符总数、唯 nodeId、图片数量与附件安全状态由领域验证器执行。",
+  "$comment": "JSON Schema is necessary but not sufficient. The domain validator is authoritative for cross-node and database invariants.",
+  "type": "object",
+  "required": ["type", "content"],
+  "additionalProperties": false,
+  "properties": {
+    "type": {
+      "const": "doc"
+    },
+    "content": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    }
+  },
+  "$defs": {
+    "block": {
+      "oneOf": [
+        { "$ref": "#/$defs/paragraph" },
+        { "$ref": "#/$defs/heading" },
+        { "$ref": "#/$defs/bulletList" },
+        { "$ref": "#/$defs/orderedList" },
+        { "$ref": "#/$defs/blockquote" },
+        { "$ref": "#/$defs/codeBlock" },
+        { "$ref": "#/$defs/horizontalRule" },
+        { "$ref": "#/$defs/image" },
+        { "$ref": "#/$defs/table" }
+      ]
+    },
+    "paragraph": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "paragraph" },
+        "attrs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "textAlign": { "enum": ["left", "center", "right"] }
+          }
+        },
+        "content": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/inline" }
+        }
+      }
+    },
+    "heading": {
+      "type": "object",
+      "required": ["type", "attrs"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "heading" },
+        "attrs": {
+          "type": "object",
+          "required": ["level"],
+          "additionalProperties": false,
+          "properties": {
+            "level": { "type": "integer", "minimum": 2, "maximum": 4 },
+            "textAlign": { "enum": ["left", "center", "right"] }
+          }
+        },
+        "content": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/inline" }
+        }
+      }
+    },
+    "bulletList": {
+      "type": "object",
+      "required": ["type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "bulletList" },
+        "content": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/listItem" }
+        }
+      }
+    },
+    "orderedList": {
+      "type": "object",
+      "required": ["type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "orderedList" },
+        "attrs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "start": { "type": "integer", "minimum": 1, "maximum": 9999 }
+          }
+        },
+        "content": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/listItem" }
+        }
+      }
+    },
+    "listItem": {
+      "type": "object",
+      "required": ["type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "listItem" },
+        "content": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/paragraph" },
+              { "$ref": "#/$defs/bulletList" },
+              { "$ref": "#/$defs/orderedList" }
+            ]
+          }
+        }
+      }
+    },
+    "blockquote": {
+      "type": "object",
+      "required": ["type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "blockquote" },
+        "content": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/paragraph" },
+              { "$ref": "#/$defs/heading" }
+            ]
+          }
+        }
+      }
+    },
+    "codeBlock": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "codeBlock" },
+        "attrs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "language": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[A-Za-z0-9_+-]*$"
+            }
+          }
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "const": "text" },
+              "text": { "type": "string", "maxLength": 200000 }
+            }
+          }
+        }
+      }
+    },
+    "horizontalRule": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "horizontalRule" }
+      }
+    },
+    "image": {
+      "type": "object",
+      "required": ["type", "attrs"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "image" },
+        "attrs": {
+          "type": "object",
+          "required": ["assetId", "nodeId", "displayWidthPx", "aspectRatio", "alignment", "decorative"],
+          "additionalProperties": false,
+          "properties": {
+            "assetId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "统一图片资产引用。编辑提交时为所有者级 uploadId；保存成功后，同一字段持久化为正式 attachmentId，临时 uploadId 不得落盘或出现在读取响应中。"
+            },
+            "nodeId": { "type": "string", "minLength": 1, "maxLength": 80 },
+            "alt": { "type": "string", "maxLength": 500 },
+            "caption": { "type": "string", "maxLength": 500 },
+            "displayWidthPx": { "type": "integer", "minimum": 80, "maximum": 1600 },
+            "aspectRatio": { "type": "number", "minimum": 0.01, "maximum": 100 },
+            "alignment": { "enum": ["left", "center", "right"] },
+            "decorative": { "type": "boolean" }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "decorative": { "const": false } },
+                "required": ["decorative"]
+              },
+              "then": {
+                "required": ["alt"],
+                "properties": { "alt": { "minLength": 1 } }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "table": {
+      "type": "object",
+      "required": ["type", "attrs", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "table" },
+        "attrs": {
+          "type": "object",
+          "required": ["headerRow"],
+          "additionalProperties": false,
+          "properties": {
+            "headerRow": { "const": true }
+          }
+        },
+        "content": {
+          "type": "array",
+          "description": "首行必须全部为 tableHeader 单元格；后续行必须全部为 tableCell 数据单元格。",
+          "minItems": 1,
+          "maxItems": 50,
+          "prefixItems": [
+            { "$ref": "#/$defs/tableHeaderRow" }
+          ],
+          "items": { "$ref": "#/$defs/tableBodyRow" }
+        }
+      }
+    },
+    "tableHeaderRow": {
+      "type": "object",
+      "required": ["type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "tableHeaderRow" },
+        "content": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/tableHeaderCell" }
+        }
+      }
+    },
+    "tableBodyRow": {
+      "type": "object",
+      "required": ["type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "tableBodyRow" },
+        "content": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/tableDataCell" }
+        }
+      }
+    },
+    "tableHeaderCell": {
+      "type": "object",
+      "required": ["type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "tableHeader" },
+        "attrs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "colspan": { "type": "integer", "minimum": 1, "maximum": 20 },
+            "rowspan": { "type": "integer", "minimum": 1, "maximum": 50 }
+          }
+        },
+        "content": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/paragraph" }
+        }
+      }
+    },
+    "tableDataCell": {
+      "type": "object",
+      "required": ["type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "tableCell" },
+        "attrs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "colspan": { "type": "integer", "minimum": 1, "maximum": 20 },
+            "rowspan": { "type": "integer", "minimum": 1, "maximum": 50 }
+          }
+        },
+        "content": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/paragraph" }
+        }
+      }
+    },
+    "inline": {
+      "oneOf": [
+        { "$ref": "#/$defs/text" },
+        { "$ref": "#/$defs/hardBreak" }
+      ]
+    },
+    "text": {
+      "type": "object",
+      "required": ["type", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "text" },
+        "text": { "type": "string", "maxLength": 200000 },
+        "marks": {
+          "type": "array",
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/mark" }
+        }
+      }
+    },
+    "hardBreak": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "hardBreak" }
+      }
+    },
+    "mark": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "enum": ["bold", "italic", "underline", "strike", "code"] }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type", "attrs"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "link" },
+            "attrs": {
+              "type": "object",
+              "required": ["href"],
+              "additionalProperties": false,
+              "properties": {
+                "href": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "pattern": "^https?://"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

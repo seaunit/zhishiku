@@ -232,7 +232,13 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Conflict"
+          description: 富文本版本冲突或幂等键冲突；客户端必须按 `code` 区分。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/RichTextConflictError"
+                  - $ref: "#/components/schemas/ErrorResponse"
         "422":
           $ref: "#/components/responses/ValidationError"
     delete:
@@ -383,6 +389,10 @@ paths:
                 file:
                   type: string
                   format: binary
+                  description: >
+                    sourceType=screenshot 时必须是剪贴板图片（JPEG/PNG/WebP/HEIC 等）；
+                    sourceType=document 时允许受支持文档或 JPG/PNG/WebP/HEIC 图片。
+                    服务端按文件内容检测 MIME，不信任扩展名或客户端 Content-Type。
                 sourceType:
                   type: string
                   enum: [document, screenshot]
@@ -409,6 +419,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "413":
           description: 文件超过配置的上传限制。
+        "415":
+          description: 文件类型不支持，或与 sourceType/inputMethod 允许的媒体类型不一致。
         "422":
           $ref: "#/components/responses/ValidationError"
   /api/v1/jobs/{jobId}:
@@ -743,6 +755,23 @@ components:
           type: object
           additionalProperties:
             type: string
+    RichTextConflictError:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          required: [currentVersion, documentHash, latestRevisionId]
+          properties:
+            code:
+              const: RICH_TEXT_VERSION_CONFLICT
+            currentVersion:
+              type: integer
+              minimum: 1
+            documentHash:
+              type: string
+              pattern: "^[a-f0-9]{64}$"
+            latestRevisionId:
+              type: string
+              format: uuid
     InsufficientPointsError:
       allOf:
         - $ref: "#/components/schemas/ErrorResponse"
@@ -802,6 +831,144 @@ components:
             - string
             - "null"
           format: date-time
+    BodySourceInput:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum:
+            - native
+            - clipboard
+            - word
+            - google_docs
+            - webpage
+            - document
+            - screenshot
+            - legacy_text
+            - internet_result
+        sourceUrl:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: 仅允许公开 HTTP/HTTPS URL；服务端移除片段、凭据和跟踪参数。
+        capturedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: 外部粘贴、文档、截图和互联网结果类型必填；native/legacy_text 可为 null。
+      allOf:
+        - if:
+            properties:
+              kind:
+                const: webpage
+            required: [kind]
+          then:
+            properties:
+              sourceUrl:
+                type: string
+            required: [sourceUrl]
+        - if:
+            properties:
+              kind:
+                enum: [clipboard, word, google_docs, document, screenshot, internet_result]
+            required: [kind]
+          then:
+            properties:
+              capturedAt:
+                type: string
+            required: [capturedAt]
+    ConversionReport:
+      type: object
+      required:
+        - preservedFeatures
+        - downgradedFeatures
+        - removedFeatures
+        - rejectedFeatures
+      properties:
+        preservedFeatures:
+          type: array
+          items:
+            type: string
+        downgradedFeatures:
+          type: array
+          items:
+            type: string
+        removedFeatures:
+          type: array
+          items:
+            type: string
+        rejectedFeatures:
+          type: array
+          items:
+            type: string
+    BodyProvenance:
+      type: object
+      required:
+        - kind
+        - sourceUrl
+        - capturedAt
+        - convertedAt
+        - converterVersion
+        - contentHash
+        - conversionReport
+      properties:
+        kind:
+          type: string
+          enum:
+            - native
+            - clipboard
+            - word
+            - google_docs
+            - webpage
+            - document
+            - screenshot
+            - legacy_text
+            - internet_result
+        sourceUrl:
+          type:
+            - string
+            - "null"
+          format: uri
+        capturedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        convertedAt:
+          type: string
+          format: date-time
+        converterVersion:
+          type: string
+          minLength: 1
+        contentHash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        conversionReport:
+          $ref: "#/components/schemas/ConversionReport"
+      allOf:
+        - if:
+            properties:
+              kind:
+                const: webpage
+            required: [kind]
+          then:
+            properties:
+              sourceUrl:
+                type: string
+            required: [sourceUrl]
+        - if:
+            properties:
+              kind:
+                enum: [clipboard, word, google_docs, document, screenshot, internet_result]
+            required: [kind]
+          then:
+            properties:
+              capturedAt:
+                type: string
+            required: [capturedAt]
     ClassificationAssignment:
       type: object
       required: [id, name, status, origin]
@@ -853,6 +1020,9 @@ components:
         - id
         - title
         - body
+        - bodyDocument
+        - bodySchemaVersion
+        - bodyMigrationState
         - note
         - processingStatus
         - lifecycleState
@@ -871,6 +1041,28 @@ components:
           type: string
         body:
           type: string
+          readOnly: true
+          description: 服务端从 bodyDocument 生成的纯文本投影。
+        bodyDocument:
+          oneOf:
+            - $ref: "../../004-rich-text-editor/contracts/rich-text.schema.json"
+            - type: "null"
+          description: 旧纯文本迁移完成前可为 null，此时详情必须只读展示 body，并禁止富文本编辑直到迁移完成。
+        bodySchemaVersion:
+          oneOf:
+            - type: integer
+              minimum: 1
+            - type: "null"
+        bodyMigrationState:
+          type: string
+          enum: [not_required, pending, completed, failed]
+          description: pending/failed 时 bodyDocument 可为 null；前端以纯文本过渡并提示迁移状态。
+        bodyProvenance:
+          oneOf:
+            - $ref: "#/components/schemas/BodyProvenance"
+            - type: "null"
+          readOnly: true
+          description: 正文来源与格式转换记录；由服务端创建，不包含 Cookie、Authorization、完整剪贴板或原始 HTML。
         note:
           type: string
         summary:
@@ -915,6 +1107,57 @@ components:
         updatedAt:
           type: string
           format: date-time
+    KnowledgeItemSummary:
+      type: object
+      required:
+        - id
+        - title
+        - bodyPreview
+        - processingStatus
+        - lifecycleState
+        - source
+        - category
+        - tags
+        - version
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        bodyPreview:
+          type: string
+          maxLength: 500
+          description: 派生纯文本的安全短预览；列表和搜索不返回完整 bodyDocument。
+        summary:
+          type:
+            - string
+            - "null"
+        processingStatus:
+          $ref: "#/components/schemas/ProcessingStatus"
+        lifecycleState:
+          $ref: "#/components/schemas/LifecycleState"
+        source:
+          $ref: "#/components/schemas/Source"
+        category:
+          oneOf:
+            - $ref: "#/components/schemas/ClassificationAssignment"
+            - type: "null"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClassificationAssignment"
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     KnowledgeItemPage:
       type: object
       required: [items, nextCursor]
@@ -922,22 +1165,23 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/KnowledgeItem"
+            $ref: "#/components/schemas/KnowledgeItemSummary"
         nextCursor:
           type:
             - string
             - "null"
     CreateKnowledgeItemRequest:
       type: object
-      required: [title, body]
+      required: [title, bodyDocument]
       properties:
         title:
           type: string
           minLength: 1
           maxLength: 300
-        body:
-          type: string
-          maxLength: 200000
+        bodyDocument:
+          $ref: "../../004-rich-text-editor/contracts/rich-text.schema.json"
+        bodySource:
+          $ref: "#/components/schemas/BodySourceInput"
         note:
           type: string
           maxLength: 20000
@@ -953,6 +1197,11 @@ components:
     UpdateKnowledgeItemRequest:
       type: object
       required: [expectedVersion]
+      anyOf:
+        - required: [title]
+        - required: [bodyDocument]
+        - required: [note]
+        - required: [sourceUrl]
       properties:
         expectedVersion:
           type: integer
@@ -961,9 +1210,10 @@ components:
           type: string
           minLength: 1
           maxLength: 300
-        body:
-          type: string
-          maxLength: 200000
+        bodyDocument:
+          $ref: "../../004-rich-text-editor/contracts/rich-text.schema.json"
+        bodySource:
+          $ref: "#/components/schemas/BodySourceInput"
         note:
           type: string
           maxLength: 20000
@@ -1014,7 +1264,7 @@ components:
       required: [item, matchedFields, highlights]
       properties:
         item:
-          $ref: "#/components/schemas/KnowledgeItem"
+          $ref: "#/components/schemas/KnowledgeItemSummary"
         matchedFields:
           type: array
           items:

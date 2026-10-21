@@ -1075,6 +1075,16 @@ components:
             - string
             - "null"
           description: 文档字符或网页视图数量的免费预检标识。
+        imageAssetIds:
+          type: array
+          uniqueItems: true
+          maxItems: 20
+          items:
+            type: string
+            format: uuid
+          description: >
+            用户明确选择进行 OCR/vision 的安全图片资产。004 提交去重后的临时 uploadId 或正式
+            attachmentId；服务端解析所有权和扫描状态，并按规范化图片内容哈希再次去重。
         lines:
           type: array
           minItems: 1
@@ -1109,6 +1119,7 @@ components:
         - quoteId
         - status
         - lines
+        - imageResources
         - maxPoints
         - availablePoints
         - expiresAt
@@ -1123,6 +1134,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/QuoteLine"
+        imageResources:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/QuoteImageResource"
+          description: 服务端解析后的唯一图片资源；相同内容哈希只出现一次。
         maxPoints:
           type: integer
           minimum: 1
@@ -1136,6 +1153,26 @@ components:
           format: date-time
         autoChargeEligible:
           type: boolean
+    QuoteImageResource:
+      type: object
+      required:
+        - assetId
+        - contentHash
+        - mediaType
+        - normalizedSizeBytes
+      properties:
+        assetId:
+          type: string
+          format: uuid
+          description: 本次报价采用的规范化安全资产标识；不返回存储键或图片 URL。
+        contentHash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        mediaType:
+          type: string
+        normalizedSizeBytes:
+          type: integer
+          minimum: 0
     ConfirmQuoteRequest:
       type: object
       required: [expectedMaxPoints, explicitConsent]

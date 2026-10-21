@@ -162,17 +162,17 @@ US3 在规格中标记为 P2，但其“余额不足不丢内容”属于 P0 财
 
 ### 测试
 
-- [ ] T065 [P0] [P] [US2] 在 `tests/unit/billing/quote-calculation.test.ts` 中覆盖 5/10/10/10/3/2 点率、文档 10,000 字符边界、网页视图、组合任务总额、未来点率版本只影响新任务以及购买点无过期时间
+- [ ] T065 [P0] [P] [US2] 在 `tests/unit/billing/quote-calculation.test.ts` 中覆盖 5/10/10/10/3/2 点率、文档 10,000 字符边界、网页视图、组合任务总额、未来点率版本只影响新任务、购买点无过期时间，以及重复引用同一图片内容时报价数量只计一次
 - [ ] T066 [P0] [P] [US2] 在 `tests/unit/billing/result-success.test.ts` 中覆盖空输出、低置信度但非空暂定结果、协议错误、超时、合法回答、搜索零结果扣 3 点、搜索失败不扣点、回答无依据但正常展示只扣 2 点
 - [ ] T067 [P0] [P] [US2] 在 `tests/integration/billing/atomic-reservation.test.ts` 中覆盖余额等于、低于和高于报价，全有或全无预留，以及演练批次顺序
 - [ ] T068 [P0] [P] [US2] 在 `tests/integration/billing/concurrent-settlement.test.ts` 中覆盖 100 组并发预留/结算、同一任务多 worker、同一幂等键重放和账本只追加且不可静默修改
 - [ ] T069 [P0] [P] [US2] 在 `tests/integration/billing/auto-charge.test.ts` 中覆盖默认关闭、单次上限、每日上限、余额不足和关闭授权
 - [ ] T070 [P0] [P] [US2] 在 `tests/integration/billing/document-preflight.test.ts` 中覆盖字符未知、页数/文件大小上限、preflightId 所有者/过期校验、超限重新确认和网页视图增加
-- [ ] T071 [P1] [P] [US2] 在 `tests/e2e/billing/ai-charge.spec.ts` 中分别覆盖网页、文档、OCR、搜索、回答和自动分类的报价/确认/执行/结算/失败释放，并断言成功扣费 100% 展示功能、数量、变化和余额
+- [ ] T071 [P1] [P] [US2] 在 `tests/e2e/billing/ai-charge.spec.ts` 中分别覆盖网页、文档、OCR、搜索、回答和自动分类的报价/确认/执行/结算/失败释放，并断言成功扣费 100% 展示功能、数量、变化和余额；富文本重复图片只产生一个计费数量
 
 ### 实施
 
-- [ ] T072 [P0] [US2] 在 `packages/billing/src/quote-service.ts` 中实现服务端点率读取、数量校验、组合报价、取整和有效期
+- [ ] T072 [P0] [US2] 在 `packages/billing/src/quote-service.ts` 中实现服务端点率读取、数量校验、组合报价、取整和有效期；解析 `imageAssetIds` 的所有权与安全状态，按规范化内容哈希去重并返回唯一图片资源
 - [ ] T073 [P0] [US2] 在 `packages/billing/src/services/task-billing-service.ts` 中实现报价确认、全量余额检查、原子预留和返回计费任务
 - [ ] T074 [P0] [US2] 在 `packages/billing/src/services/settlement-service.ts` 中实现步骤成功结算、失败释放、实际额不超上限、终态幂等和迟到结果忽略
 - [ ] T075 [P0] [US2] 在 `packages/billing/src/services/batch-allocator.ts` 中实现体验点优先、购买点最早批次优先、退款冻结批次不参与分配

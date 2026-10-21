@@ -1,0 +1,201 @@
+openapi: 3.1.0
+info:
+  title: 识海富文本图片暂存 API
+  version: 1.0.0
+  description: >
+    为手动采集和已有知识编辑提供所有者级安全图片暂存。上传返回的 uploadId 作为编辑器
+    assetId；保存知识时由服务端解析为正式附件并写入图片引用。
+servers:
+  - url: http://localhost:3000/kb
+    description: 使用 /kb 基础路径的本地接口
+security:
+  - sessionCookie: []
+tags:
+  - name: 富文本图片
+paths:
+  /api/v1/rich-text/image-uploads:
+    post:
+      tags: [富文本图片]
+      operationId: createRichTextImageUpload
+      summary: 上传并扫描编辑器正文图片。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                itemId:
+                  type:
+                    - string
+                    - "null"
+                  format: uuid
+                  description: 编辑已有知识时提供；新建草稿时为空。
+      responses:
+        "202":
+          description: 图片已进入扫描和规范化流程。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RichImageUpload"
+        "401":
+          description: 需要身份认证。
+        "413":
+          description: 单图超过 25 MiB。
+        "422":
+          description: 格式、像素或内容不符合要求。
+  /api/v1/rich-text/image-uploads/{uploadId}:
+    get:
+      tags: [富文本图片]
+      operationId: getRichTextImageUpload
+      summary: 查询图片扫描、脱敏和可用状态。
+      parameters:
+        - $ref: "#/components/parameters/UploadId"
+      responses:
+        "200":
+          description: 当前上传状态。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RichImageUpload"
+        "401":
+          description: 需要身份认证。
+        "404":
+          description: 上传不存在或不属于当前所有者。
+    delete:
+      tags: [富文本图片]
+      operationId: deleteRichTextImageUpload
+      summary: 取消尚未附加到正式文档的图片上传。
+      parameters:
+        - $ref: "#/components/parameters/UploadId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204":
+          description: 已清理上传或标记为过期。
+        "401":
+          description: 需要身份认证。
+        "404":
+          description: 上传不存在或不属于当前所有者。
+        "409":
+          description: 图片已经绑定到正式文档，不能通过暂存接口删除。
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: zhishiku.session_token
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+    UploadId:
+      name: uploadId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    RichImageUpload:
+      type: object
+      required:
+        - uploadId
+        - status
+        - scanState
+        - redactionState
+        - expiresAt
+      allOf:
+        - if:
+            properties:
+              status:
+                enum: [ready, attached]
+            required: [status]
+          then:
+            properties:
+              mediaType: {}
+              sourceSizeBytes: {}
+              sizeBytes: {}
+              contentHash: {}
+              normalizedWidth: {}
+              normalizedHeight: {}
+              aspectRatio: {}
+            required:
+              - mediaType
+              - sourceSizeBytes
+              - sizeBytes
+              - contentHash
+              - normalizedWidth
+              - normalizedHeight
+              - aspectRatio
+        - if:
+            properties:
+              status:
+                const: rejected
+            required: [status]
+          then:
+            properties:
+              errorCode: {}
+            required: [errorCode]
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+          description: 编辑器引用使用的临时 assetId。
+        itemId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        status:
+          type: string
+          enum: [staged, scanning, ready, rejected, attached, expired]
+        scanState:
+          type: string
+          enum: [pending, clean, rejected]
+        redactionState:
+          type: string
+          enum: [pending, none, redacted, rejected]
+        mediaType:
+          type: string
+        sourceSizeBytes:
+          type: integer
+          minimum: 0
+          maximum: 26214400
+          description: 原始源文件大小；单图不得超过 25 MiB。
+        sizeBytes:
+          type: integer
+          minimum: 0
+          description: 规范化和安全处理后的文件大小；正文图片合计不得超过 50 MiB。
+        contentHash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+          description: 规范化且已安全处理图片的 SHA-256；用于同一所有者去重和唯一图片计费。
+        normalizedWidth:
+          type: integer
+          minimum: 1
+        normalizedHeight:
+          type: integer
+          minimum: 1
+        aspectRatio:
+          type: number
+          minimum: 0.01
+          maximum: 100
+        errorCode:
+          type:
+            - string
+            - "null"
+          description: 安全错误代码，不回显文件名、图片内容或密钥。
+        expiresAt:
+          type: string
+          format: date-time

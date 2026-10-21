@@ -28,6 +28,9 @@ P0/P1 门禁通过前保持关闭。
 - [付费任务表](specs/002-ai-credit-billing/tasks.md)
 - [移动端网页规格](specs/003-mobile-web-access/spec.md)
 - [富文本编辑规格](specs/004-rich-text-editor/spec.md)
+- [富文本实施计划](specs/004-rich-text-editor/plan.md)
+- [富文本数据模型](specs/004-rich-text-editor/data-model.md)
+- [富文本任务表](specs/004-rich-text-editor/tasks.md)
 
 ## 交互原型
 

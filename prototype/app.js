@@ -407,9 +407,38 @@ const translations = {
     screenshotPasteEmpty: "请先粘贴一张剪贴板截图。",
     screenshotClipboardOnly: "仅支持剪贴板粘贴",
     screenshotClear: "清除截图",
+    pasteInputAria: "剪贴板截图粘贴区",
     fileMissing: "请先选择一个文档或图片文件。",
     screenshotTooLarge: "截图超过 25 MiB，请压缩后重新复制。",
+    fileTooLarge: "文件超过 25 MiB，请压缩或拆分后重试。",
+    fileUnsupported: "不支持此文件类型，请选择受支持的文档或 JPG、PNG、WebP、HEIC 图片。",
     removeFile: "移除",
+    editorAria: "富文本格式工具栏",
+    editorPlaceholder: "开始整理这段知识……",
+    editorHint: "支持富文本、链接和图片；粘贴内容会先经过安全清洗。",
+    editorBold: "粗体",
+    editorItalic: "斜体",
+    editorUnderline: "下划线",
+    editorStrike: "删除线",
+    editorHeading2: "二级标题",
+    editorHeading3: "三级标题",
+    editorBulletList: "无序列表",
+    editorOrderedList: "有序列表",
+    editorQuote: "引用",
+    editorCode: "代码块",
+    editorLink: "链接",
+    editorImage: "插入图片",
+    editorUndo: "撤销",
+    editorRedo: "重做",
+    editorClear: "清除格式",
+    editorImageCaption: "图片说明（可选）",
+    editorImageCaptionAction: "编辑说明",
+    editorLinkPrompt: "输入链接地址（http 或 https）",
+    editorLinkInvalid: "只支持 http 或 https 链接。",
+    editorImageFailed: "图片无法插入，请检查格式和大小。",
+    edit: "编辑",
+    editKnowledgeTitle: "编辑知识",
+    saveChanges: "保存修改",
     goToDocument: "无法粘贴图片？前往文档入口选择 JPG、PNG 等图片文件。",
     saveAuto: "保存并自动整理",
     cancel: "取消",
@@ -524,9 +553,38 @@ const translations = {
     screenshotPasteEmpty: "Paste a clipboard screenshot first.",
     screenshotClipboardOnly: "Clipboard paste only",
     screenshotClear: "Clear screenshot",
+    pasteInputAria: "Clipboard screenshot paste area",
     fileMissing: "Choose a document or image file first.",
     screenshotTooLarge: "The screenshot exceeds 25 MiB. Compress it and copy again.",
+    fileTooLarge: "The file exceeds 25 MiB. Compress or split it, then try again.",
+    fileUnsupported: "Unsupported file type. Choose a supported document or a JPG, PNG, WebP, or HEIC image.",
     removeFile: "Remove",
+    editorAria: "Rich text formatting toolbar",
+    editorPlaceholder: "Start shaping this knowledge…",
+    editorHint: "Rich text, links, and images are supported. Pasted content is cleaned first.",
+    editorBold: "Bold",
+    editorItalic: "Italic",
+    editorUnderline: "Underline",
+    editorStrike: "Strikethrough",
+    editorHeading2: "Heading 2",
+    editorHeading3: "Heading 3",
+    editorBulletList: "Bulleted list",
+    editorOrderedList: "Numbered list",
+    editorQuote: "Quote",
+    editorCode: "Code block",
+    editorLink: "Link",
+    editorImage: "Insert image",
+    editorUndo: "Undo",
+    editorRedo: "Redo",
+    editorClear: "Clear formatting",
+    editorImageCaption: "Image caption (optional)",
+    editorImageCaptionAction: "Edit caption",
+    editorLinkPrompt: "Enter an http or https link",
+    editorLinkInvalid: "Only http or https links are supported.",
+    editorImageFailed: "The image could not be inserted. Check its format and size.",
+    edit: "Edit",
+    editKnowledgeTitle: "Edit knowledge",
+    saveChanges: "Save changes",
     goToDocument: "Can't paste an image? Choose a JPG, PNG, or other image in the Document tab.",
     saveAuto: "Save and organize",
     cancel: "Cancel",
@@ -544,6 +602,8 @@ const state = {
   pastedScreenshots: { dialog: null, page: null },
   selectedFiles: { dialog: null, page: null },
   notes: { dialog: "", page: "" },
+  richDrafts: { dialog: "", page: "" },
+  editingItemId: null,
   currentDetailId: null,
   externalVisible: false,
 };
@@ -836,6 +896,9 @@ function renderDetail(itemId) {
       ${escapeHtml(tag)}
     </span>
   `).join("");
+  const richBody = sanitizeRichHtml(
+    item.bodyHtml || item.body.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join(""),
+  );
   $("#detailContent").innerHTML = `
     <section class="detail-main">
       <h1>${escapeHtml(item.title)}</h1>
@@ -846,8 +909,8 @@ function renderDetail(itemId) {
         <span><svg><use href="#icon-clock"></use></svg>${escapeHtml(item.updated)}</span>
         <span class="status-pill ${statusClass(item.status)}">${statusLabel(item.status)}</span>
       </div>
-      <div class="detail-body">
-        ${item.body.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("")}
+      <div class="detail-body rich-prose">
+        ${richBody}
       </div>
       ${item.attachments?.length ? `
         <section class="detail-attachments" aria-label="${state.lang === "en" ? "Source images" : "来源图片"}">
@@ -1029,11 +1092,13 @@ function seedDemoPastedScreenshot() {
 function paintPastedScreenshot(target) {
   const zone = $(`[data-paste-zone="${target}"]`);
   if (!zone) return;
+  const visual = $("[data-paste-visual]", zone);
+  if (!visual) return;
   const pasted = state.pastedScreenshots[target];
   const submit = $(`[data-submit-screenshot="${target}"]`);
   if (!pasted) {
     zone.classList.remove("has-image");
-    zone.innerHTML = `
+    visual.innerHTML = `
       <span class="paste-zone-icon"><svg><use href="#icon-image"></use></svg></span>
       <strong>${t("screenshotPasteTitle")}</strong>
       <p>${t("screenshotPasteHint")}</p>
@@ -1047,7 +1112,7 @@ function paintPastedScreenshot(target) {
     return;
   }
   zone.classList.add("has-image");
-  zone.innerHTML = `
+  visual.innerHTML = `
     <span class="paste-preview-frame">
       <img src="${pasted.previewUrl}" alt="${state.lang === "en" ? "Pasted screenshot preview" : "剪贴板截图预览"}" />
     </span>
@@ -1090,12 +1155,25 @@ function attachDocumentFileControls(container, target) {
   if (!drop || !input) return;
 
   const acceptFile = (file) => {
-    if (!file || (!isDocumentFile(file) && !isImageFile(file))) return;
+    if (!file) return;
+    if (!isDocumentFile(file) && !isImageFile(file)) {
+      showToast(t("fileUnsupported"));
+      return;
+    }
+    if (file.size > MAX_SCREENSHOT_BYTES) {
+      showToast(t("fileTooLarge"));
+      return;
+    }
     state.selectedFiles[target] = file;
     paintSelectedFile(target, file);
   };
 
-  input.addEventListener("change", () => acceptFile(input.files?.[0]));
+  const picker = $("[data-file-picker]", container);
+  picker?.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => {
+    acceptFile(input.files?.[0]);
+    input.value = "";
+  });
   ["dragenter", "dragover"].forEach((type) => {
     drop.addEventListener(type, (event) => {
       event.preventDefault();
@@ -1109,6 +1187,282 @@ function attachDocumentFileControls(container, target) {
     });
   });
   drop.addEventListener("drop", (event) => acceptFile(event.dataTransfer?.files?.[0]));
+}
+
+const RICH_TEXT_TAGS = new Set([
+  "P", "BR", "H2", "H3", "H4", "STRONG", "B", "EM", "I", "U", "S", "DEL",
+  "UL", "OL", "LI", "BLOCKQUOTE", "A", "CODE", "PRE", "FIGURE", "IMG",
+  "FIGCAPTION", "HR", "DIV", "SPAN",
+]);
+const RICH_TEXT_DROP_TAGS = new Set([
+  "SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "FORM", "INPUT", "BUTTON",
+  "TEXTAREA", "SELECT", "META", "LINK",
+]);
+
+function sanitizeRichHtml(html) {
+  const parsed = new DOMParser().parseFromString(`<div data-rich-root>${String(html || "")}</div>`, "text/html");
+  const root = parsed.querySelector("[data-rich-root]");
+  if (!root) return "";
+
+  [...root.querySelectorAll([...RICH_TEXT_DROP_TAGS].join(","))].forEach((node) => node.remove());
+  [...root.querySelectorAll("*")].reverse().forEach((node) => {
+    if (!RICH_TEXT_TAGS.has(node.tagName)) {
+      node.replaceWith(...node.childNodes);
+      return;
+    }
+
+    [...node.attributes].forEach((attribute) => {
+      const keepLink = node.tagName === "A" && attribute.name === "href";
+      const keepImage = node.tagName === "IMG" && (
+        attribute.name === "src" ||
+        attribute.name === "alt" ||
+        attribute.name === "data-local-rich-image"
+      );
+      if (!keepLink && !keepImage) node.removeAttribute(attribute.name);
+    });
+
+    if (node.tagName === "A") {
+      const href = node.getAttribute("href") || "";
+      try {
+        const url = new URL(href, location.href);
+        if (!["http:", "https:"].includes(url.protocol)) throw new Error("unsafe");
+      } catch {
+        node.replaceWith(...node.childNodes);
+      }
+    }
+
+    if (node.tagName === "IMG") {
+      const src = node.getAttribute("src") || "";
+      const local = node.hasAttribute("data-local-rich-image") && src.startsWith("blob:");
+      if (!local) {
+        const placeholder = parsed.createElement("span");
+        placeholder.className = "remote-image-placeholder";
+        placeholder.textContent = state.lang === "en"
+          ? "Remote image not loaded"
+          : "远程图片未加载";
+        node.replaceWith(placeholder);
+      }
+    }
+  });
+
+  return root.innerHTML;
+}
+
+function getRichEditor(target) {
+  const container = target === "dialog" ? $("#dialogFields") : $("#captureContent");
+  return $("[data-rich-editor]", container);
+}
+
+function getRichToolbarButton(target, command) {
+  const container = target === "dialog" ? $("#dialogFields") : $("#captureContent");
+  return $(`[data-editor-command="${command}"]`, container);
+}
+
+function saveRichSelection(editor) {
+  const selection = window.getSelection();
+  if (!selection?.rangeCount) return null;
+  const range = selection.getRangeAt(0);
+  return editor.contains(range.commonAncestorContainer) ? range.cloneRange() : null;
+}
+
+function restoreRichSelection(editor, range) {
+  editor.focus();
+  if (!range) return;
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function insertRichImage(editor, savedRange, file) {
+  if (!isImageFile(file) || file.size > MAX_SCREENSHOT_BYTES) {
+    showToast(t("editorImageFailed"));
+    return false;
+  }
+  const previewUrl = URL.createObjectURL(file);
+  restoreRichSelection(editor, savedRange);
+  const safeName = escapeHtml(file.name || "image");
+  const mediaType = String(file.type || "").toLowerCase();
+  const isHeic = mediaType === "image/heic" || mediaType === "image/heif" || /\.(heic|heif)$/i.test(file.name || "");
+  const preview = isHeic
+    ? `<span class="image-conversion-placeholder">${state.lang === "en" ? "HEIC preview is generated after the safety scan." : "HEIC 将在安全扫描后生成预览。"}</span>`
+    : `<img src="${previewUrl}" alt="${safeName}" data-local-rich-image="true" />`;
+  document.execCommand(
+    "insertHTML",
+    false,
+    `<figure class="editor-inline-image" contenteditable="false">
+      ${preview}
+      <figcaption>${safeName}</figcaption>
+      <button class="image-caption-action" type="button" data-edit-caption aria-label="${t("editorImageCaptionAction")}">${t("editorImageCaptionAction")}</button>
+    </figure><p><br></p>`,
+  );
+  return true;
+}
+
+function updateRichToolbarState(target) {
+  const editor = getRichEditor(target);
+  if (!editor) return;
+  const selection = window.getSelection();
+  if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return;
+  [["bold", "bold"], ["italic", "italic"], ["underline", "underline"], ["strikeThrough", "strikeThrough"]]
+    .forEach(([command, key]) => {
+      const button = getRichToolbarButton(target, command);
+      if (!button) return;
+      button.setAttribute("aria-pressed", String(Boolean(document.queryCommandState(command))));
+    });
+}
+
+function attachRichEditor(container, target) {
+  const editor = $("[data-rich-editor]", container);
+  if (!editor) return;
+  const imageInput = $("[data-editor-image-input]", container);
+  let savedRange = null;
+  document.execCommand("defaultParagraphSeparator", false, "p");
+
+  editor.addEventListener("keyup", () => updateRichToolbarState(target));
+  editor.addEventListener("mouseup", () => updateRichToolbarState(target));
+  editor.addEventListener("input", () => {
+    state.richDrafts[target] = sanitizeRichHtml(editor.innerHTML);
+  });
+  editor.addEventListener("blur", () => {
+    state.richDrafts[target] = sanitizeRichHtml(editor.innerHTML);
+  });
+
+  editor.addEventListener("paste", (event) => {
+    const imageItem = [...(event.clipboardData?.items || [])]
+      .find((item) => item.kind === "file" && item.type.startsWith("image/"));
+    if (imageItem) {
+      event.preventDefault();
+      const file = imageItem.getAsFile();
+      if (file) insertRichImage(editor, saveRichSelection(editor), file);
+      return;
+    }
+    const pastedHtml = event.clipboardData?.getData("text/html");
+    if (pastedHtml) {
+      event.preventDefault();
+      document.execCommand("insertHTML", false, sanitizeRichHtml(pastedHtml));
+    }
+  });
+
+  const editImageCaption = (image) => {
+    const figure = image?.closest("figure") || image;
+    if (!figure) return;
+    const captionNode = $("figcaption", figure);
+    const next = window.prompt(t("editorImageCaption"), captionNode?.textContent || image.alt || "");
+    if (next === null) return;
+    const caption = next.trim();
+    const previousAlt = typeof image.getAttribute === "function" ? image.getAttribute("alt") : "";
+    const nextAlt = caption || previousAlt || "image";
+    if (typeof image === "object" && "alt" in image) image.alt = nextAlt;
+    if (captionNode) captionNode.textContent = nextAlt;
+  };
+
+  editor.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-edit-caption]");
+    if (!action) return;
+    event.preventDefault();
+    const figure = action.closest("figure");
+    editImageCaption($("img", figure) || figure);
+  });
+
+  editor.addEventListener("dblclick", (event) => {
+    const image = event.target.closest("img[data-local-rich-image]");
+    if (!image) return;
+    editImageCaption(image);
+  });
+
+  $$("[data-editor-command]", container).forEach((button) => {
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("click", () => {
+      const command = button.dataset.editorCommand;
+      savedRange = saveRichSelection(editor);
+      if (command === "createLink") {
+        restoreRichSelection(editor, savedRange);
+        const href = window.prompt(t("editorLinkPrompt"), "https://");
+        if (href === null) return;
+        try {
+          const url = new URL(href, location.href);
+          if (!["http:", "https:"].includes(url.protocol)) throw new Error("unsafe");
+          document.execCommand("createLink", false, url.href);
+        } catch {
+          showToast(t("editorLinkInvalid"));
+        }
+        updateRichToolbarState(target);
+        return;
+      }
+      if (command === "insertImage") {
+        imageInput?.click();
+        return;
+      }
+      restoreRichSelection(editor, savedRange);
+      const value = button.dataset.editorValue || null;
+      document.execCommand(command, false, value);
+      updateRichToolbarState(target);
+    });
+  });
+
+  imageInput?.addEventListener("change", () => {
+    const file = imageInput.files?.[0];
+    if (file && insertRichImage(editor, savedRange || saveRichSelection(editor), file)) {
+      imageInput.value = "";
+      updateRichToolbarState(target);
+    }
+  });
+  window.requestAnimationFrame(() => updateRichToolbarState(target));
+}
+
+function richEditorMarkup(target) {
+  const draft = state.richDrafts[target] || "";
+  const button = (command, label, content, value = "", toggle = false) => `
+    <button
+      type="button"
+      class="editor-tool"
+      data-editor-command="${command}"
+      ${value ? `data-editor-value="${value}"` : ""}
+      aria-label="${label}"
+      title="${label}"
+      ${toggle ? 'aria-pressed="false"' : ""}
+    >${content}</button>
+  `;
+  return `
+    <div class="editor-shell">
+      <div class="editor-toolbar" role="toolbar" aria-label="${t("editorAria")}">
+        ${button("formatBlock", t("editorHeading2"), "H2", "h2")}
+        ${button("formatBlock", t("editorHeading3"), "H3", "h3")}
+        <span class="editor-tool-divider" aria-hidden="true"></span>
+        ${button("bold", t("editorBold"), "<strong>B</strong>", "", true)}
+        ${button("italic", t("editorItalic"), "<em>I</em>", "", true)}
+        ${button("underline", t("editorUnderline"), "<u>U</u>", "", true)}
+        ${button("strikeThrough", t("editorStrike"), "<s>S</s>", "", true)}
+        <span class="editor-tool-divider" aria-hidden="true"></span>
+        ${button("insertUnorderedList", t("editorBulletList"), "•")}
+        ${button("insertOrderedList", t("editorOrderedList"), "1.")}
+        ${button("formatBlock", t("editorQuote"), "“", "blockquote")}
+        ${button("formatBlock", t("editorCode"), "&lt;/&gt;", "pre")}
+        ${button("createLink", t("editorLink"), '<svg><use href="#icon-link"></use></svg>')}
+        ${button("insertImage", t("editorImage"), '<svg><use href="#icon-image"></use></svg>')}
+        <span class="editor-tool-divider" aria-hidden="true"></span>
+        ${button("undo", t("editorUndo"), "↶")}
+        ${button("redo", t("editorRedo"), "↷")}
+        ${button("removeFormat", t("editorClear"), "Tx")}
+      </div>
+      <div
+        class="rich-editor"
+        contenteditable="true"
+        role="textbox"
+        aria-multiline="true"
+        aria-label="${t("formBody")}"
+        data-rich-editor
+        data-placeholder="${t("editorPlaceholder")}"
+      >${draft}</div>
+      <input
+        type="file"
+        hidden
+        data-editor-image-input
+        accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif"
+      />
+      <div class="editor-hint">${t("editorHint")}</div>
+    </div>
+  `;
 }
 
 function renderCaptureForm(mode, target = "page") {
@@ -1137,9 +1491,9 @@ function renderCaptureForm(mode, target = "page") {
           <label for="${inputId}">${t("formTitle")}</label>
           <input class="text-input" id="${inputId}" name="title" placeholder="给这条知识一个名字" required />
         </div>
-        <div class="field-group">
-          <label for="${bodyId}">${t("formBody")}</label>
-          <textarea class="text-area" id="${bodyId}" name="body" placeholder="粘贴文字、想法或摘录……" required></textarea>
+        <div class="field-group rich-field">
+          <span class="field-label" id="${bodyId}-label">${t("formBody")}</span>
+          ${richEditorMarkup(target)}
         </div>
         <div class="field-group">
           <label for="${urlId}">${t("formNote")}</label>
@@ -1154,6 +1508,7 @@ function renderCaptureForm(mode, target = "page") {
         <p>${state.lang === "en" ? "Saving happens before AI classification. The item is searchable right away." : "保存不等待 AI 完成，条目会立即进入检索。"}</p>
       </aside>
     `;
+    attachRichEditor(container, target);
   } else if (mode === "webpage") {
     container.innerHTML = `
       ${openTag}
@@ -1182,12 +1537,13 @@ function renderCaptureForm(mode, target = "page") {
   } else if (mode === "document") {
     container.innerHTML = `
       ${openTag}
-        <label class="file-drop" for="${fileId}" data-file-drop>
+        <div class="file-drop" data-file-drop>
           <svg><use href="#icon-file"></use></svg>
           <p>${t("documentDropTitle")}</p>
           <small class="table-label">${t("formFileHint")}</small>
           <small class="table-label">${t("documentDropHint")}</small>
-        </label>
+          <button class="outline-button file-picker-button" type="button" data-file-picker>${t("formFile")}</button>
+        </div>
         <input
           id="${fileId}"
           name="file"
@@ -1210,7 +1566,7 @@ function renderCaptureForm(mode, target = "page") {
       ${closeTag}
       <aside class="capture-side">
         <h3>${state.lang === "en" ? "Documents and images" : "文档与图片"}</h3>
-        <p>${state.lang === "en" ? "Choose documents or JPG, PNG, and WebP images. Both use the same safety scan." : "可选择文档或 JPG、PNG、WebP 图片，二者使用同一套安全扫描。"}</p>
+        <p>${state.lang === "en" ? "Choose documents or JPG, PNG, WebP, and HEIC/HEIF images. Both use the same safety scan." : "可选择文档或 JPG、PNG、WebP、HEIC/HEIF 图片，二者使用同一套安全扫描。"}</p>
         <h3>${state.lang === "en" ? "Fail closed" : "安全优先"}</h3>
         <p>${t("safetyNote")}</p>
       </aside>
@@ -1224,10 +1580,16 @@ function renderCaptureForm(mode, target = "page") {
         <div
           class="paste-zone${pasted ? " has-image" : ""}"
           data-paste-zone="${target}"
-          tabindex="0"
-          role="button"
-          aria-label="${t("screenshotPasteTitle")}"
-        ></div>
+        >
+          <textarea
+            class="paste-capture"
+            data-paste-input
+            rows="1"
+            spellcheck="false"
+            aria-label="${t("pasteInputAria")}"
+          ></textarea>
+          <div class="paste-visual" data-paste-visual aria-hidden="true"></div>
+        </div>
         <div class="field-group paste-note-field">
           <label for="${inputId}">${t("formNote")}</label>
           <input class="text-input" id="${inputId}" name="note" placeholder="可选：补充上下文" />
@@ -1248,8 +1610,8 @@ function renderCaptureForm(mode, target = "page") {
       </aside>
     `;
     paintPastedScreenshot(target);
-    const zone = $(`[data-paste-zone="${target}"]`, container);
-    window.requestAnimationFrame(() => zone?.focus());
+    const pasteInput = $(`[data-paste-zone="${target}"] [data-paste-input]`, container);
+    window.requestAnimationFrame(() => pasteInput?.focus());
   }
 }
 
@@ -1259,6 +1621,8 @@ function renderCapturePage() {
 
 function switchCaptureMode(mode, target = "page") {
   const container = target === "dialog" ? $("#dialogFields") : $("#captureContent");
+  const editor = $("[data-rich-editor]", container);
+  if (editor) state.richDrafts[target] = sanitizeRichHtml(editor.innerHTML);
   const currentNote = $('input[name="note"]', container)?.value;
   if (typeof currentNote === "string") state.notes[target] = currentNote;
   if (target === "dialog") {
@@ -1267,7 +1631,10 @@ function switchCaptureMode(mode, target = "page") {
   } else {
     state.captureMode = mode;
     $$(".capture-tab").forEach((tab) => {
-      tab.classList.toggle("is-active", tab.dataset.captureMode === mode);
+      const active = tab.dataset.captureMode === mode;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", String(active));
+      tab.tabIndex = active ? 0 : -1;
     });
     renderCapturePage();
   }
@@ -1345,24 +1712,54 @@ function renderDialogFields() {
   renderCaptureForm(state.dialogMode, "dialog");
   $("#captureForm").dataset.captureMode = state.dialogMode;
   $$(".dialog-tabs button").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.dialogMode === state.dialogMode);
+    const active = button.dataset.dialogMode === state.dialogMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+    button.tabIndex = active ? 0 : -1;
   });
   updateStaticDynamicLabels();
 }
 
-function openCaptureDialog(mode = "manual") {
+function openCaptureDialog(mode = "manual", editingItem = null) {
+  state.editingItemId = editingItem?.id || null;
+  if (editingItem) {
+    state.richDrafts.dialog = sanitizeRichHtml(
+      editingItem.bodyHtml || editingItem.body.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join(""),
+    );
+    state.notes.dialog = "";
+  }
   state.dialogMode = mode;
   renderDialogFields();
   const dialog = $("#captureDialog");
   if (!dialog.open) dialog.showModal();
-  if (mode === "screenshot") {
-    window.requestAnimationFrame(() => $('[data-paste-zone="dialog"]')?.focus());
+  const tabs = $(".dialog-tabs", dialog);
+  const heading = $(".dialog-heading h2", dialog);
+  const submit = $(".dialog-actions .primary-button", dialog);
+  if (tabs) tabs.hidden = Boolean(editingItem);
+  if (editingItem) {
+    const titleInput = $('#dialog-title');
+    if (titleInput) titleInput.value = editingItem.title;
+    if (heading) heading.textContent = t("editKnowledgeTitle");
+    if (submit) submit.textContent = t("saveChanges");
+  } else {
+    if (heading) heading.textContent = t("captureDialogTitle");
+    if (submit) submit.textContent = t("saveAuto");
   }
+  if (mode === "screenshot") {
+    window.requestAnimationFrame(() => $('[data-paste-zone="dialog"] [data-paste-input]')?.focus());
+  }
+}
+
+function openEditDialog() {
+  const item = items.find((candidate) => candidate.id === state.currentDetailId);
+  if (!item) return;
+  openCaptureDialog("manual", item);
 }
 
 function addItem({
   title,
   body,
+  bodyHtml = "",
   category = "待整理",
   tags = ["新收录"],
   source = "manual",
@@ -1377,7 +1774,8 @@ function addItem({
     id,
     title,
     summary: body.length > 72 ? `${body.slice(0, 72)}…` : body,
-    body: [body],
+    body: body.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean),
+    bodyHtml,
     category,
     tags,
     source,
@@ -1430,11 +1828,36 @@ function handleCaptureSubmit(form, target) {
   const mode = target === "dialog" ? state.dialogMode : state.captureMode;
   const formData = new FormData(form);
   const note = String(formData.get("note") || "").trim();
+  let editedItemId = null;
   if (mode === "manual") {
     const title = String(formData.get("title") || "").trim();
-    const body = String(formData.get("body") || "").trim();
+    const editor = getRichEditor(target);
+    const bodyHtml = sanitizeRichHtml(editor?.innerHTML || "");
+    const body = String(editor?.innerText || "").trim();
     if (!title || !body) return;
-    addItem({ title, body, source: "manual", sourceLabel: "手动录入", category: "待整理", tags: ["待整理"] });
+    const editingItem = items.find((candidate) => candidate.id === state.editingItemId);
+    if (editingItem) {
+      editedItemId = editingItem.id;
+      editingItem.title = title;
+      editingItem.summary = body.length > 72 ? `${body.slice(0, 72)}…` : body;
+      editingItem.body = body.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+      editingItem.bodyHtml = bodyHtml;
+      editingItem.updated = "刚刚";
+      updateAllCounts();
+      renderHomeResults();
+      renderKnowledgeTable();
+    } else {
+      addItem({
+        title,
+        body,
+        bodyHtml,
+        source: "manual",
+        sourceLabel: "手动录入",
+        category: "待整理",
+        tags: ["待整理"],
+      });
+    }
+    state.richDrafts[target] = "";
   } else if (mode === "webpage") {
     const url = String(formData.get("url") || "").trim();
     if (!url) return;
@@ -1500,6 +1923,10 @@ function handleCaptureSubmit(form, target) {
     $("#captureDialog").close();
   } else {
     renderCapturePage();
+  }
+  if (editedItemId) {
+    renderDetail(editedItemId);
+    showView("detail");
   }
   renderHomeResults();
 }
@@ -1572,7 +1999,7 @@ function bindEvents() {
     }
     const pasteZone = event.target.closest("[data-paste-zone]");
     if (pasteZone) {
-      pasteZone.focus();
+      $("[data-paste-input]", pasteZone)?.focus();
       return;
     }
     const viewButton = event.target.closest("[data-view]");
@@ -1637,7 +2064,41 @@ function bindEvents() {
     if (!imageItem) return;
     event.preventDefault();
     const file = imageItem.getAsFile();
-    if (file) setPastedScreenshot(target, file);
+    if (file) {
+      setPastedScreenshot(target, file);
+      const input = $(`[data-paste-zone="${target}"] [data-paste-input]`);
+      if (input) input.value = "";
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const tab = event.target.closest(".capture-tab, .dialog-tabs button");
+    if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const tabs = [...tab.parentElement.querySelectorAll(".capture-tab, .dialog-tabs button")];
+    if (tabs.length < 2) return;
+    event.preventDefault();
+    const current = tabs.indexOf(tab);
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? tabs.length - 1
+        : (current + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    const next = tabs[nextIndex];
+    if (next.classList.contains("capture-tab")) {
+      switchCaptureMode(next.dataset.captureMode, "page");
+    } else {
+      state.dialogMode = next.dataset.dialogMode;
+      renderDialogFields();
+    }
+    next.focus();
+  });
+
+  document.addEventListener("selectionchange", () => {
+    const dialog = $("#captureDialog");
+    const target = dialog.open && state.dialogMode === "manual"
+      ? "dialog"
+      : (!dialog.open && state.view === "capture" && state.captureMode === "manual" ? "page" : null);
+    if (target) updateRichToolbarState(target);
   });
 
   $("#searchForm").addEventListener("submit", (event) => {
@@ -1660,6 +2121,7 @@ function bindEvents() {
   });
 
   $("#detailBack").addEventListener("click", () => showView("library"));
+  $("#editItemButton").addEventListener("click", openEditDialog);
   $("#reanalyzeButton").addEventListener("click", () => {
     showToast(t("reanalysis"));
   });
@@ -1686,6 +2148,20 @@ function bindEvents() {
 
   $("#captureDialog").addEventListener("click", (event) => {
     if (event.target === $("#captureDialog")) $("#captureDialog").close();
+  });
+  $("#captureDialog").addEventListener("close", () => {
+    const dialog = $("#captureDialog");
+    const tabs = $(".dialog-tabs", dialog);
+    const heading = $(".dialog-heading h2", dialog);
+    const submit = $(".dialog-actions .primary-button", dialog);
+    if (state.editingItemId) {
+      state.richDrafts.dialog = "";
+      state.notes.dialog = "";
+    }
+    state.editingItemId = null;
+    if (tabs) tabs.hidden = false;
+    if (heading) heading.textContent = t("captureDialogTitle");
+    if (submit) submit.textContent = t("saveAuto");
   });
 
   document.addEventListener("submit", (event) => {
