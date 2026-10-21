@@ -78,6 +78,9 @@
   不拥有业务数据库，不得把支付逻辑直接并入 Spring Boot Web 进程。
 - AI 调用使用 Spring `WebClient` 和显式超时、重试、限流及结构化输出校验；不得让 Provider
   异常绕过 002 的报价、预留、结算和释放门禁。
+- DeepSeek 联网搜索使用官方 `POST /v1/tools/search` 和单页 `POST /v1/tools/fetch`；只有用户
+  在本地结果后再次确认才能发送查询。Fetch 只能处理用户选择的一个候选 URL，不得遍历链接或
+  退化为爬虫。
 - 出现 `package.json`、`pyproject.toml`、`Cargo.toml` 等清单后，以清单中的脚本和版本约束为准。
 - 依赖安装必须使用仓库锁文件对应的包管理器，不得无故切换包管理器或重写锁文件。
 - 新增依赖前说明必要性，优先使用标准库和已有依赖。

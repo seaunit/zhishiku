@@ -99,6 +99,19 @@ export interface SearchResponse {
   degraded: boolean
 }
 
+export interface ExternalSearchCandidate {
+  candidateId: string
+  title: string
+  url: string
+  snippet: string
+  provider: string
+  expiresAt: string
+}
+
+export interface ExternalSearchResponse {
+  items: ExternalSearchCandidate[]
+}
+
 export interface CreateKnowledgeItemRequest {
   title: string
   bodyDocument: RichTextDocument

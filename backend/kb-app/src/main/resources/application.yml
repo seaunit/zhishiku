@@ -74,6 +74,14 @@ app:
     expose-code: ${REGISTRATION_EXPOSE_CODE:false}
     from-address: ${SMTP_FROM:no-reply@mail.seaunit.site}
     from-name: ${SMTP_FROM_NAME:识海}
+  external-search:
+    search-endpoint: ${DEEPSEEK_SEARCH_ENDPOINT:https://api.deepseek.com/v1/tools/search}
+    fetch-endpoint: ${DEEPSEEK_FETCH_ENDPOINT:https://api.deepseek.com/v1/tools/fetch}
+    search-api-key: ${DEEPSEEK_SEARCH_API_KEY:}
+    fetch-api-key: ${DEEPSEEK_FETCH_API_KEY:}
+    timeout-seconds: ${DEEPSEEK_SEARCH_TIMEOUT_SECONDS:20}
+    max-results: ${DEEPSEEK_SEARCH_MAX_RESULTS:8}
+    candidate-ttl-seconds: ${DEEPSEEK_SEARCH_CANDIDATE_TTL_SECONDS:900}
 
 management:
   endpoints:

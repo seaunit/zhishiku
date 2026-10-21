@@ -4,6 +4,7 @@ import type {
   CaptchaResponse,
   CreateKnowledgeItemRequest,
   CsrfResponse,
+  ExternalSearchResponse,
   KnowledgeItem,
   KnowledgeItemPage,
   RegistrationEmailCodeResponse,
@@ -190,6 +191,28 @@ export function listKnowledgeItems(limit = 20): Promise<KnowledgeItemPage> {
 export function searchKnowledge(query: string, limit = 20): Promise<SearchResponse> {
   const params = new URLSearchParams({ q: query, limit: String(limit) })
   return request<SearchResponse>(`/search?${params.toString()}`)
+}
+
+export function searchInternet(query: string): Promise<ExternalSearchResponse> {
+  return request<ExternalSearchResponse>('/search/external', {
+    method: 'POST',
+    body: JSON.stringify({
+      query,
+      explicitConsent: true,
+      includeAnswer: false,
+    }),
+  })
+}
+
+export function saveInternetCandidate(candidateId: string): Promise<KnowledgeItem> {
+  return request<KnowledgeItem>(
+    `/search/external/${encodeURIComponent(candidateId)}/save`,
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': createIdempotencyKey('external-save') },
+      body: JSON.stringify({}),
+    },
+  )
 }
 
 export function getKnowledgeItem(id: string): Promise<KnowledgeItem> {

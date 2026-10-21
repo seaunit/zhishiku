@@ -4,7 +4,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
-    Owner owner, Storage storage, Security security, Captcha captcha, Registration registration) {
+    Owner owner,
+    Storage storage,
+    Security security,
+    Captcha captcha,
+    Registration registration,
+    ExternalSearch externalSearch) {
   public record Owner(
       String email, String password, String bootstrapToken, boolean autoBootstrap) {}
 
@@ -26,4 +31,13 @@ public record AppProperties(
       boolean exposeCode,
       String fromAddress,
       String fromName) {}
+
+  public record ExternalSearch(
+      String searchEndpoint,
+      String fetchEndpoint,
+      String searchApiKey,
+      String fetchApiKey,
+      int timeoutSeconds,
+      int maxResults,
+      long candidateTtlSeconds) {}
 }

@@ -76,6 +76,14 @@ class OwnerServiceTest {
             1000,
             false,
             "no-reply@mail.seaunit.site",
-            "识海"));
+            "识海"),
+        new AppProperties.ExternalSearch(
+            "https://api.deepseek.com/v1/tools/search",
+            "https://api.deepseek.com/v1/tools/fetch",
+            "",
+            "",
+            20,
+            8,
+            900));
   }
 }

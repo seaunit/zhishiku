@@ -20,6 +20,8 @@ import site.seaunit.zhishiku.auth.registration.RegistrationClosedException;
 import site.seaunit.zhishiku.core.richtext.RichTextException;
 import site.seaunit.zhishiku.knowledge.RichTextConflictException;
 import site.seaunit.zhishiku.richtext.image.ImageInspectionException;
+import site.seaunit.zhishiku.search.external.ExternalSearchCandidateNotFoundException;
+import site.seaunit.zhishiku.search.external.ExternalSearchUnavailableException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -134,6 +136,20 @@ public class ApiExceptionHandler {
       MaxUploadSizeExceededException error, HttpServletRequest request) {
     return response(
         HttpStatus.PAYLOAD_TOO_LARGE, "UPLOAD_TOO_LARGE", "File exceeds 25 MiB.", request);
+  }
+
+  @ExceptionHandler(ExternalSearchUnavailableException.class)
+  ResponseEntity<ErrorResponse> externalSearchUnavailable(
+      ExternalSearchUnavailableException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.SERVICE_UNAVAILABLE, "EXTERNAL_SEARCH_UNAVAILABLE", error.getMessage(), request);
+  }
+
+  @ExceptionHandler(ExternalSearchCandidateNotFoundException.class)
+  ResponseEntity<ErrorResponse> externalCandidateNotFound(
+      ExternalSearchCandidateNotFoundException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.NOT_FOUND, "EXTERNAL_CANDIDATE_NOT_FOUND", error.getMessage(), request);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

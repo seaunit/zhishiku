@@ -100,6 +100,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T051 [P1] [US3] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/contract/imports/` 中使用 RestAssured/OpenAPI Validator 验证上传组合、CSRF、415、413、422 和任务契约
 - [ ] T052 [P1] [US3] 在 `tests/e2e/us3-imports.spec.ts` 中验证文档、JPG/PNG/WebP/HEIC、剪贴板截图、拒绝和重试
 - [x] T088 [P1] [US3] 在采集页恢复手动录入、网页链接、文档和截图四个入口；实现单页 URL 收藏、TXT/Markdown 与图片文件入库、仅剪贴板截图上传，并对未接入的 PDF/Word 解析明确拒绝
+- [x] T089 [P0] [US4] 在首页恢复“继续搜索互联网”，接入 DeepSeek Search/Fetch Provider、显式同意、短期候选、来源打开与收入知识库，并保持本地结果优先
 
 ## 阶段 6：用户故事 4 — 互联网搜索与候选保存
 
@@ -437,3 +438,24 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-017 至 FR-022、FR-031、FR-066、FR-067。
 - 风险与回滚：PDF/Word 内容解析、网页 AI 截图分析和 OCR 仍未接入，分别继续由 T048、
   T049、T051-T052 承载。回滚前端可恢复单入口采集，不影响已保存知识、上传或来源记录。
+
+### 完成记录：T089
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：产品、开发、测试
+- Git commit：未提交
+- 摘要：恢复本地优先的联网搜索，并接入 DeepSeek Search 与单 URL Fetch。
+- 详情：首页在本地搜索完成后显示“继续搜索互联网”；用户再次点击且显式同意后，后端使用
+  `DEEPSEEK_SEARCH_API_KEY` 调用官方 Search API，只发送搜索词。候选绑定当前账号并短期缓存；
+  用户选择“收入识海”后，后端使用 `DEEPSEEK_FETCH_API_KEY` 获取单个 URL 的 Markdown，转换为
+  富文本并以 `internet_result` 来源保存。
+- 验证：Provider Search/Fetch 协议、Bearer 认证和响应映射测试通过；候选归属与保存来源测试
+  通过；前端 E2E 验证本地结果先显示、点击前不联网、显式同意字段和候选保存。
+- 证据：`DeepSeekWebProvider.java`、`ExternalSearchService.java`、
+  `DeepSeekWebProviderTest.java`、`ExternalSearchServiceTest.java`、
+  `frontend/kb-web/e2e/app.spec.ts`、`artifacts/001/internet-search.md`。
+- 覆盖：FR-008 至 FR-012、FR-040 至 FR-041、FR-060。
+- 风险与回滚：MVP 当前不扣除 002 点数，正式收费前必须接入计费门禁；候选缓存重启后失效；
+  Search/Fetch Provider 故障只影响联网区，不清空本地结果。回滚可移除互联网入口和后端端点，
+  不影响已保存的 `internet_result` 知识。

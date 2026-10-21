@@ -245,6 +245,69 @@ test('saves a clipboard screenshot through the dedicated capture mode', async ({
   expect(JSON.stringify(capturedPayload?.bodyDocument)).toContain(uploadId)
 })
 
+test('continues to internet search only after explicit consent and saves a candidate', async ({
+  page,
+}) => {
+  let externalRequests = 0
+  let consentPayload: Record<string, unknown> | undefined
+  await page.route('**/kb/api/v1/search/external', async (route) => {
+    externalRequests += 1
+    consentPayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            candidateId: '123e4567-e89b-42d3-a456-426614174120',
+            title: 'DeepSeek Search result',
+            url: 'https://www.deepseek.com/',
+            snippet: 'A live internet search candidate.',
+            provider: 'DeepSeek',
+            expiresAt: '2026-10-22T12:15:00Z',
+          },
+        ],
+      }),
+    })
+  })
+  await page.route(
+    '**/kb/api/v1/search/external/123e4567-e89b-42d3-a456-426614174120/save',
+    async (route) => {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...summary,
+          id: '123e4567-e89b-42d3-a456-426614174121',
+          body: 'Fetched web content',
+          bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
+          bodySchemaVersion: 1,
+          bodyMigrationState: 'completed',
+          note: 'Internet summary',
+          redactionApplied: false,
+        }),
+      })
+    },
+  )
+
+  await page.goto('/kb/')
+  await page.getByRole('searchbox', { name: '搜索全部知识' }).fill('DeepSeek')
+  await page.getByRole('button', { name: '潜入检索' }).click()
+  await expect(page.getByText('找到 1 条知识')).toBeVisible()
+  expect(externalRequests).toBe(0)
+
+  await page.getByRole('button', { name: '继续搜索互联网' }).click()
+  await expect(page.getByText('DeepSeek Search result')).toBeVisible()
+  expect(consentPayload).toMatchObject({
+    query: 'DeepSeek',
+    explicitConsent: true,
+    includeAnswer: false,
+  })
+
+  await page.getByRole('button', { name: '收入识海' }).click()
+  await expect(page).toHaveURL(/\/kb\/library\/123e4567-e89b-42d3-a456-426614174121$/)
+})
+
 test('logs in after fetching a CSRF token', async ({ page }) => {
   await page.route('**/kb/api/v1/auth/captcha', async (route) => {
     await route.fulfill({

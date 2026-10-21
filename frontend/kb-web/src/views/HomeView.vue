@@ -125,6 +125,101 @@
             </span>
           </RouterLink>
         </div>
+
+        <div v-if="searchedQuery" class="internet-search">
+          <button
+            v-if="!externalVisible"
+            type="button"
+            class="internet-trigger"
+            @click="searchExternalInternet"
+          >
+            <span>
+              <strong><Globe2 :size="16" />{{ t('home.internetSearch') }}</strong>
+              <small>{{ t('home.internetHint') }}</small>
+            </span>
+            <ArrowRight :size="17" />
+          </button>
+
+          <div v-else class="external-results">
+            <header class="external-heading">
+              <span><Globe2 :size="15" />{{ t('home.internetResults') }}</span>
+              <span v-if="externalLoading" class="external-status">
+                <LoaderCircle class="spin" :size="14" />
+                {{ t('home.internetLoading') }}
+              </span>
+              <span v-else>{{ externalItems.length }}</span>
+            </header>
+
+            <div v-if="externalError" class="inline-error external-error" role="alert">
+              <CircleAlert :size="18" />
+              <div>
+                <strong>{{ t('home.internetFailed') }}</strong>
+                <p>{{ externalError }}</p>
+              </div>
+              <button type="button" class="text-button" @click="searchExternalInternet">
+                {{ t('home.internetRetry') }}
+              </button>
+            </div>
+
+            <div v-else-if="externalLoading" class="external-loading">
+              <span class="skeleton title-line" />
+              <span class="skeleton text-line" />
+            </div>
+
+            <div v-else-if="externalItems.length === 0" class="external-empty">
+              {{ t('home.internetEmpty') }}
+            </div>
+
+            <template v-else>
+              <article
+                v-for="candidate in externalItems"
+                :key="candidate.candidateId"
+                class="external-row"
+              >
+                <Globe2 :size="16" />
+                <div>
+                  <a
+                    class="external-title"
+                    :href="candidate.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ candidate.title }}
+                  </a>
+                  <p>{{ candidate.snippet || candidate.provider }}</p>
+                  <small>{{ candidate.provider }}</small>
+                </div>
+                <div class="external-actions">
+                  <a
+                    class="text-link"
+                    :href="candidate.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ t('home.internetOpen') }}
+                  </a>
+                  <button
+                    type="button"
+                    class="button secondary"
+                    :disabled="savingCandidateId === candidate.candidateId"
+                    @click="saveCandidate(candidate)"
+                  >
+                    <LoaderCircle
+                      v-if="savingCandidateId === candidate.candidateId"
+                      class="spin"
+                      :size="15"
+                    />
+                    {{
+                      savingCandidateId === candidate.candidateId
+                        ? t('home.internetSaving')
+                        : t('home.internetSave')
+                    }}
+                  </button>
+                </div>
+              </article>
+            </template>
+          </div>
+        </div>
       </section>
 
       <aside class="right-rail">
@@ -205,6 +300,7 @@ import {
   CircleAlert,
   FileText,
   Filter,
+  Globe2,
   Image,
   Inbox,
   Layers,
@@ -216,10 +312,17 @@ import {
 } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { listKnowledgeItems, searchKnowledge } from '@/api/client'
-import type { KnowledgeItemSummary } from '@/types/api'
+import { useRouter } from 'vue-router'
+import {
+  listKnowledgeItems,
+  saveInternetCandidate,
+  searchInternet,
+  searchKnowledge,
+} from '@/api/client'
+import type { ExternalSearchCandidate, KnowledgeItemSummary } from '@/types/api'
 
 const { t, locale } = useI18n()
+const router = useRouter()
 const query = ref('')
 const searchedQuery = ref('')
 const allItems = ref<KnowledgeItemSummary[]>([])
@@ -227,6 +330,11 @@ const items = ref<KnowledgeItemSummary[]>([])
 const loading = ref(false)
 const error = ref('')
 const degraded = ref(false)
+const externalVisible = ref(false)
+const externalLoading = ref(false)
+const externalError = ref('')
+const externalItems = ref<ExternalSearchCandidate[]>([])
+const savingCandidateId = ref('')
 
 const displayedItems = computed(() => items.value.slice(0, 5))
 const queueItems = computed(() =>
@@ -300,6 +408,10 @@ async function load() {
   loading.value = true
   error.value = ''
   degraded.value = false
+  externalVisible.value = false
+  externalLoading.value = false
+  externalError.value = ''
+  externalItems.value = []
   const normalized = query.value.trim()
   try {
     if (normalized) {
@@ -328,6 +440,35 @@ async function submitSearch() {
 async function searchCategory(name: string) {
   query.value = name
   await load()
+}
+
+async function searchExternalInternet() {
+  if (!searchedQuery.value) return
+  externalVisible.value = true
+  externalLoading.value = true
+  externalError.value = ''
+  externalItems.value = []
+  try {
+    const response = await searchInternet(searchedQuery.value)
+    externalItems.value = response.items
+  } catch (caught) {
+    externalError.value = caught instanceof Error ? caught.message : t('errors.generic')
+  } finally {
+    externalLoading.value = false
+  }
+}
+
+async function saveCandidate(candidate: ExternalSearchCandidate) {
+  savingCandidateId.value = candidate.candidateId
+  externalError.value = ''
+  try {
+    const saved = await saveInternetCandidate(candidate.candidateId)
+    await router.push(`/library/${saved.id}`)
+  } catch (caught) {
+    externalError.value = caught instanceof Error ? caught.message : t('errors.generic')
+  } finally {
+    savingCandidateId.value = ''
+  }
 }
 
 onMounted(load)
