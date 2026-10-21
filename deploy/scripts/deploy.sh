@@ -291,6 +291,7 @@ fi
 
 PORTAL_RELEASE_DIR="$PORTAL_ROOT/releases/$RELEASE_ID"
 PORTAL_STAGE_DIR="$PORTAL_ROOT/.deploy-$RELEASE_ID"
+install -d -m 0755 "$PORTAL_ROOT/releases"
 install -d -m 0755 "$PORTAL_STAGE_DIR"
 cp -a "$SOURCE_DIR/deploy/portal/." "$PORTAL_STAGE_DIR/"
 printf '%s\n' "$SOURCE_SHA" > "$PORTAL_STAGE_DIR/VERSION"
