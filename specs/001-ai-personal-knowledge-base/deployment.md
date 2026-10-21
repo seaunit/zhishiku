@@ -4,7 +4,7 @@
 
 **检查日期**：2026-10-21
 
-**状态**：设计与只读检查；未执行生产变更
+**状态**：已实现增量门户与一键部署；生产变更和回滚由部署脚本管理
 
 ## 当前服务器基线
 
@@ -25,7 +25,7 @@
 
 ```text
 https://seaunit.site/
-  -> 静态门户，提供 /app 和 /kb
+  -> 静态门户 /opt/seaunit-portal/current，提供 /app 和 /kb
 
 https://seaunit.site/kb/
   -> Nginx 提供 Vue dist 静态文件
@@ -84,7 +84,7 @@ zhishiku-waffo-bridge.service
 
 ```nginx
 location = / {
-    root /opt/seaunit-portal;
+    root /opt/seaunit-portal/current;
     try_files /index.html =404;
 }
 
@@ -127,7 +127,8 @@ location /kb/ {
 }
 ```
 
-最终配置必须基于现有 Nginx 文件做增量修改，执行 `nginx -t` 后 reload。失败时恢复备份。
+最终配置必须基于现有 Nginx 文件做增量修改：只替换精确的 `location = /`，再注入 `/kb`
+include。执行 `nginx -t` 后 reload；失败时恢复 Nginx 备份和上一门户 release。
 
 ## 数据库
 

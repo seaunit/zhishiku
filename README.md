@@ -106,7 +106,9 @@ pnpm build
 - GitHub 是源码、迁移和部署脚本的唯一权威来源。
 - 部署必须支持指定 Git tag 或 commit、重复执行、健康检查和失败回滚。
 - 知识库部署在现有 `seaunit.site` 的 `/kb` 路径。
-- 不得影响现有应用的 `/api`、`/app`、`/bank`、`/pay`、`/apk`、证书或认证配置。
+- 根路径 `/` 是 SEAUNIT 门户，同时提供拾题和识海入口；拾题原有页面继续使用
+  `/app`、`/login`、`/bank` 等路径。
+- 不得影响现有应用的 `/api`、`/app`、`/login`、`/bank`、`/pay`、`/apk`、证书或认证配置。
 - 所有密钥仅通过服务器环境变量或受管密钥服务提供，不得进入仓库。
 - 识海使用独立 `kb_pack_*` 商品、Waffo 桥接、订单、点数账本和
   `/kb/pay/webhooks/waffo`；不得复用拾题 `pack_*`、`8090` 侧车或 `/pay` 路由。
@@ -136,9 +138,12 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 - 从 `https://github.com/seaunit/zhishiku.git` 拉取源码，不使用本地工作树。
 - 使用 Java 17、PostgreSQL 18、Vue 构建和 Nginx 静态文件。
 - 服务只监听 `127.0.0.1:8082`，公开入口为 `/kb/`。
+- 静态门户安装到 `/opt/seaunit-portal/current`，根路径 `/` 同时提供拾题和识海入口。
 - 保留上一 release；健康检查失败时自动切回。
-- 只向现有 Nginx 配置注入受管理的 `/kb` 片段，并在 `nginx -t` 失败时恢复备份。
-- 不修改拾题进程、MySQL、Redis、支付 sidecar 或 `/app`、`/api`、`/pay` 路由。
+- 只替换现有 Nginx 配置中精确的 `location = /`，并注入受管理的 `/kb` 片段；`nginx -t`
+  失败时恢复配置备份。
+- 不修改拾题进程、MySQL、Redis、支付 sidecar 或 `/app`、`/login`、`/api`、`/bank`、
+  `/pay` 路由。
 
 首次执行部署脚本时会通过终端隐藏输入 DeepSeek AI、Search、Fetch API Key 和 SMTP
 密码/应用专用密钥。密钥只写入权限为 `600` 的 `/etc/zhishiku/kb.env`，不会进入 Git、

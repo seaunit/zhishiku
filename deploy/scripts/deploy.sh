@@ -4,6 +4,7 @@ set -Eeuo pipefail
 REPO_URL="${KB_REPO_URL:-https://github.com/seaunit/zhishiku.git}"
 REF="${KB_REF:-main}"
 INSTALL_ROOT="${KB_INSTALL_ROOT:-/opt/zhishiku}"
+PORTAL_ROOT="${KB_PORTAL_ROOT:-/opt/seaunit-portal}"
 ENV_FILE="${KB_ENV_FILE:-/etc/zhishiku/kb.env}"
 SERVICE_NAME="${KB_SERVICE_NAME:-zhishiku-api}"
 SERVICE_USER="${KB_SERVICE_USER:-zhishiku}"
@@ -173,8 +174,11 @@ ensure_secrets
 WORK_DIR="$(mktemp -d)"
 SOURCE_DIR="$WORK_DIR/source"
 STAGE_DIR=""
+PORTAL_STAGE_DIR=""
 PREVIOUS_RELEASE=""
+PORTAL_PREVIOUS_RELEASE=""
 ROLLBACK_ACTIVE=0
+PORTAL_SWITCHED=0
 NGINX_BACKUP=""
 
 cleanup() {
@@ -186,6 +190,14 @@ cleanup() {
       mv -Tf "$INSTALL_ROOT/current.next" "$INSTALL_ROOT/current"
       systemctl restart "$SERVICE_NAME" || true
     fi
+    if ((PORTAL_SWITCHED == 1)); then
+      if [[ -n "$PORTAL_PREVIOUS_RELEASE" && -d "$PORTAL_PREVIOUS_RELEASE" ]]; then
+        ln -sfn "$PORTAL_PREVIOUS_RELEASE" "$PORTAL_ROOT/current.next"
+        mv -Tf "$PORTAL_ROOT/current.next" "$PORTAL_ROOT/current"
+      else
+        rm -f "$PORTAL_ROOT/current"
+      fi
+    fi
     if [[ -n "$NGINX_BACKUP" && -f "$NGINX_BACKUP" ]]; then
       cp -a "$NGINX_BACKUP" "$NGINX_CONFIG"
       nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
@@ -193,6 +205,9 @@ cleanup() {
   fi
   if [[ -n "$STAGE_DIR" && -d "$STAGE_DIR" ]]; then
     rm -rf "$STAGE_DIR"
+  fi
+  if [[ -n "$PORTAL_STAGE_DIR" && -d "$PORTAL_STAGE_DIR" ]]; then
+    rm -rf "$PORTAL_STAGE_DIR"
   fi
   rm -rf "$WORK_DIR"
   exit "$status"
@@ -274,7 +289,22 @@ if ! wait_for_health; then
   exit 1
 fi
 
-if [[ -f "$NGINX_CONFIG" ]] && ! grep -q 'zhishiku-kb.conf' "$NGINX_CONFIG"; then
+PORTAL_RELEASE_DIR="$PORTAL_ROOT/releases/$RELEASE_ID"
+PORTAL_STAGE_DIR="$PORTAL_ROOT/.deploy-$RELEASE_ID"
+install -d -m 0755 "$PORTAL_STAGE_DIR"
+cp -a "$SOURCE_DIR/deploy/portal/." "$PORTAL_STAGE_DIR/"
+printf '%s\n' "$SOURCE_SHA" > "$PORTAL_STAGE_DIR/VERSION"
+chmod -R u=rwX,go=rX "$PORTAL_STAGE_DIR"
+mv "$PORTAL_STAGE_DIR" "$PORTAL_RELEASE_DIR"
+PORTAL_STAGE_DIR=""
+if [[ -L "$PORTAL_ROOT/current" ]]; then
+  PORTAL_PREVIOUS_RELEASE="$(readlink -f "$PORTAL_ROOT/current")"
+fi
+ln -sfn "$PORTAL_RELEASE_DIR" "$PORTAL_ROOT/current.next"
+mv -Tf "$PORTAL_ROOT/current.next" "$PORTAL_ROOT/current"
+PORTAL_SWITCHED=1
+
+if [[ -f "$NGINX_CONFIG" ]]; then
   NGINX_BACKUP="/root/nginx-before-zhishiku-$(date -u +%Y%m%d%H%M%S).conf"
   cp -a "$NGINX_CONFIG" "$NGINX_BACKUP"
   python3 - "$NGINX_CONFIG" <<'PY'
@@ -283,19 +313,49 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text(encoding="utf-8")
-if "zhishiku-kb.conf" in text:
-    raise SystemExit(0)
 if "listen 443" not in text or "seaunit.site" not in text:
     raise SystemExit("Target Nginx file does not contain the expected HTTPS server.")
 
 lines = text.splitlines(keepends=True)
-closing = [index for index, line in enumerate(lines) if line.strip() == "}"]
-if not closing:
-    raise SystemExit("Could not find the target server closing brace.")
+changed = False
 
-marker = "    include /etc/nginx/snippets/zhishiku-kb.conf; # managed by zhishiku\n"
-lines.insert(closing[-1], marker)
-path.write_text("".join(lines), encoding="utf-8")
+if "root /opt/seaunit-portal/current;" not in text:
+    start = next(
+        (index for index, line in enumerate(lines) if line.strip() == "location = / {"),
+        None,
+    )
+    if start is None:
+        raise SystemExit("Could not find the exact root location block.")
+
+    depth = 0
+    end = None
+    for index in range(start, len(lines)):
+        depth += lines[index].count("{") - lines[index].count("}")
+        if depth == 0:
+            end = index
+            break
+    if end is None:
+        raise SystemExit("Could not find the end of the root location block.")
+
+    indent = lines[start][: len(lines[start]) - len(lines[start].lstrip())]
+    lines[start : end + 1] = [
+        f"{indent}location = / {{\n",
+        f"{indent}    root /opt/seaunit-portal/current;\n",
+        f"{indent}    try_files /index.html =404;\n",
+        f"{indent}}}\n",
+    ]
+    changed = True
+
+if "zhishiku-kb.conf" not in "".join(lines):
+    closing = [index for index, line in enumerate(lines) if line.strip() == "}"]
+    if not closing:
+        raise SystemExit("Could not find the target server closing brace.")
+    marker = "    include /etc/nginx/snippets/zhishiku-kb.conf; # managed by zhishiku\n"
+    lines.insert(closing[-1], marker)
+    changed = True
+
+if changed:
+    path.write_text("".join(lines), encoding="utf-8")
 PY
   if ! nginx -t; then
     cp -a "$NGINX_BACKUP" "$NGINX_CONFIG"
@@ -351,9 +411,13 @@ fi
 
 curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/kb/ >/dev/null
 curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/app >/dev/null
+curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/bank/1 >/dev/null
+curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/login >/dev/null
+curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/ \
+  | grep -q '拾题与识海'
 
 ROLLBACK_ACTIVE=0
-printf '[deploy] Release %s is live at https://seaunit.site/kb/\n' "$RELEASE_ID"
+printf '[deploy] Release %s is live at https://seaunit.site/ and https://seaunit.site/kb/\n' "$RELEASE_ID"
 if [[ -f /root/zhishiku-initial-password ]]; then
   printf '[deploy] Initial login details: /root/zhishiku-initial-password\n'
 fi

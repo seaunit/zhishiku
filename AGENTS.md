@@ -80,6 +80,16 @@
 - 代码应遵循就近模块的组织方式、命名习惯和错误处理模式。
 - 不提交密钥、令牌、个人隐私数据、构建产物、缓存或本地环境文件。
 
+## 部署与共存
+
+- 生产使用 GitHub 固定 tag 或 commit 触发原生 Nginx、systemd 部署，不假设服务器使用 Docker。
+- `https://seaunit.site/` 是 SEAUNIT 双应用门户，必须同时提供拾题和识海入口；门户安装到
+  `/opt/seaunit-portal/current`。
+- 门户发布只能替换 Nginx 中精确的 `location = /`，并保留 `/app`、`/login`、`/bank`、`/api`、
+  `/pay`、`/apk`、证书、Cookie 和支付 sidecar 的现有行为。
+- `/kb/` 与根门户的 Nginx 改动必须先备份，执行 `nginx -t`，失败时恢复配置和上一 release。
+- 不得为门户部署修改或重启拾题的 MySQL、Redis、认证、支付服务或既有环境文件。
+
 ## 验证
 
 根据实际改动选择验证范围，并在交付前执行可得检查：
@@ -90,6 +100,8 @@
 - 若仓库已初始化 Git，至少运行 `git diff --check` 检查空白错误。
 - Java 改动至少执行 Maven Wrapper 的单元、集成、契约和构建检查；Vue 改动至少执行
   lint、TypeScript 检查、Vitest 和 Playwright 验收。
+- 根门户改动至少执行 Taste lint、1440/768/390 真实浏览器检查和入口链接冒烟；生产发布后
+  复核 `/`、`/app`、`/login`、`/bank/1`、`/kb/` 和 `/kb/api/actuator/health`。
 - 若缺少测试或验证命令，明确说明未覆盖的风险，不得声称“已验证通过”。
 
 ## 付费与计费

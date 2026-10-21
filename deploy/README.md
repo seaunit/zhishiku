@@ -13,8 +13,8 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 生产环境应将 `main` 替换为验收通过的 tag 或完整 commit SHA。
 
 脚本会安装 Java 17、Node.js、pnpm、PostgreSQL 18 和必要工具，创建独立的
-`zhishiku` 用户、数据库、环境文件、systemd 服务和 `/kb` Nginx 片段。初始登录信息写入
-`/root/zhishiku-initial-password`，登录后应删除。
+`zhishiku` 用户、数据库、环境文件、systemd 服务、`/kb` Nginx 片段和双应用门户。初始登录信息
+写入 `/root/zhishiku-initial-password`，登录后应删除。
 
 新部署也可以不预置所有者，在 `/kb/register` 通过 SMTP 邮箱验证完成唯一所有者初始化；已有
 所有者后注册自动关闭。默认 SMTP 主机为 `smtpdm.aliyun.com:465`，发件与登录账号为
@@ -58,18 +58,21 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 
 ## 路由边界
 
+- `/`：SEAUNIT 静态门户，提供拾题和识海两个入口。
 - `/kb/`：识海 Vue 静态文件。
 - `/kb/api/`：受保护的 Spring Boot API。
 - `/kb/assets/`：带长期缓存的 Vue 静态资源。
-- `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`：继续由现有拾题应用处理。
+- `/app`、`/login`、`/api`、`/bank`、`/pay`、`/apk`：继续由现有拾题应用处理。
 
-脚本只向现有 `shuati.conf` 注入一行受管理的 `include`。注入前备份，`nginx -t` 失败时
-自动恢复。
+脚本把门户安装到 `/opt/seaunit-portal/releases/`，由 `current` 指向当前版本。对现有
+`shuati.conf` 只做两项受管理修改：把精确的 `location = /` 替换为静态门户，并注入一行受管理
+的 `/kb` `include`。修改前备份，`nginx -t` 失败时自动恢复配置和上一 release。
 
 ## 回滚
 
-应用 release 位于 `/opt/zhishiku/releases/`，`/opt/zhishiku/current` 指向当前版本。
-健康检查失败时脚本会自动切回上一版本。手工回滚：
+应用 release 位于 `/opt/zhishiku/releases/`，静态门户 release 位于
+`/opt/seaunit-portal/releases/`；两个 `current` 符号链接分别指向当前版本。健康检查或 Nginx
+校验失败时脚本会自动切回上一版本并恢复配置。手工回滚应用：
 
 ```bash
 ln -sfn /opt/zhishiku/releases/<previous-release> /opt/zhishiku/current.next
