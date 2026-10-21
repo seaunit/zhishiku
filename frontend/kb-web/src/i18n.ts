@@ -47,7 +47,7 @@ const messages = {
       captchaRequired: '请输入验证码。',
       captchaInvalid: '验证码错误或已过期，请重新输入。',
       captchaLoadFailed: '验证码加载失败，请点击验证码图片重试。',
-      registerLink: '首次部署？创建账户',
+      registerLink: '注册账户',
       registeredSuccess: '账户创建成功，请登录。',
     },
     register: {
@@ -225,7 +225,7 @@ const messages = {
       captchaRequired: 'Enter the verification code.',
       captchaInvalid: 'The verification code is incorrect or expired. Enter the new code.',
       captchaLoadFailed: 'The verification code could not be loaded. Click the image to retry.',
-      registerLink: 'First deployment? Create the owner account',
+      registerLink: 'Create owner account',
       registeredSuccess: 'Account created. Sign in to continue.',
     },
     register: {
