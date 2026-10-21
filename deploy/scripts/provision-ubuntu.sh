@@ -34,7 +34,7 @@ prompt_secret() {
   local value=""
 
   if ! { : > /dev/tty; } 2>/dev/null; then
-    printf '[secrets] No interactive terminal; keeping %s unset/unchanged.\n' "$label" >&2
+    printf '[密钥] 未检测到可交互终端，%s 保持现有值或未设置状态。\n' "$label" >&2
     printf '%s' "$current"
     return 0
   fi
@@ -48,17 +48,17 @@ prompt_secret() {
   fi
 
   if [[ -n "$current" ]]; then
-    printf '\n[secrets] %s is configured (length %s).\n' "$label" "${#current}" > /dev/tty
+    printf '\n[密钥] %s 已配置，当前长度 %s。\n' "$label" "${#current}" > /dev/tty
   else
-    printf '\n[secrets] %s is not configured.\n' "$label" > /dev/tty
+    printf '\n[密钥] %s 尚未配置。\n' "$label" > /dev/tty
   fi
-  printf '[secrets] Input is hidden; blank keeps the current value or leaves it unset.\n' > /dev/tty
-  printf '[secrets] Waiting up to %s seconds: ' "$PROMPT_TIMEOUT" > /dev/tty
+  printf '[密钥] 输入不会回显；直接回车 = 保留现有值或保持未设置。\n' > /dev/tty
+  printf '[密钥] 最多等待 %s 秒，超时按回车处理：' "$PROMPT_TIMEOUT" > /dev/tty
   local rc=0
   IFS= read -r -s -t "$PROMPT_TIMEOUT" value < /dev/tty || rc=$?
   if ((rc > 128)); then
     value=""
-    printf '\n[secrets] Timed out; treating as blank.\n' > /dev/tty
+    printf '\n[密钥] 等待超时，按直接回车处理。\n' > /dev/tty
   else
     printf '\n' > /dev/tty
   fi
@@ -234,10 +234,10 @@ DEEPSEEK_FETCH_API_KEY="${DEEPSEEK_FETCH_API_KEY:-$(read_env_value DEEPSEEK_FETC
 SMTP_PASSWORD="${SMTP_PASSWORD:-$(read_env_value SMTP_PASSWORD)}"
 
 echo "==> 6/8 交互配置 AI/SMTP 密钥并写入受限环境文件"
-DEEPSEEK_API_KEY="$(prompt_secret "DeepSeek AI API key" "$DEEPSEEK_API_KEY")"
-DEEPSEEK_SEARCH_API_KEY="$(prompt_secret "DeepSeek Search API key (blank reuses AI key)" "$DEEPSEEK_SEARCH_API_KEY")"
-DEEPSEEK_FETCH_API_KEY="$(prompt_secret "DeepSeek Fetch API key (blank reuses AI key)" "$DEEPSEEK_FETCH_API_KEY")"
-SMTP_PASSWORD="$(prompt_secret "SMTP password/app key" "$SMTP_PASSWORD")"
+DEEPSEEK_API_KEY="$(prompt_secret "DeepSeek AI API Key" "$DEEPSEEK_API_KEY")"
+DEEPSEEK_SEARCH_API_KEY="$(prompt_secret "DeepSeek Search API Key（留空复用主 AI Key）" "$DEEPSEEK_SEARCH_API_KEY")"
+DEEPSEEK_FETCH_API_KEY="$(prompt_secret "DeepSeek Fetch API Key（留空复用主 AI Key）" "$DEEPSEEK_FETCH_API_KEY")"
+SMTP_PASSWORD="$(prompt_secret "SMTP 密码/应用专用密钥" "$SMTP_PASSWORD")"
 
 if [[ -z "$DEEPSEEK_SEARCH_API_KEY" ]]; then
   DEEPSEEK_SEARCH_API_KEY="$DEEPSEEK_API_KEY"
@@ -283,9 +283,9 @@ chmod 0700 "$deploy_tmp"
 bash "$deploy_tmp" --ref "$REF"
 rm -f "$deploy_tmp"
 
-printf '\nZhishiku provisioning completed.\n'
-printf 'DeepSeek AI: %s\n' "$([[ -n "$DEEPSEEK_API_KEY" ]] && printf configured || printf unset)"
-printf 'SMTP credential: %s\n' "$([[ -n "$SMTP_PASSWORD" ]] && printf configured || printf unset)"
+printf '\n识海部署配置已完成。\n'
+printf 'DeepSeek AI 密钥：%s\n' "$([[ -n "$DEEPSEEK_API_KEY" ]] && printf 已配置 || printf 未配置)"
+printf 'SMTP 密钥：%s\n' "$([[ -n "$SMTP_PASSWORD" ]] && printf 已配置 || printf 未配置)"
 if [[ -f /root/zhishiku-initial-password ]]; then
   printf 'Initial login details: /root/zhishiku-initial-password\n'
 fi
