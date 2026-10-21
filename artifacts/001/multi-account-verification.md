@@ -56,4 +56,12 @@ cd backend
 ## 结论
 
 运行行为已从“单所有者实例”切换为“多账号公开注册”，数据仍使用兼容字段
-`owner_id` 按当前认证账号隔离。生产部署和迁移尚未在本记录日期执行。
+`owner_id` 按当前认证账号隔离。
+
+## 生产部署验收
+
+2026-10-22 已将 `v0.1.14-mvp` 从 GitHub 部署到 `https://seaunit.site/kb/`。生产 PostgreSQL
+已执行 V0006，现有账号保留，`owner_account.instance_key` 列数为 0，注册状态接口返回
+`{"open":true}`。拾题、支付侧车和识海服务均为 active，`/`、`/app`、`/login`、`/bank/1`、
+`/kb/` 和 `/kb/api/actuator/health` 均返回 HTTP 200。详细证据见
+`artifacts/001/deployment-verification.md`。

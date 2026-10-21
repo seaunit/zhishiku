@@ -359,7 +359,10 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 证据：`backend/kb-app/src/main/resources/db/migration/V0006__multi_account.sql`、
   `backend/kb-app/src/test/java/site/seaunit/zhishiku/owner/OwnerServiceTest.java`、
   `frontend/kb-web/e2e/app.spec.ts`、`tests/e2e/multi-account-isolation.spec.ts`、
-  `artifacts/001/multi-account-verification.md`。
+  `artifacts/001/multi-account-verification.md`、`artifacts/001/deployment-verification.md`。
+- 生产部署：`v0.1.14-mvp`（release 提交 `83d2a824cb1a5c68060850276c1095baa8476cde`）已从
+  GitHub 部署到服务器；生产迁移为 V0006，注册状态为 `open=true`，现有账号保留，原拾题应用、
+  支付侧车和双应用入口健康检查通过。
 - 覆盖：FR-001、FR-002、FR-069 至 FR-073、FR-077、SC-018、SC-024。
 - 风险与回滚：V0006 为向前迁移；回滚应用版本不会恢复实例唯一键，旧版本不能安全写入多账号
   数据库。团队共享、成员邀请、跨账号转赠和公开分享仍不在范围内。

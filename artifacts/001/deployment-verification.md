@@ -2,11 +2,13 @@
 
 **日期**：2026-10-22
 
-**部署提交**：`dbf5c7fb11144a36f1ef083e23aab76c1658d327`
+**部署提交**：`83d2a824cb1a5c68060850276c1095baa8476cde`
 
-**运行 release**：`/opt/zhishiku/releases/dbf5c7fb1114-20261021162347`
+**发布 tag**：`v0.1.14-mvp`
 
-**门户 release**：`/opt/seaunit-portal/releases/dbf5c7fb1114-20261021162347`
+**运行 release**：`/opt/zhishiku/releases/83d2a824cb1a-20261021210232`
+
+**门户 release**：`/opt/seaunit-portal/releases/83d2a824cb1a-20261021210232`
 
 ## 部署结果
 
@@ -31,13 +33,16 @@
 | `https://seaunit.site/` | HTTP 200，显示“拾题与识海”和两个应用入口 |
 | `https://seaunit.site/login` | HTTP 200 |
 | `https://seaunit.site/bank/1` | HTTP 200 |
-| `/kb/login` 注册入口 | 始终显示“注册账户”；已有所有者时跳转并显示“注册已关闭” |
+| `/kb/login` 注册入口 | 始终显示“注册账户”；已有账号不关闭其他邮箱注册 |
+| `/kb/api/v1/auth/registration-status` | HTTP 200，`{"open":true}` |
+| `owner_account.instance_key` | 列数 0，实例级唯一账号约束不存在 |
+| Flyway | 最新成功迁移 `0006`，现有账号保留 |
 | `https://seaunit.site/terms` | HTTP 200 |
 | `https://seaunit.site/privacy` | HTTP 200 |
 | `/seaunit-portal/styles.css` | HTTP 200，`text/css` |
 | `/seaunit-portal/app.js` | HTTP 200，`application/javascript` |
 | `/seaunit-portal/fonts/libre-franklin.woff2` | HTTP 200，`font/woff2` |
-| 登录接口 | HTTP 200，返回中文语言、CSRF 和当前所有者 |
+| 登录接口 | HTTP 200，返回当前登录账号的语言、CSRF 和账号 ID |
 | `zhishiku-api.service` | active |
 | Nginx | active，`nginx -t` 通过 |
 | `shuati.service` | active |
