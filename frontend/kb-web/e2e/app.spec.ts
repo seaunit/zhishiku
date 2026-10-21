@@ -110,6 +110,35 @@ test('logs in after fetching a CSRF token', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: '搜索知识' })).toBeVisible()
 })
 
+test('keeps the registration entry discoverable after the owner is initialized', async ({
+  page,
+}) => {
+  await page.route('**/kb/api/v1/auth/captcha', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        captchaId: 'captcha-login',
+        image: 'data:image/png;base64,abc',
+        expiresInSeconds: 120,
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/auth/registration-status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ open: false }),
+    })
+  })
+
+  await page.goto('/kb/login')
+  await page.getByRole('link', { name: '注册账户' }).click()
+
+  await expect(page).toHaveURL(/\/kb\/register$/)
+  await expect(page.getByRole('heading', { level: 2, name: '注册已关闭' })).toBeVisible()
+})
+
 test('keeps the captcha error visible after refreshing the challenge', async ({ page }) => {
   let captchaRequests = 0
   await page.route('**/kb/api/v1/auth/captcha', async (route) => {

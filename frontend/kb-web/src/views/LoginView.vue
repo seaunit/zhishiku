@@ -101,7 +101,7 @@
           <span>{{ submitting ? t('login.submitting') : t('login.submit') }}</span>
         </button>
 
-        <RouterLink v-if="registrationOpen" class="auth-switch-link" to="/register">
+        <RouterLink class="auth-switch-link" to="/register">
           {{ t('login.registerLink') }}
         </RouterLink>
       </form>
@@ -114,7 +114,7 @@ import { LoaderCircle } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { ApiError, getCaptcha, getRegistrationStatus } from '@/api/client'
+import { ApiError, getCaptcha } from '@/api/client'
 import BrandMark from '@/components/BrandMark.vue'
 import LocaleSwitch from '@/components/LocaleSwitch.vue'
 import { useSessionStore } from '@/stores/session'
@@ -129,7 +129,6 @@ const captchaId = ref('')
 const captchaCode = ref('')
 const captchaImage = ref('')
 const captchaLoading = ref(false)
-const registrationOpen = ref(false)
 const formError = ref('')
 const submitting = computed(() => session.submitting)
 
@@ -164,15 +163,6 @@ async function loadCaptcha(preserveError = false) {
   }
 }
 
-async function loadRegistrationStatus() {
-  try {
-    const status = await getRegistrationStatus()
-    registrationOpen.value = status.open
-  } catch {
-    registrationOpen.value = false
-  }
-}
-
 async function submit() {
   clearError()
   if (!email.value || !password.value) {
@@ -202,6 +192,6 @@ async function submit() {
   }
 }
 
-onMounted(() => Promise.all([loadCaptcha(), loadRegistrationStatus()]))
+onMounted(loadCaptcha)
 </script>
 

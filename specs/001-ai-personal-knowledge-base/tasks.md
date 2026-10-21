@@ -41,6 +41,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [x] T016 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/` 中实现 Spring Security、BCrypt/Argon2、Session JDBC、一次性所有者初始化及 CSRF/login/logout/setup 端点
 - [x] T081 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/captcha/` 和登录页中实现 Kaptcha 图形验证码、Caffeine 服务端缓存、一次性登录校验与中文错误刷新
 - [x] T082 [P0] [US1] 在注册 API、SMTP 和注册页中实现单所有者邮箱验证初始化、确认密码、6 位邮箱验证码、频控、一次性使用与临时邮箱域名拒绝
+- [x] T083 [P0] [US1] 在登录页始终显示注册入口，由注册页按实例状态呈现注册表单或“注册已关闭”，避免注册状态接口关闭或失败时入口消失
 - [x] T017 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/persistence/` 中实现 BaseEntity、UUID、时间戳和 `@Version`
 - [ ] T018 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/jobs/` 中实现 PostgreSQL 任务表、租约、指数退避和 `SKIP LOCKED`
 - [ ] T019 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/storage/` 中实现 S3 暂存、内容哈希、MIME 检测、正式附件提升和对象清理
@@ -293,3 +294,21 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-002、FR-069 至 FR-073；单所有者边界、SMTP、邮箱验证码与临时邮箱过滤。
 - 风险与回滚：邮箱验证码与频控缓存为单实例内存数据，重启后失效；多实例前需共享缓存。
   注册只创建唯一所有者，不扩展多用户。回滚时关闭注册入口并恢复登录页，不影响现有 owner 数据。
+
+### 完成记录：T083
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：开发、测试
+- Git commit：未提交
+- 摘要：修复登录页在注册状态关闭或状态接口失败时不显示注册入口的问题。
+- 详情：移除登录页对注册状态的前置隐藏逻辑，始终显示“注册账户”链接；点击后进入 `/kb/register`，
+  注册页继续通过服务端状态展示注册表单或“注册已关闭”。单所有者边界和注册关闭规则不变。
+- 验证：先新增 Playwright 失败测试并复现入口缺失；实现后目标测试通过。前端 lint、typecheck、
+  Vitest 14 项、Playwright `app.spec.ts` 10 项和生产构建全部通过；Taste app-screen 在 1440、
+  768、390 像素检查为 0 FAIL/0 WARN，登录页面截图已人工复核。
+- 证据：`frontend/kb-web/src/views/LoginView.vue`、`frontend/kb-web/src/i18n.ts`、
+  `frontend/kb-web/e2e/app.spec.ts`、`.taste-skill/registration-entry-after/`。
+- 覆盖：FR-002、US1；注册入口可发现性、关闭状态说明和单所有者约束。
+- 风险与回滚：已有所有者的实例仍不能创建第二个账户；注册页只显示关闭说明。回滚时恢复登录页
+  条件入口，不影响既有账户、会话或注册数据。
