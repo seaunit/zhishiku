@@ -2,11 +2,11 @@
 
 **日期**：2026-10-22
 
-**部署提交**：`8ba235907f7382a3b286cf34b1dd8a61fd3d5694`
+**部署提交**：`dbf5c7fb11144a36f1ef083e23aab76c1658d327`
 
-**运行 release**：`/opt/zhishiku/releases/8ba235907f73-20261021161329`
+**运行 release**：`/opt/zhishiku/releases/dbf5c7fb1114-20261021162347`
 
-**门户 release**：`/opt/seaunit-portal/releases/8ba235907f73-20261021161329`
+**门户 release**：`/opt/seaunit-portal/releases/dbf5c7fb1114-20261021162347`
 
 ## 部署结果
 
@@ -31,6 +31,7 @@
 | `https://seaunit.site/` | HTTP 200，显示“拾题与识海”和两个应用入口 |
 | `https://seaunit.site/login` | HTTP 200 |
 | `https://seaunit.site/bank/1` | HTTP 200 |
+| `/kb/login` 注册入口 | 始终显示“注册账户”；已有所有者时跳转并显示“注册已关闭” |
 | `https://seaunit.site/terms` | HTTP 200 |
 | `https://seaunit.site/privacy` | HTTP 200 |
 | `/seaunit-portal/styles.css` | HTTP 200，`text/css` |
