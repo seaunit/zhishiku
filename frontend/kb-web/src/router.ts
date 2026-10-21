@@ -10,6 +10,12 @@ export const router = createRouter({
       meta: { title: '登录识海' },
     },
     {
+      path: '/register',
+      name: 'register',
+      component: () => import('@/views/RegisterView.vue'),
+      meta: { title: '创建账户' },
+    },
+    {
       path: '/',
       component: () => import('@/components/AppShell.vue'),
       children: [

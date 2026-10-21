@@ -14,6 +14,14 @@
         <LocaleSwitch />
       </div>
       <form class="login-form" @submit.prevent="submit">
+        <p
+          v-if="route.query.registered === '1'"
+          class="success-message"
+          role="status"
+        >
+          {{ t('login.registeredSuccess') }}
+        </p>
+
         <div>
           <h2>{{ t('login.title') }}</h2>
           <p>{{ t('login.subtitle') }}</p>
@@ -92,6 +100,10 @@
           <LoaderCircle v-if="submitting" class="spin" :size="18" />
           <span>{{ submitting ? t('login.submitting') : t('login.submit') }}</span>
         </button>
+
+        <RouterLink v-if="registrationOpen" class="auth-switch-link" to="/register">
+          {{ t('login.registerLink') }}
+        </RouterLink>
       </form>
     </section>
   </main>
@@ -102,7 +114,7 @@ import { LoaderCircle } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { ApiError, getCaptcha } from '@/api/client'
+import { ApiError, getCaptcha, getRegistrationStatus } from '@/api/client'
 import BrandMark from '@/components/BrandMark.vue'
 import LocaleSwitch from '@/components/LocaleSwitch.vue'
 import { useSessionStore } from '@/stores/session'
@@ -117,6 +129,7 @@ const captchaId = ref('')
 const captchaCode = ref('')
 const captchaImage = ref('')
 const captchaLoading = ref(false)
+const registrationOpen = ref(false)
 const formError = ref('')
 const submitting = computed(() => session.submitting)
 
@@ -151,6 +164,15 @@ async function loadCaptcha(preserveError = false) {
   }
 }
 
+async function loadRegistrationStatus() {
+  try {
+    const status = await getRegistrationStatus()
+    registrationOpen.value = status.open
+  } catch {
+    registrationOpen.value = false
+  }
+}
+
 async function submit() {
   clearError()
   if (!email.value || !password.value) {
@@ -180,6 +202,6 @@ async function submit() {
   }
 }
 
-onMounted(() => loadCaptcha())
+onMounted(() => Promise.all([loadCaptcha(), loadRegistrationStatus()]))
 </script>
 

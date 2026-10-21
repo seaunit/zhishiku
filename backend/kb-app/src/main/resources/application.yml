@@ -34,6 +34,18 @@ spring:
     multipart:
       max-file-size: 25MB
       max-request-size: 26MB
+  mail:
+    host: ${SMTP_HOST:smtpdm.aliyun.com}
+    port: ${SMTP_PORT:465}
+    username: ${SMTP_USERNAME:no-reply@mail.seaunit.site}
+    password: ${SMTP_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.ssl.enable: ${SMTP_SSL:true}
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
 
 app:
   owner:
@@ -50,6 +62,17 @@ app:
     ttl-seconds: ${KB_CAPTCHA_TTL_SECONDS:120}
     max-entries: ${KB_CAPTCHA_MAX_ENTRIES:10000}
     expose-answer: ${KB_CAPTCHA_EXPOSE_ANSWER:false}
+  registration:
+    code-ttl-seconds: ${REGISTRATION_CODE_TTL_SECONDS:600}
+    resend-cooldown-seconds: ${REGISTRATION_RESEND_COOLDOWN_SECONDS:60}
+    send-window-seconds: ${REGISTRATION_SEND_WINDOW_SECONDS:3600}
+    max-sends-per-email: ${REGISTRATION_MAX_SENDS_PER_EMAIL:5}
+    max-sends-per-ip: ${REGISTRATION_MAX_SENDS_PER_IP:20}
+    max-attempts: ${REGISTRATION_MAX_ATTEMPTS:5}
+    max-cached-codes: ${REGISTRATION_MAX_CACHED_CODES:10000}
+    expose-code: ${REGISTRATION_EXPOSE_CODE:false}
+    from-address: ${SMTP_FROM:no-reply@mail.seaunit.site}
+    from-name: ${SMTP_FROM_NAME:识海}
 
 management:
   endpoints:

@@ -13,6 +13,28 @@ export interface CaptchaResponse {
   debugAnswer?: string
 }
 
+export interface RegistrationStatusResponse {
+  open: boolean
+}
+
+export interface RegistrationEmailCodeResponse {
+  expiresInSeconds: number
+  resendAfterSeconds: number
+  debugCode?: string
+}
+
+export interface RegistrationRequest {
+  email: string
+  password: string
+  confirmPassword: string
+  emailCode: string
+  locale: 'zh-CN' | 'en'
+}
+
+export interface RegistrationResponse {
+  email: string
+}
+
 export interface SessionResponse {
   ownerId: string
   email: string

@@ -25,6 +25,9 @@ public class SecurityConfig {
                 auth.requestMatchers(
                         "/api/v1/auth/csrf",
                         "/api/v1/auth/captcha",
+                        "/api/v1/auth/registration-status",
+                        "/api/v1/auth/register/email-code",
+                        "/api/v1/auth/register",
                         "/api/v1/auth/login",
                         "/api/v1/auth/setup",
                         "/api/actuator/health",

@@ -82,6 +82,9 @@ KB_OWNER_PASSWORD=local-dev-password-change-me
 4. 使用首页单一搜索框按标题、正文和标签信息检索。
 5. 在 390px 和 360px 宽度检查导航、编辑器和详情无横向溢出。
 6. 确认 `/kb/api/actuator/health` 返回 `{"status":"UP"}`。
+7. 在空数据库打开 `/kb/register`，使用图形验证码、SMTP 邮箱验证码和两次一致密码创建唯一所有者；
+   注册后确认 `/kb/api/v1/auth/registration-status` 返回 `open=false`。
+8. 使用 `daniel.parkerca61598b@mailinator.com` 请求注册验证码，确认返回临时邮箱拒绝且没有 SMTP 投递。
 
 以下第 3 小节及之后的部分包含尚未实现的完整目标能力；任务表未完成项不得据此宣称已上线。
 
@@ -95,6 +98,7 @@ KB_OWNER_PASSWORD=local-dev-password-change-me
 6. 检查 Cookie 名为 `zhishiku_session`、路径 `/kb`、具备 HttpOnly/SameSite/安全属性。
 7. 获取 `/kb/api/v1/auth/csrf`，确认缺少或错误 `X-XSRF-TOKEN` 的写请求返回 403。
 8. 退出登录并确认会话撤销。
+9. 已存在所有者时重新打开 `/kb/register`，确认注册关闭且不能覆盖现有账户。
 
 ### 2. 手动保存与 PostgreSQL 搜索
 

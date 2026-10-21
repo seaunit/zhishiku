@@ -3,9 +3,12 @@ import {
   ApiError,
   API_BASE,
   getCaptcha,
+  getRegistrationStatus,
   login,
+  registerAccount,
   resetCsrfToken,
   searchKnowledge,
+  sendRegistrationEmailCode,
   uploadRichImage,
 } from './client'
 
@@ -160,6 +163,77 @@ describe('captcha login', () => {
       password: 'correct-horse-battery',
       captchaId: 'captcha-123',
       captchaCode: 'A1B2C',
+    })
+  })
+})
+
+describe('email registration', () => {
+  it('loads whether registration is open', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse({ open: true })),
+    )
+
+    await expect(getRegistrationStatus()).resolves.toEqual({ open: true })
+  })
+
+  it('sends email code with the graphical captcha', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-register', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          { expiresInSeconds: 600, resendAfterSeconds: 60 },
+          202,
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendRegistrationEmailCode(
+      'owner@example.com',
+      'captcha-1',
+      'A1B2C',
+    )
+
+    const request = fetchMock.mock.calls[1]
+    expect(request[0]).toBe(`${API_BASE}/auth/register/email-code`)
+    expect(request[1].headers.get('X-XSRF-TOKEN')).toBe('csrf-register')
+    expect(JSON.parse(String(request[1].body))).toEqual({
+      email: 'owner@example.com',
+      captchaId: 'captcha-1',
+      captchaCode: 'A1B2C',
+    })
+  })
+
+  it('submits password confirmation and email code during registration', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-register', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ email: 'owner@example.com' }, 201),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await registerAccount({
+      email: 'owner@example.com',
+      password: 'correct-horse-battery',
+      confirmPassword: 'correct-horse-battery',
+      emailCode: '123456',
+      locale: 'zh-CN',
+    })
+
+    const request = fetchMock.mock.calls[1]
+    expect(request[0]).toBe(`${API_BASE}/auth/register`)
+    expect(JSON.parse(String(request[1].body))).toEqual({
+      email: 'owner@example.com',
+      password: 'correct-horse-battery',
+      confirmPassword: 'correct-horse-battery',
+      emailCode: '123456',
+      locale: 'zh-CN',
     })
   })
 })

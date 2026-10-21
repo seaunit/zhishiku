@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import site.seaunit.zhishiku.auth.captcha.CaptchaChallenge;
 import site.seaunit.zhishiku.auth.captcha.CaptchaService;
+import site.seaunit.zhishiku.auth.registration.EmailCodeIssued;
+import site.seaunit.zhishiku.auth.registration.RegistrationService;
 import site.seaunit.zhishiku.owner.OwnerAccountEntity;
 import site.seaunit.zhishiku.owner.OwnerService;
 
@@ -33,16 +35,19 @@ public class AuthController {
   private final AuthenticationManager authenticationManager;
   private final OwnerService ownerService;
   private final CaptchaService captchaService;
+  private final RegistrationService registrationService;
   private final Environment environment;
 
   public AuthController(
       AuthenticationManager authenticationManager,
       OwnerService ownerService,
       CaptchaService captchaService,
+      RegistrationService registrationService,
       Environment environment) {
     this.authenticationManager = authenticationManager;
     this.ownerService = ownerService;
     this.captchaService = captchaService;
+    this.registrationService = registrationService;
     this.environment = environment;
   }
 
@@ -61,6 +66,40 @@ public class AuthController {
         challenge.image(),
         challenge.expiresInSeconds(),
         exposeAnswer ? challenge.answer() : null);
+  }
+
+  @GetMapping("/registration-status")
+  RegistrationStatusResponse registrationStatus() {
+    return new RegistrationStatusResponse(registrationService.isRegistrationOpen());
+  }
+
+  @PostMapping("/register/email-code")
+  @ResponseStatus(HttpStatus.ACCEPTED)
+  EmailCodeResponse registerEmailCode(
+      @Valid @RequestBody EmailCodeRequest request, HttpServletRequest servletRequest) {
+    if (!captchaService.consume(request.captchaId(), request.captchaCode())) {
+      throw new CaptchaValidationException();
+    }
+    EmailCodeIssued issued =
+        registrationService.issueEmailCode(request.email(), servletRequest.getRemoteAddr());
+    boolean exposeCode =
+        environment.getProperty("app.registration.expose-code", Boolean.class, false);
+    return new EmailCodeResponse(
+        issued.expiresInSeconds(), issued.resendAfterSeconds(), exposeCode ? issued.code() : null);
+  }
+
+  @PostMapping("/register")
+  @ResponseStatus(HttpStatus.CREATED)
+  RegistrationResponse register(@Valid @RequestBody RegisterRequest request) {
+    String email =
+        registrationService.register(
+            new RegistrationService.RegisterCommand(
+                request.email(),
+                request.password(),
+                request.confirmPassword(),
+                request.emailCode(),
+                request.locale()));
+    return new RegistrationResponse(email);
   }
 
   @PostMapping("/login")

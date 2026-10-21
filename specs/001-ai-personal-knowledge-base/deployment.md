@@ -170,7 +170,21 @@ S3_SECRET_KEY=<环境变量>
 DEEPSEEK_API_KEY=<环境变量>
 DEEPSEEK_SEARCH_API_KEY=<环境变量>
 DEEPSEEK_FETCH_API_KEY=<环境变量>
+SMTP_HOST=smtpdm.aliyun.com
+SMTP_PORT=465
+SMTP_USERNAME=no-reply@mail.seaunit.site
 SMTP_PASSWORD=<环境变量>
+SMTP_FROM=no-reply@mail.seaunit.site
+SMTP_FROM_NAME=识海
+SMTP_SSL=true
+REGISTRATION_CODE_TTL_SECONDS=600
+REGISTRATION_RESEND_COOLDOWN_SECONDS=60
+REGISTRATION_SEND_WINDOW_SECONDS=3600
+REGISTRATION_MAX_SENDS_PER_EMAIL=5
+REGISTRATION_MAX_SENDS_PER_IP=20
+REGISTRATION_MAX_ATTEMPTS=5
+REGISTRATION_MAX_CACHED_CODES=10000
+REGISTRATION_EXPOSE_CODE=false
 BILLING_ENABLED=false
 BILLING_BRIDGE_URL=http://127.0.0.1:8091
 BILLING_DB_ENV=production
@@ -182,6 +196,8 @@ Waffo 私钥只进入 `/etc/zhishiku/waffo.env`。日志不得输出变量值、
 `/etc/zhishiku/kb.env`，不得放入命令行参数、Git、部署日志或文档示例。
 单次输入默认等待 60 秒，超时按回车处理；可用 `KB_PROMPT_TIMEOUT` 调整等待秒数。
 首次安装脚本调用内部部署时传递“已完成提示”状态，避免同一次执行询问两轮。
+SMTP 必须启用 TLS，连接、读取和写入超时默认 10 秒。生产响应不得返回邮箱验证码；仅 local
+profile 可以返回 `debugCode` 供自动化测试。临时邮箱域名清单位于仓库受控资源中，不得运行时爬取。
 
 ## 一键部署
 

@@ -16,6 +16,17 @@ app:
     ttl-seconds: 120
     max-entries: 1000
     expose-answer: true
+  registration:
+    code-ttl-seconds: 600
+    resend-cooldown-seconds: 60
+    send-window-seconds: 3600
+    max-sends-per-email: 5
+    max-sends-per-ip: 20
+    max-attempts: 5
+    max-cached-codes: 1000
+    expose-code: true
+    from-address: no-reply@mail.seaunit.site
+    from-name: 识海
 
 logging:
   level:

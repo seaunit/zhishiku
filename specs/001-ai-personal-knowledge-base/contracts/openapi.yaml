@@ -55,6 +55,111 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CaptchaResponse"
+  /api/v1/auth/registration-status:
+    get:
+      tags: [认证]
+      security: []
+      operationId: getRegistrationStatus
+      summary: 查询当前实例是否仍允许创建唯一所有者。
+      responses:
+        "200":
+          description: 注册开关状态。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationStatusResponse"
+  /api/v1/auth/register/email-code:
+    post:
+      tags: [认证]
+      security: []
+      operationId: sendRegistrationEmailCode
+      summary: 校验图形验证码后向常用邮箱发送一次性注册验证码。
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationEmailCodeRequest"
+      responses:
+        "202":
+          description: 邮件已发送；验证码本身只存在于邮件和短期哈希缓存中。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationEmailCodeResponse"
+        "409":
+          description: 当前实例已完成所有者初始化，注册关闭。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: 图形验证码、邮箱格式或临时邮箱域名不符合要求。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: 发送过于频繁。
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: SMTP 暂时不可用，未生成有效邮箱验证码。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/auth/register:
+    post:
+      tags: [认证]
+      security: []
+      operationId: registerOwner
+      summary: 使用邮箱验证码和确认密码创建唯一所有者。
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: 唯一所有者已创建；客户端随后进入登录页。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationResponse"
+        "409":
+          description: 所有者已存在或并发请求已完成初始化。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: 密码确认、邮箱验证码或输入字段无效。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: 注册请求过于频繁。
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/login:
     post:
       tags: [认证]
@@ -869,6 +974,68 @@ components:
         debugAnswer:
           type: string
           description: 仅本地开发 profile 返回，生产环境必须省略。
+    RegistrationStatusResponse:
+      type: object
+      required: [open]
+      properties:
+        open:
+          type: boolean
+    RegistrationEmailCodeRequest:
+      type: object
+      required: [email, captchaId, captchaCode]
+      properties:
+        email:
+          type: string
+          format: email
+        captchaId:
+          type: string
+          format: uuid
+        captchaCode:
+          type: string
+          minLength: 4
+          maxLength: 8
+    RegistrationEmailCodeResponse:
+      type: object
+      required: [expiresInSeconds, resendAfterSeconds]
+      properties:
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+        resendAfterSeconds:
+          type: integer
+          minimum: 1
+        debugCode:
+          type: string
+          pattern: "^\\d{6}$"
+          description: 仅本地开发 profile 返回，生产环境必须省略。
+    RegisterRequest:
+      type: object
+      required: [email, password, confirmPassword, emailCode, locale]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+        confirmPassword:
+          type: string
+          minLength: 12
+          maxLength: 256
+        emailCode:
+          type: string
+          pattern: "^\\d{6}$"
+        locale:
+          type: string
+          enum: [zh-CN, en]
+    RegistrationResponse:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
     BootstrapOwnerRequest:
       type: object
       required: [bootstrapToken, email, password, locale]

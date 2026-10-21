@@ -4,8 +4,9 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 
 ## 项目状态
 
-当前已完成可运行的 MVP：带一次性图形验证码的单所有者登录、富文本知识录入与编辑、正文图片、知识列表、
-详情查看和 PostgreSQL 单框搜索。AI 自动分类、网页采集、OCR、外部搜索、冲突恢复和
+当前已完成可运行的 MVP：带一次性图形验证码的单所有者登录、未初始化实例的邮箱验证注册、
+富文本知识录入与编辑、正文图片、知识列表、详情查看和 PostgreSQL 单框搜索。AI 自动分类、
+网页采集、OCR、外部搜索、冲突恢复和
 Waffo 点数计费仍在后续任务中，真实收费在 P0/P1 门禁通过前保持关闭。
 
 已批准的实现技术栈为 Vue 3 + TypeScript、Java 17 + Spring Boot 3.x、PostgreSQL 18
@@ -143,6 +144,9 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 密码/应用专用密钥。密钥只写入权限为 `600` 的 `/etc/zhishiku/kb.env`，不会进入 Git、
 命令行参数或部署日志。每次部署都会重新提示；直接回车保留现有值，输入新值才更新。
 首次安装脚本和内部部署共享同一轮提示，不会重复询问。
+
+未预置所有者的新实例可以在 `/kb/register` 通过 SMTP 邮箱验证码创建唯一所有者；已有所有者
+后注册入口自动关闭。临时邮箱域名清单随仓库发布，`mailinator.com` 及其子域会被拒绝。
 
 首次部署生成的初始账号和密码保存在服务器的 `/root/zhishiku-initial-password`，权限为 `600`。
 登录成功后应立即删除该文件。详细的手工检查和回滚说明见

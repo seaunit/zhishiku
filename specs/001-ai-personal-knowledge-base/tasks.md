@@ -40,6 +40,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T015 [P0] [P] [US1] 在 `backend/kb-core/src/test/java/site/seaunit/zhishiku/domain/` 和 `backend/kb-app/src/test/java/site/seaunit/zhishiku/jobs/` 中为乐观锁、保留期、双 Worker `SKIP LOCKED`、租约过期、fencing token 和旧结果拒绝编写失败测试
 - [x] T016 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/` 中实现 Spring Security、BCrypt/Argon2、Session JDBC、一次性所有者初始化及 CSRF/login/logout/setup 端点
 - [x] T081 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/captcha/` 和登录页中实现 Kaptcha 图形验证码、Caffeine 服务端缓存、一次性登录校验与中文错误刷新
+- [x] T082 [P0] [US1] 在注册 API、SMTP 和注册页中实现单所有者邮箱验证初始化、确认密码、6 位邮箱验证码、频控、一次性使用与临时邮箱域名拒绝
 - [x] T017 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/persistence/` 中实现 BaseEntity、UUID、时间戳和 `@Version`
 - [ ] T018 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/jobs/` 中实现 PostgreSQL 任务表、租约、指数退避和 `SKIP LOCKED`
 - [ ] T019 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/storage/` 中实现 S3 暂存、内容哈希、MIME 检测、正式附件提升和对象清理
@@ -242,3 +243,29 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-002、FR-068，登录访问控制与一次性验证码。
 - 风险与回滚：验证码缓存为单实例内存数据，应用重启后全部失效并自动重新获取；多实例部署前需改为
   共享缓存或有粘性会话。回滚时恢复登录请求字段和页面字段，不涉及数据库迁移。
+
+### 完成记录：T082
+
+- 日期：2026-10-21
+- 状态：已完成
+- 执行子智能体：开发
+- Git commit：`未提交`
+- 摘要：新增未初始化实例的单所有者邮箱验证注册。
+- 详情：注册页包含邮箱、图形验证码、邮箱验证码、密码和确认密码；发送邮箱验证码前必须消费
+  Kaptcha 图形验证码。邮箱验证码为 6 位安全随机数字，默认 10 分钟过期、哈希保存、最多尝试
+  5 次，重发立即替换旧码。同一邮箱 60 秒冷却、每小时 5 次，同一 IP 每小时 20 次；SMTP 失败
+  不留下可用验证码。已有所有者或并发创建时统一返回 `REGISTRATION_CLOSED`。
+- 临时邮箱：仓库内置高置信度域名清单，按规范化域名的精确值或子域边界拒绝；
+  `daniel.parkerca61598b@mailinator.com` 必须拒绝，`notmailinator.com` 和普通邮箱中的类似
+  局部名称允许。
+- 验证：邮箱策略 4 项、验证码服务 8 项、注册服务 4 项、SMTP 适配器 1 项、注册控制器 6 项、
+  登录/注册前端 API 8 项；注册页 mock E2E、临时邮箱拒绝 E2E、真实空库注册 E2E；
+  后端全量 32 项、Vitest 14 项、Playwright 9 项通过；Taste app-screen 0 FAIL/0 WARN 和
+  inspector 0 FAIL/1 个可解释的品牌面板空带警告。独立测试子智能体验收 0 功能失败。
+- 证据：`EmailAddressPolicyTest`、`EmailVerificationServiceTest`、
+  `RegistrationServiceTest`、`SmtpRegistrationEmailSenderTest`、
+  `AuthControllerRegistrationTest`、`frontend/kb-web/e2e/registration-live.spec.ts`、
+  `.taste-skill/registration-after/`。
+- 覆盖：FR-002、FR-069 至 FR-073；单所有者边界、SMTP、邮箱验证码与临时邮箱过滤。
+- 风险与回滚：邮箱验证码与频控缓存为单实例内存数据，重启后失效；多实例前需共享缓存。
+  注册只创建唯一所有者，不扩展多用户。回滚时关闭注册入口并恢复登录页，不影响现有 owner 数据。

@@ -78,8 +78,8 @@ Playwright Java browser worker 独立进程。
 
 ## 决策 6：Spring Security 单所有者认证
 
-**决策**：使用 Spring Security、Spring Session JDBC、一次性 bootstrap token 和封闭注册。
-唯一所有者创建后，禁用公开注册。
+**决策**：使用 Spring Security、Spring Session JDBC、一次性 bootstrap token 和邮箱验证注册。
+注册仅适用于尚未创建所有者的空实例；唯一所有者创建后立即关闭。
 
 **规则**：
 
@@ -87,6 +87,8 @@ Playwright Java browser worker 独立进程。
 - 会话 Cookie 名 `zhishiku_session`，路径 `/kb`，数据库持久化。
 - 启用 CSRF、SameSite、安全 Cookie 和会话撤销。
 - 所有受保护请求校验 `owner_id`。
+- 邮箱码发码前校验图形验证码；密码需要二次确认；邮箱码使用哈希缓存、一次性消费、频控和
+  临时邮箱域名拒绝。
 
 ## 决策 7：Spring `WebClient` Provider 适配器
 

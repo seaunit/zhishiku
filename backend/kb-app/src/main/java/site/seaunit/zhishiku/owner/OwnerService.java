@@ -51,6 +51,11 @@ public class OwnerService implements ApplicationRunner {
     return repository.findByEmailNormalized(email.strip().toLowerCase());
   }
 
+  @Transactional(readOnly = true)
+  public boolean isRegistrationOpen() {
+    return repository.count() == 0;
+  }
+
   @Transactional
   public OwnerAccountEntity createOwner(String email, String password, String locale) {
     if (repository.count() > 0) {

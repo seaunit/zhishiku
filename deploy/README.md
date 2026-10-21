@@ -16,6 +16,11 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 `zhishiku` 用户、数据库、环境文件、systemd 服务和 `/kb` Nginx 片段。初始登录信息写入
 `/root/zhishiku-initial-password`，登录后应删除。
 
+新部署也可以不预置所有者，在 `/kb/register` 通过 SMTP 邮箱验证完成唯一所有者初始化；已有
+所有者后注册自动关闭。默认 SMTP 主机为 `smtpdm.aliyun.com:465`，发件与登录账号为
+`no-reply@mail.seaunit.site`，可通过 `SMTP_HOST`、`SMTP_PORT`、`SMTP_USERNAME`、
+`SMTP_FROM`、`SMTP_FROM_NAME` 和 `SMTP_SSL` 覆盖。生产必须以 TLS 投递。
+
 首次安装会使用 `/swapfile-zhishiku` 补充 2 GiB swap，避免小内存服务器在 Maven 和
 Vite 构建期间触发 OOM；可通过 `KB_SWAP_SIZE_MB=0` 禁用。
 
@@ -38,7 +43,7 @@ Vite 构建期间触发 OOM；可通过 `KB_SWAP_SIZE_MB=0` 禁用。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/deploy.sh \
-  | sudo bash -s -- --ref v0.1.5-mvp
+  | sudo bash -s -- --ref v0.1.7-mvp
 ```
 
 在完全非交互的 CI 中，可先由受管密钥系统写入环境文件，再设置

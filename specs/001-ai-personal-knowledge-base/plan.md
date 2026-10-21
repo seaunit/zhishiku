@@ -90,8 +90,10 @@ OWASP Dependency-Check
    先备份、再迁移、再健康检查，失败回滚。
 
 5. **Spring Security 使用数据库会话。**
-   一次性 bootstrap token 创建唯一所有者，此后关闭公开注册。会话 Cookie 独立命名为
-   `zhishiku_session`，路径为 `/kb`，启用 CSRF、SameSite 和安全属性。
+   一次性 bootstrap token 或 SMTP 邮箱验证码可在空实例上创建唯一所有者，此后关闭注册。
+   发码前必须通过图形验证码，邮箱码使用 6 位安全随机数字、哈希缓存、一次性消费、尝试上限和
+   邮箱/IP 频率控制；受控域名清单拒绝临时邮箱。会话 Cookie 独立命名为 `zhishiku_session`，
+   路径为 `/kb`，启用 CSRF、SameSite 和安全属性。
 
 6. **PostgreSQL 任务表替代 pg-boss。**
    Worker 使用事务租约、`SKIP LOCKED`、尝试次数、退避时间、幂等键和死信状态处理任务。

@@ -6,6 +6,10 @@ import type {
   CsrfResponse,
   KnowledgeItem,
   KnowledgeItemPage,
+  RegistrationEmailCodeResponse,
+  RegistrationRequest,
+  RegistrationResponse,
+  RegistrationStatusResponse,
   RichImageUpload,
   SearchResponse,
   SessionResponse,
@@ -135,6 +139,30 @@ async function request<T>(path: string, init: RequestOptions = {}): Promise<T> {
 
 export function getCaptcha(): Promise<CaptchaResponse> {
   return request<CaptchaResponse>('/auth/captcha')
+}
+
+export function getRegistrationStatus(): Promise<RegistrationStatusResponse> {
+  return request<RegistrationStatusResponse>('/auth/registration-status')
+}
+
+export function sendRegistrationEmailCode(
+  email: string,
+  captchaId: string,
+  captchaCode: string,
+): Promise<RegistrationEmailCodeResponse> {
+  return request<RegistrationEmailCodeResponse>('/auth/register/email-code', {
+    method: 'POST',
+    body: JSON.stringify({ email, captchaId, captchaCode }),
+  })
+}
+
+export function registerAccount(
+  payload: RegistrationRequest,
+): Promise<RegistrationResponse> {
+  return request<RegistrationResponse>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function login(

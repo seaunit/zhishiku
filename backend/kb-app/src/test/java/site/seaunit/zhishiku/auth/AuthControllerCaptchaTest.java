@@ -18,6 +18,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.test.web.servlet.MockMvc;
 import site.seaunit.zhishiku.auth.captcha.CaptchaChallenge;
 import site.seaunit.zhishiku.auth.captcha.CaptchaService;
+import site.seaunit.zhishiku.auth.registration.RegistrationService;
 import site.seaunit.zhishiku.owner.OwnerService;
 import site.seaunit.zhishiku.security.SecurityConfig;
 
@@ -29,6 +30,7 @@ class AuthControllerCaptchaTest {
   @MockBean private AuthenticationManager authenticationManager;
   @MockBean private OwnerService ownerService;
   @MockBean private CaptchaService captchaService;
+  @MockBean private RegistrationService registrationService;
 
   @Test
   void issuesCaptchaWithoutAuthentication() throws Exception {
