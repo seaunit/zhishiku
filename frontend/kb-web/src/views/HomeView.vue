@@ -115,7 +115,7 @@
               <strong class="result-title">{{ item.title || t('home.untitled') }}</strong>
               <span class="result-summary">{{ item.summary || item.bodyPreview || '—' }}</span>
               <span class="result-meta">
-                <span>{{ item.category?.name || t('home.noCategory') }}</span>
+                <span>{{ item.category?.name || t('common.uncategorized') }}</span>
                 <span>{{ item.tags.slice(0, 2).map((tag) => tag.name).join(' / ') || '—' }}</span>
                 <span>{{ sourceLabel(item.source.kind) }}</span>
               </span>
@@ -319,6 +319,7 @@ import {
   searchInternet,
   searchKnowledge,
 } from '@/api/client'
+import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
 import type { ExternalSearchCandidate, KnowledgeItemSummary } from '@/types/api'
 
 const { t, locale } = useI18n()
@@ -356,7 +357,7 @@ const latestTime = computed(() => {
 const mapNodes = computed(() => {
   const counts = new Map<string, number>()
   for (const item of allItems.value) {
-    const name = item.category?.name || t('home.noCategory')
+    const name = item.category?.name || t('common.uncategorized')
     counts.set(name, (counts.get(name) || 0) + 1)
   }
   const entries = [...counts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 6)
@@ -372,7 +373,7 @@ const mapNodes = computed(() => {
 })
 
 function isPending(status: string) {
-  return ['pending', 'processing', 'review', 'failed'].includes(status)
+  return ['pending', 'queued', 'running', 'processing', 'review', 'failed'].includes(status)
 }
 
 function sourceIcon(kind: string) {
@@ -391,17 +392,11 @@ function sourceLabel(kind: string) {
 }
 
 function statusClass(status: string) {
-  if (status === 'failed') return 'failed'
-  if (status === 'review' || status === 'pending') return 'review'
-  if (status === 'processing') return 'processing'
-  return 'done'
+  return knowledgeStatusTone(status)
 }
 
 function statusLabel(status: string) {
-  if (status === 'failed') return t('processing.failed')
-  if (status === 'processing') return t('processing.processing')
-  if (status === 'review' || status === 'pending') return t('processing.review')
-  return t('common.organized')
+  return t(knowledgeStatusTranslationKey(status))
 }
 
 async function load() {

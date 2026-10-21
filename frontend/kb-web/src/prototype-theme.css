@@ -596,6 +596,43 @@
   background: var(--pill-neutral-bg);
 }
 
+.status-pill {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--radius-chip);
+  color: var(--muted);
+  background: var(--active);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.status-pill.done {
+  color: var(--pill-positive-ink);
+  background: var(--pill-positive-bg);
+}
+
+.status-pill.review {
+  color: var(--pill-warning-ink);
+  background: var(--pill-warning-bg);
+}
+
+.status-pill.processing {
+  color: var(--text);
+  background: var(--raised);
+}
+
+.status-pill.failed {
+  color: var(--pill-negative-ink);
+  background: var(--pill-negative-bg);
+}
+
+.status-pill.neutral {
+  color: var(--pill-neutral-ink);
+  background: var(--pill-neutral-bg);
+}
+
 .search-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -70,7 +70,7 @@
               <small>{{ item.summary || item.bodyPreview || '—' }}</small>
             </span>
           </span>
-          <span class="table-label">{{ item.category?.name || t('home.noCategory') }}</span>
+          <span class="table-label">{{ item.category?.name || t('common.uncategorized') }}</span>
           <span class="table-date">{{ formatDate(item.updatedAt) }}</span>
           <span class="table-source">
             <span class="status-pill" :class="statusClass(item.processingStatus)">
@@ -96,6 +96,7 @@ import {
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listKnowledgeItems } from '@/api/client'
+import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
 import type { KnowledgeItemSummary } from '@/types/api'
 
 const { t, locale } = useI18n()
@@ -142,17 +143,11 @@ function sourceIcon(kind: string) {
 }
 
 function statusClass(status: string) {
-  if (status === 'failed') return 'failed'
-  if (status === 'processing') return 'processing'
-  if (status === 'review' || status === 'pending') return 'review'
-  return 'done'
+  return knowledgeStatusTone(status)
 }
 
 function statusLabel(status: string) {
-  if (status === 'failed') return t('processing.failed')
-  if (status === 'processing') return t('processing.processing')
-  if (status === 'review' || status === 'pending') return t('processing.review')
-  return t('common.organized')
+  return t(knowledgeStatusTranslationKey(status))
 }
 
 function formatDate(value: string) {

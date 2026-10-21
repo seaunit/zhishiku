@@ -43,7 +43,7 @@
           </header>
 
           <div class="detail-meta">
-            <span class="tag">{{ item.category?.name || t('home.noCategory') }}</span>
+            <span class="tag">{{ item.category?.name || t('common.uncategorized') }}</span>
             <span v-for="tag in item.tags.slice(0, 4)" :key="tag.id" class="tag">
               {{ tag.name }}
             </span>
@@ -75,7 +75,7 @@
             <h2>{{ t('detail.classification') }}</h2>
             <div class="aside-field">
               <span>{{ t('detail.category') }}</span>
-              <strong>{{ item.category?.name || t('home.noCategory') }}</strong>
+              <strong>{{ item.category?.name || t('common.uncategorized') }}</strong>
             </div>
             <div class="aside-field">
               <span>{{ t('detail.tags') }}</span>
@@ -127,6 +127,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { getKnowledgeItem } from '@/api/client'
+import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
 import { validateRichTextDocument } from '@/lib/rich-text'
 import RichTextDocument from '@/components/RichTextDocument.vue'
 import type { KnowledgeItem } from '@/types/api'
@@ -140,17 +141,11 @@ const notFound = ref(false)
 const documentError = ref('')
 
 function statusClass(status: string) {
-  if (status === 'failed') return 'failed'
-  if (status === 'processing') return 'processing'
-  if (status === 'review' || status === 'pending') return 'review'
-  return 'done'
+  return knowledgeStatusTone(status)
 }
 
 function statusLabel(status: string) {
-  if (status === 'failed') return t('processing.failed')
-  if (status === 'processing') return t('processing.processing')
-  if (status === 'review' || status === 'pending') return t('processing.review')
-  return t('common.organized')
+  return t(knowledgeStatusTranslationKey(status))
 }
 
 function sourceLabel(kind: string) {

@@ -1156,6 +1156,34 @@ test('renders semantic detail tables and closes the image lightbox with Escape',
   ).toBe(true)
 })
 
+test('keeps an absent category separate from an unrequested processing status', async ({ page }) => {
+  await page.route(`**/kb/api/v1/knowledge-items/${summary.id}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...summary,
+        category: null,
+        tags: [],
+        processingStatus: 'not_requested',
+        body: '手动记录但尚未请求 AI 整理。',
+        bodyDocument: null,
+        bodySchemaVersion: null,
+        bodyMigrationState: 'not_required',
+        note: '',
+        redactionApplied: false,
+      }),
+    })
+  })
+
+  await page.goto(`/kb/library/${summary.id}`)
+  const aside = page.locator('.detail-aside')
+  await expect(aside.getByText('未分类')).toBeVisible()
+  await expect(aside.getByText('未整理')).toHaveCount(1)
+  await expect(page.locator('.detail-meta').getByText('未整理')).toBeVisible()
+  await expect(page.getByText('待整理')).toHaveCount(0)
+})
+
 test('offers reload, copy, and explicit overwrite after a version conflict', async ({ page }) => {
   const id = '123e4567-e89b-42d3-a456-426614174000'
   let copied = false

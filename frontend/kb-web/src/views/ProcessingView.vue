@@ -27,7 +27,7 @@
           <strong>{{ item.title }}</strong>
           <small>{{ item.summary || item.bodyPreview || '—' }}</small>
         </span>
-        <span class="table-label">{{ item.category?.name || t('home.noCategory') }}</span>
+        <span class="table-label">{{ item.category?.name || t('common.uncategorized') }}</span>
         <span class="status-pill" :class="statusClass(item.processingStatus)">
           {{ statusLabel(item.processingStatus) }}
         </span>
@@ -42,6 +42,7 @@ import { Inbox } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listKnowledgeItems } from '@/api/client'
+import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
 import type { KnowledgeItemSummary } from '@/types/api'
 
 const { t } = useI18n()
@@ -49,19 +50,15 @@ const items = ref<KnowledgeItemSummary[]>([])
 const loading = ref(true)
 
 function isPending(status: string) {
-  return ['pending', 'processing', 'review', 'failed'].includes(status)
+  return ['pending', 'queued', 'running', 'processing', 'review', 'failed'].includes(status)
 }
 
 function statusClass(status: string) {
-  if (status === 'failed') return 'failed'
-  if (status === 'processing') return 'processing'
-  return 'review'
+  return knowledgeStatusTone(status)
 }
 
 function statusLabel(status: string) {
-  if (status === 'failed') return t('processing.failed')
-  if (status === 'processing') return t('processing.processing')
-  return t('processing.review')
+  return t(knowledgeStatusTranslationKey(status))
 }
 
 onMounted(async () => {

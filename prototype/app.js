@@ -310,6 +310,7 @@ const translations = {
     allKnowledge: "全部知识",
     autoCategories: "自动分类",
     pendingReview: "待整理",
+    uncategorized: "未分类",
     lastIndexed: "最近入海",
     localResults: "我的知识",
     viewAll: "查看全部",
@@ -484,6 +485,7 @@ const translations = {
     allKnowledge: "Knowledge",
     autoCategories: "Auto categories",
     pendingReview: "To review",
+    uncategorized: "Uncategorized",
     lastIndexed: "Last added",
     localResults: "My knowledge",
     viewAll: "View all",
@@ -1819,7 +1821,7 @@ function addItem({
   title,
   body,
   bodyHtml = "",
-  category = "待整理",
+  category = t("uncategorized"),
   tags = ["新收录"],
   source = "manual",
   sourceLabel = "手动录入",
@@ -1855,7 +1857,7 @@ function addItem({
   showToast(t("saved"));
   window.setTimeout(() => {
     newItem.status = finalStatus;
-    newItem.category = category === "待整理" ? finalCategory : category;
+    newItem.category = category === t("uncategorized") ? finalCategory : category;
     newItem.tags = tags.length ? tags : ["自动标签"];
     updateAllCounts();
     renderHomeResults();
@@ -1912,8 +1914,7 @@ function handleCaptureSubmit(form, target) {
         bodyHtml,
         source: "manual",
         sourceLabel: "手动录入",
-        category: "待整理",
-        tags: ["待整理"],
+        tags: ["手动录入"],
       });
     }
     state.richDrafts[target] = "";
