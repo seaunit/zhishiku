@@ -49,7 +49,7 @@ class RichTextMigrationPostgresTest {
     assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(2);
     assertThat(configuration.load().migrate().migrationsExecuted).isZero();
     configuration.load().clean();
-    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(4);
+    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(5);
 
     try (Connection connection = POSTGRES.createConnection("");
         Statement statement = connection.createStatement()) {
@@ -112,9 +112,9 @@ class RichTextMigrationPostgresTest {
     jdbc.update(
         """
         INSERT INTO owner_account
-          (id, email_normalized, email_verified_at, password_hash, locale,
+          (id, email_normalized, display_name, email_verified_at, password_hash, locale,
            created_at, updated_at, version)
-        VALUES (?, 'owner@example.com', now(), 'hash', 'zh-CN', now(), now(), 1)
+        VALUES (?, 'owner@example.com', 'owner', now(), 'hash', 'zh-CN', now(), now(), 1)
         """,
         ownerId);
     jdbc.update(

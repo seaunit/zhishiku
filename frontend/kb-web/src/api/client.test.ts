@@ -148,6 +148,7 @@ describe('captcha login', () => {
         jsonResponse({
           ownerId: '123e4567-e89b-42d3-a456-426614174000',
           email: 'owner@seaunit.site',
+          displayName: 'Owner',
           locale: 'zh-CN',
           csrfToken: 'csrf-session',
         }),

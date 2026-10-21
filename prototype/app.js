@@ -350,6 +350,34 @@ const translations = {
     settingsRetentionTitle: "回收站保留",
     settingsRetentionDesc: "删除后 30 天永久清理，备份会按声明周期淘汰。",
     retentionValue: "30 天",
+    accountMenuLabel: "账户菜单",
+    accountOpenMenu: "打开{name}的账户菜单",
+    accountCurrentAccount: "当前账户",
+    accountProfile: "个人资料",
+    accountLogout: "退出登录",
+    accountLogoutTitle: "退出登录？",
+    accountLogoutBody: "退出后会结束当前会话，需要重新登录才能继续使用识海。",
+    accountConfirmLogout: "确认退出",
+    accountSignedOut: "已退出当前会话（原型）",
+    profileTitle: "个人资料",
+    profileSubtitle: "管理你在识海中显示的名称。登录邮箱不会在这里修改。",
+    profileAccountTitle: "账户信息",
+    profileAccountDesc: "显示名称只用于识海界面，不会改变你的登录方式。",
+    profilePrivate: "私人账户",
+    profileDisplayName: "显示名称",
+    profileDisplayNameHint: "1–40 个字符；保存后会用于头像和账户菜单。",
+    profileEmail: "登录邮箱",
+    profileEmailHint: "邮箱用于登录和接收验证码，当前为只读。",
+    profileSave: "保存修改",
+    profileSaved: "个人资料已保存",
+    profileInvalid: "显示名称需为 1–40 个字符，且不能包含换行或 HTML 标签。",
+    profileBoundariesTitle: "账户边界",
+    profileBoundaryIdentity: "登录身份",
+    profileBoundaryIdentityValue: "邮箱只读，用于登录和验证码。",
+    profileBoundaryIsolation: "知识隔离",
+    profileBoundaryIsolationValue: "知识、附件与搜索仅当前账号可访问。",
+    profileBoundaryDisplayName: "显示名称",
+    profileBoundaryDisplayNameValue: "用于界面识别，不参与搜索或 AI。",
     languageChinese: "中文",
     languageEnglish: "English",
     backToLibrary: "返回知识库",
@@ -496,6 +524,34 @@ const translations = {
     settingsRetentionTitle: "Trash retention",
     settingsRetentionDesc: "Deleted items purge after 30 days. Backups expire on the declared schedule.",
     retentionValue: "30 days",
+    accountMenuLabel: "Account menu",
+    accountOpenMenu: "Open account menu for {name}",
+    accountCurrentAccount: "Current account",
+    accountProfile: "Profile",
+    accountLogout: "Sign out",
+    accountLogoutTitle: "Sign out?",
+    accountLogoutBody: "Signing out ends this session. You will need to sign in again to use Shihai.",
+    accountConfirmLogout: "Sign out now",
+    accountSignedOut: "Signed out of this session (prototype)",
+    profileTitle: "Profile",
+    profileSubtitle: "Manage the name shown inside Shihai. Your sign-in email is not changed here.",
+    profileAccountTitle: "Account details",
+    profileAccountDesc: "Your display name is only used in Shihai and does not change how you sign in.",
+    profilePrivate: "Private account",
+    profileDisplayName: "Display name",
+    profileDisplayNameHint: "1–40 characters. Used by your avatar and account menu after saving.",
+    profileEmail: "Sign-in email",
+    profileEmailHint: "This email is used to sign in and receive verification codes. It is read-only.",
+    profileSave: "Save changes",
+    profileSaved: "Profile saved",
+    profileInvalid: "Use 1–40 characters without line breaks or HTML tags.",
+    profileBoundariesTitle: "Account boundaries",
+    profileBoundaryIdentity: "Sign-in identity",
+    profileBoundaryIdentityValue: "The read-only email is used for sign-in and verification codes.",
+    profileBoundaryIsolation: "Knowledge isolation",
+    profileBoundaryIsolationValue: "Knowledge, attachments, and search are limited to this account.",
+    profileBoundaryDisplayName: "Display name",
+    profileBoundaryDisplayNameValue: "Used for interface identity, not search or AI.",
     languageChinese: "中文",
     languageEnglish: "English",
     backToLibrary: "Back to library",
@@ -606,6 +662,8 @@ const state = {
   editingItemId: null,
   currentDetailId: null,
   externalVisible: false,
+  accountName: "林舟",
+  accountEmail: "linzhou@seaunit.site",
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -1671,6 +1729,7 @@ function setLanguage(lang) {
   renderProcessing();
   renderTrash();
   renderCapturePage();
+  renderAccountProfile();
   if (state.view === "detail" && state.currentDetailId) renderDetail(state.currentDetailId);
   updateStaticDynamicLabels();
 }
@@ -1957,6 +2016,7 @@ function showView(view) {
   if (view === "processing") renderProcessing();
   if (view === "trash") renderTrash();
   if (view === "capture") renderCapturePage();
+  if (view === "profile") renderAccountProfile();
   if (view === "home") renderHomeResults();
   if (view === "detail") renderDetail(state.currentDetailId);
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1974,8 +2034,96 @@ function restoreTrashEntry(entryId) {
   showToast(t("restored"));
 }
 
+function accountInitial(name) {
+  return Array.from(String(name).trim())[0]?.toUpperCase() || "识";
+}
+
+function renderAccountProfile() {
+  const initial = accountInitial(state.accountName);
+  $("#accountMenuButton").textContent = initial;
+  $("#accountAvatarLarge").textContent = initial;
+  $("#accountDisplayName").textContent = state.accountName;
+  $("#accountEmail").textContent = state.accountEmail;
+  $("#accountMenuButton").setAttribute(
+    "aria-label",
+    t("accountOpenMenu", { name: state.accountName }),
+  );
+  $("#accountMenu").setAttribute("aria-label", t("accountMenuLabel"));
+  $(".account-menu-summary", $("#accountMenu")).setAttribute(
+    "aria-label",
+    t("accountCurrentAccount"),
+  );
+  $("#profileAvatar").textContent = initial;
+  $("#profileSummaryName").textContent = state.accountName;
+  $("#profileSummaryEmail").textContent = state.accountEmail;
+  $("#profileEmail").value = state.accountEmail;
+  $("#profileDisplayName").value = state.accountName;
+}
+
+function setAccountMenuOpen(open) {
+  const menu = $("#accountMenu");
+  const button = $("#accountMenuButton");
+  menu.hidden = !open;
+  button.setAttribute("aria-expanded", String(open));
+  if (open) {
+    $('[role="menuitem"]', menu)?.focus();
+  } else {
+    button.focus();
+  }
+}
+
+function normalizePrototypeName(value) {
+  return value.trim().replace(/\s+/gu, " ");
+}
+
+function hasUnsafePrototypeControl(value) {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0);
+    return character === "<" ||
+      character === ">" ||
+      ((/\p{Cc}|\p{Cf}/u.test(character)) &&
+        codePoint !== 0x200c &&
+        codePoint !== 0x200d);
+  });
+}
+
+function savePrototypeProfile(event) {
+  event.preventDefault();
+  const value = normalizePrototypeName($("#profileDisplayName").value);
+  const length = Array.from(value).length;
+  if (length < 1 || length > 40 || hasUnsafePrototypeControl(value)) {
+    showToast(t("profileInvalid"));
+    return;
+  }
+  state.accountName = value;
+  renderAccountProfile();
+  $("#profileSaveStatus").textContent = t("profileSaved");
+  syncProfileButtons();
+  showToast(t("profileSaved"));
+}
+
+function syncProfileButtons() {
+  const dirty =
+    normalizePrototypeName($("#profileDisplayName").value) !== state.accountName;
+  $("#profileSaveButton").disabled = !dirty;
+  $("#profileCancelButton").disabled = !dirty;
+  if (dirty) $("#profileSaveStatus").textContent = "";
+}
+
 function bindEvents() {
   document.addEventListener("click", (event) => {
+    const accountButton = event.target.closest("#accountMenuButton");
+    if (accountButton) {
+      setAccountMenuOpen($("#accountMenu").hidden);
+      return;
+    }
+    if (!event.target.closest(".account-control")) {
+      const menu = $("#accountMenu");
+      if (menu && !menu.hidden) {
+        menu.hidden = true;
+        $("#accountMenuButton").setAttribute("aria-expanded", "false");
+      }
+    }
     const captureFallback = event.target.closest("[data-switch-page], [data-switch-dialog]");
     if (captureFallback) {
       const target = captureFallback.hasAttribute("data-switch-dialog") ? "dialog" : "page";
@@ -2004,6 +2152,10 @@ function bindEvents() {
     }
     const viewButton = event.target.closest("[data-view]");
     if (viewButton) {
+      if (!$("#accountMenu").hidden) {
+        $("#accountMenu").hidden = true;
+        $("#accountMenuButton").setAttribute("aria-expanded", "false");
+      }
       showView(viewButton.dataset.view);
       return;
     }
@@ -2072,6 +2224,10 @@ function bindEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !$("#accountMenu").hidden) {
+      setAccountMenuOpen(false);
+      return;
+    }
     const tab = event.target.closest(".capture-tab, .dialog-tabs button");
     if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     const tabs = [...tab.parentElement.querySelectorAll(".capture-tab, .dialog-tabs button")];
@@ -2118,6 +2274,24 @@ function bindEvents() {
 
   $("#languageToggle").addEventListener("click", () => {
     setLanguage(state.lang === "zh" ? "en" : "zh");
+  });
+
+  $("#accountLogout").addEventListener("click", () => {
+    setAccountMenuOpen(false);
+    $("#logoutDialog").showModal();
+    $("#cancelLogout").focus();
+  });
+  $("#cancelLogout").addEventListener("click", () => $("#logoutDialog").close());
+  $("#confirmLogout").addEventListener("click", () => {
+    $("#logoutDialog").close();
+    showToast(t("accountSignedOut"));
+  });
+  $("#profileForm").addEventListener("submit", savePrototypeProfile);
+  $("#profileDisplayName").addEventListener("input", syncProfileButtons);
+  $("#profileCancelButton").addEventListener("click", () => {
+    renderAccountProfile();
+    $("#profileSaveStatus").textContent = "";
+    syncProfileButtons();
   });
 
   $("#detailBack").addEventListener("click", () => showView("library"));
@@ -2190,10 +2364,12 @@ function initialize() {
   renderProcessing();
   renderTrash();
   renderCapturePage();
+  renderAccountProfile();
+  syncProfileButtons();
   $$(".capture-tab").forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.captureMode === state.captureMode);
   });
-  if (["home", "library", "capture", "processing", "trash", "settings"].includes(requestedView)) {
+  if (["home", "library", "capture", "processing", "trash", "settings", "profile"].includes(requestedView)) {
     showView(requestedView);
   }
   if (["manual", "webpage", "document", "screenshot"].includes(requestedDialog)) {

@@ -100,6 +100,14 @@
         <path d="m12 2 9 5-9 5-9-5 9-5Z" />
         <path d="m3 12 9 5 9-5M3 17l9 5 9-5" />
       </symbol>
+      <symbol id="icon-user" viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </symbol>
+      <symbol id="icon-logout" viewBox="0 0 24 24">
+        <path d="M10 17l5-5-5-5M15 12H3" />
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+      </symbol>
     </svg>
 
     <div class="app-shell">
@@ -157,7 +165,37 @@
               <svg><use href="#icon-globe"></use></svg>
               <span id="languageLabel">EN</span>
             </button>
-            <button class="avatar-button" aria-label="个人账户">L</button>
+            <div class="account-control">
+              <button
+                class="avatar-button"
+                id="accountMenuButton"
+                aria-label="打开个人账户菜单"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="accountMenu"
+              >
+                L
+              </button>
+              <div class="account-menu" id="accountMenu" role="menu" aria-label="账户菜单" hidden>
+                <header class="account-menu-summary" role="group" aria-label="当前账户">
+                  <span class="account-avatar-large" id="accountAvatarLarge">L</span>
+                  <span>
+                    <strong id="accountDisplayName">林舟</strong>
+                    <small id="accountEmail">linzhou@seaunit.site</small>
+                  </span>
+                </header>
+                <div class="account-menu-actions">
+                  <button class="account-menu-item" type="button" data-view="profile" role="menuitem">
+                    <svg><use href="#icon-user"></use></svg>
+                    <span data-i18n="accountProfile">个人资料</span>
+                  </button>
+                  <button class="account-menu-item account-menu-logout" id="accountLogout" type="button" role="menuitem">
+                    <svg><use href="#icon-logout"></use></svg>
+                    <span data-i18n="accountLogout">退出登录</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -431,6 +469,67 @@
               </section>
             </section>
           </section>
+
+          <section class="view" id="view-profile" hidden>
+            <div class="title-row">
+              <div>
+                <h1 data-i18n="profileTitle">个人资料</h1>
+                <p class="title-subtitle" data-i18n="profileSubtitle">
+                  管理你在识海中显示的名称。登录邮箱不会在这里修改。
+                </p>
+              </div>
+            </div>
+            <section class="profile-layout">
+              <aside class="profile-summary">
+                <span class="profile-avatar" id="profileAvatar">林</span>
+                <div>
+                  <h2 id="profileSummaryName">林舟</h2>
+                  <p id="profileSummaryEmail">linzhou@seaunit.site</p>
+                </div>
+              </aside>
+              <form class="panel profile-form" id="profileForm">
+                <div class="profile-form-heading">
+                  <div>
+                    <h2 data-i18n="profileAccountTitle">账户信息</h2>
+                    <p data-i18n="profileAccountDesc">显示名称只用于识海界面，不会改变你的登录方式。</p>
+                  </div>
+                  <span class="profile-account-badge" data-i18n="profilePrivate">私人账户</span>
+                </div>
+                <label class="field">
+                  <span data-i18n="profileDisplayName">显示名称</span>
+                  <input class="input" id="profileDisplayName" name="displayName" autocomplete="name" />
+                </label>
+                <p class="field-hint" data-i18n="profileDisplayNameHint">1–40 个字符；保存后会用于头像和账户菜单。</p>
+                <label class="field">
+                  <span data-i18n="profileEmail">登录邮箱</span>
+                  <input class="input" id="profileEmail" value="linzhou@seaunit.site" readonly />
+                </label>
+                <p class="field-hint" data-i18n="profileEmailHint">邮箱用于登录和接收验证码，当前为只读。</p>
+                <div class="profile-form-actions">
+                  <button class="primary-button" id="profileSaveButton" type="submit" data-i18n="profileSave" disabled>保存修改</button>
+                  <button class="ghost-button" id="profileCancelButton" type="button" data-i18n="cancel" disabled>取消</button>
+                  <span class="profile-save-status" id="profileSaveStatus" role="status"></span>
+                </div>
+              </form>
+              <section class="profile-boundaries">
+                <h2 data-i18n="profileBoundariesTitle">账户边界</h2>
+                <dl class="profile-boundary-list">
+                  <div>
+                    <dt data-i18n="profileBoundaryIdentity">登录身份</dt>
+                    <dd data-i18n="profileBoundaryIdentityValue">邮箱只读，用于登录和验证码。</dd>
+                  </div>
+                  <div>
+                    <dt data-i18n="profileBoundaryIsolation">知识隔离</dt>
+                    <dd data-i18n="profileBoundaryIsolationValue">知识、附件与搜索仅当前账号可访问。</dd>
+                  </div>
+                  <div>
+                    <dt data-i18n="profileBoundaryDisplayName">显示名称</dt>
+                    <dd data-i18n="profileBoundaryDisplayNameValue">用于界面识别，不参与搜索或 AI。</dd>
+                  </div>
+                </dl>
+              </section>
+            </section>
+          </section>
         </main>
       </div>
     </div>
@@ -461,6 +560,15 @@
           <button class="primary-button" type="submit" value="default" data-i18n="saveAuto">保存并自动整理</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="confirm-dialog-prototype" id="logoutDialog" aria-labelledby="logoutDialogTitle">
+      <h2 id="logoutDialogTitle" data-i18n="accountLogoutTitle">退出登录？</h2>
+      <p data-i18n="accountLogoutBody">退出后会结束当前会话，需要重新登录才能继续使用识海。</p>
+      <div class="confirm-actions">
+        <button class="ghost-button" id="cancelLogout" type="button" data-i18n="cancel">取消</button>
+        <button class="danger-button" id="confirmLogout" type="button" data-i18n="accountConfirmLogout">确认退出</button>
+      </div>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

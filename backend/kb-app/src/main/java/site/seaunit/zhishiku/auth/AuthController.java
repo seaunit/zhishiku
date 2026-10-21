@@ -159,6 +159,10 @@ public class AuthController {
             .findByEmail(authentication.getName())
             .orElseThrow(() -> new IllegalStateException("Account is unavailable."));
     return new SessionResponse(
-        owner.getId(), owner.getEmailNormalized(), owner.getLocale(), token.getToken());
+        owner.getId(),
+        owner.getEmailNormalized(),
+        owner.getDisplayName(),
+        owner.getLocale(),
+        token.getToken());
   }
 }

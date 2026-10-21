@@ -13,6 +13,8 @@ import site.seaunit.zhishiku.config.AppProperties;
 
 @Service
 public class OwnerService implements ApplicationRunner {
+  private static final int MAX_DISPLAY_NAME_CODE_POINTS = 40;
+
   private final OwnerAccountRepository repository;
   private final PasswordEncoder passwordEncoder;
   private final AppProperties properties;
@@ -80,5 +82,67 @@ public class OwnerService implements ApplicationRunner {
       throw new BadCredentialsException("Bootstrap token is invalid.");
     }
     return createOwner(email, password, locale);
+  }
+
+  @Transactional
+  public OwnerAccountEntity updateDisplayName(String email, String displayName) {
+    String normalizedDisplayName = normalizeDisplayName(displayName);
+    OwnerAccountEntity owner =
+        repository
+            .findByEmailNormalized(email.strip().toLowerCase())
+            .orElseThrow(() -> new IllegalStateException("Owner account is unavailable."));
+    owner.updateDisplayName(normalizedDisplayName);
+    return repository.save(owner);
+  }
+
+  public static String normalizeDisplayName(String displayName) {
+    if (displayName == null) {
+      throw invalidDisplayName();
+    }
+
+    StringBuilder normalized = new StringBuilder(displayName.length());
+    boolean pendingSpace = false;
+    for (int offset = 0; offset < displayName.length(); ) {
+      int codePoint = displayName.codePointAt(offset);
+      offset += Character.charCount(codePoint);
+      if (Character.isISOControl(codePoint)
+          || isUnsafeFormatControl(codePoint)
+          || codePoint == '<'
+          || codePoint == '>') {
+        throw invalidDisplayName();
+      }
+      if (isWhitespace(codePoint)) {
+        if (!normalized.isEmpty()) {
+          pendingSpace = true;
+        }
+        continue;
+      }
+      if (pendingSpace) {
+        normalized.append(' ');
+        pendingSpace = false;
+      }
+      normalized.appendCodePoint(codePoint);
+    }
+
+    int length = normalized.codePointCount(0, normalized.length());
+    if (length < 1 || length > MAX_DISPLAY_NAME_CODE_POINTS) {
+      throw invalidDisplayName();
+    }
+    return normalized.toString();
+  }
+
+  private static boolean isWhitespace(int codePoint) {
+    return Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint);
+  }
+
+  private static boolean isUnsafeFormatControl(int codePoint) {
+    return Character.getType(codePoint) == Character.FORMAT
+        && codePoint != 0x200C
+        && codePoint != 0x200D;
+  }
+
+  private static IllegalArgumentException invalidDisplayName() {
+    return new IllegalArgumentException(
+        "Display name must contain 1 to 40 characters without control characters or angle brackets.");
   }
 }

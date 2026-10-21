@@ -38,8 +38,20 @@ export interface RegistrationResponse {
 export interface SessionResponse {
   ownerId: string
   email: string
+  displayName: string
   locale: 'zh-CN' | 'en'
   csrfToken: string
+}
+
+export interface ProfileResponse {
+  ownerId: string
+  email: string
+  displayName: string
+  locale: 'zh-CN' | 'en'
+}
+
+export interface UpdateProfileRequest {
+  displayName: string
 }
 
 export interface ClassificationAssignment {

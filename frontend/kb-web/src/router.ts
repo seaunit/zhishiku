@@ -56,6 +56,12 @@ export const router = createRouter({
           meta: { title: '设置' },
         },
         {
+          path: 'profile',
+          name: 'profile',
+          component: () => import('@/views/ProfileView.vue'),
+          meta: { title: '个人资料' },
+        },
+        {
           path: 'library/:id',
           name: 'detail',
           component: () => import('@/views/DetailView.vue'),

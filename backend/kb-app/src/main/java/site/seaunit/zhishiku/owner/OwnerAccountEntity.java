@@ -17,6 +17,9 @@ public class OwnerAccountEntity extends AuditedEntity {
   @Column(name = "email_normalized", nullable = false, unique = true)
   private String emailNormalized;
 
+  @Column(name = "display_name", nullable = false)
+  private String displayName;
+
   @Column(name = "password_hash", nullable = false)
   private String passwordHash;
 
@@ -36,6 +39,7 @@ public class OwnerAccountEntity extends AuditedEntity {
     OwnerAccountEntity owner = new OwnerAccountEntity();
     owner.id = UUID.randomUUID();
     owner.emailNormalized = email.strip().toLowerCase();
+    owner.displayName = defaultDisplayName(owner.emailNormalized);
     owner.passwordHash = passwordHash;
     owner.locale = locale;
     owner.emailVerifiedAt = Instant.now();
@@ -50,6 +54,14 @@ public class OwnerAccountEntity extends AuditedEntity {
     return emailNormalized;
   }
 
+  public String getDisplayName() {
+    return displayName;
+  }
+
+  public void updateDisplayName(String displayName) {
+    this.displayName = displayName;
+  }
+
   public String getPasswordHash() {
     return passwordHash;
   }
@@ -60,5 +72,19 @@ public class OwnerAccountEntity extends AuditedEntity {
 
   public Instant getEmailVerifiedAt() {
     return emailVerifiedAt;
+  }
+
+  private static String defaultDisplayName(String emailNormalized) {
+    int separator = emailNormalized.indexOf('@');
+    String localPart = separator < 0 ? emailNormalized : emailNormalized.substring(0, separator);
+    localPart = localPart.strip();
+    if (localPart.isEmpty()) {
+      localPart = "user";
+    }
+    int codePoints = localPart.codePointCount(0, localPart.length());
+    if (codePoints <= 40) {
+      return localPart;
+    }
+    return localPart.substring(0, localPart.offsetByCodePoints(0, 40));
   }
 }

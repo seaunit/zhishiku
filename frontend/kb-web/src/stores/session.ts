@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as api from '@/api/client'
-import type { SessionResponse } from '@/types/api'
+import type { ProfileResponse, SessionResponse } from '@/types/api'
 
 export const useSessionStore = defineStore('session', () => {
   const session = ref<SessionResponse | null>(null)
@@ -28,12 +28,45 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  async function restore() {
+    if (session.value) {
+      return session.value
+    }
+    session.value = await api.getCurrentSession()
+    return session.value
+  }
+
   async function logout() {
+    await api.logout()
+    session.value = null
+    api.resetCsrfToken()
+  }
+
+  async function updateProfile(displayName: string) {
+    submitting.value = true
+    error.value = null
     try {
-      await api.logout()
+      const updated = await api.updateProfile({ displayName })
+      applyProfile(updated)
+      return updated
+    } catch (caught) {
+      error.value = caught instanceof Error ? caught.message : 'PROFILE_UPDATE_FAILED'
+      throw caught
     } finally {
-      session.value = null
-      api.resetCsrfToken()
+      submitting.value = false
+    }
+  }
+
+  function applyProfile(profile: ProfileResponse) {
+    if (!session.value) {
+      return
+    }
+    session.value = {
+      ...session.value,
+      ownerId: profile.ownerId,
+      email: profile.email,
+      displayName: profile.displayName,
+      locale: profile.locale,
     }
   }
 
@@ -47,7 +80,10 @@ export const useSessionStore = defineStore('session', () => {
     error,
     isAuthenticated,
     login,
+    restore,
     logout,
+    updateProfile,
+    applyProfile,
     clearError,
   }
 })

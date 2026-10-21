@@ -53,15 +53,12 @@
         <div class="topbar-actions">
           <span class="sync-state"><i aria-hidden="true" />{{ t('common.synced') }}</span>
           <LocaleSwitch />
-          <button
-            type="button"
-            class="avatar-button"
-            :aria-label="t('nav.logout')"
-            :title="t('nav.logout')"
-            @click="signOut"
-          >
-            {{ accountInitial }}
-          </button>
+          <AccountMenu
+            :display-name="accountDisplayName"
+            :email="session.session?.email || ''"
+            :initial="accountInitial"
+            @request-logout="openLogout"
+          />
         </div>
       </header>
 
@@ -69,22 +66,39 @@
         <RouterView />
       </main>
     </div>
+
+    <ConfirmDialog
+      v-if="confirmOpen"
+      :title="t('account.logoutTitle')"
+      :body="t('account.logoutBody')"
+      :cancel-label="t('common.cancel')"
+      :confirm-label="signingOut ? t('account.signingOut') : t('account.confirmLogout')"
+      :busy="signingOut"
+      :error="signOutError"
+      @cancel="cancelLogout"
+      @confirm="signOut"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { Home, Inbox, Library, Plus, Settings, Trash2 } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
+import AccountMenu from './AccountMenu.vue'
 import BrandMark from './BrandMark.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 import LocaleSwitch from './LocaleSwitch.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const session = useSessionStore()
 const pendingCount = ref(0)
+const confirmOpen = ref(false)
+const signingOut = ref(false)
+const signOutError = ref('')
 
 const primaryItems = computed(() => [
   { name: 'home', to: '/', label: t('nav.home'), icon: Home },
@@ -94,13 +108,45 @@ const primaryItems = computed(() => [
   { name: 'trash', to: '/trash', label: t('nav.trash'), icon: Trash2 },
 ])
 
-const accountInitial = computed(() => {
-  const email = session.session?.email
-  return email ? email.charAt(0).toUpperCase() : '识'
-})
+const accountDisplayName = computed(
+  () => session.session?.displayName || session.session?.email.split('@')[0] || t('account.defaultName'),
+)
+const accountInitial = computed(() => firstCharacter(accountDisplayName.value))
 
 async function signOut() {
-  await session.logout()
-  await router.push({ name: 'login' })
+  if (signingOut.value) {
+    return
+  }
+  signingOut.value = true
+  signOutError.value = ''
+  try {
+    await session.logout()
+    confirmOpen.value = false
+    await router.push({ name: 'login' })
+  } catch {
+    signOutError.value = t('account.logoutFailed')
+  } finally {
+    signingOut.value = false
+  }
 }
+
+function openLogout() {
+  signOutError.value = ''
+  confirmOpen.value = true
+}
+
+function cancelLogout() {
+  confirmOpen.value = false
+  signOutError.value = ''
+}
+
+function firstCharacter(value: string) {
+  return Array.from(value.trim())[0]?.toUpperCase() || '识'
+}
+
+onMounted(() => {
+  void session.restore().catch(() => {
+    // The API client emits the unauthorized event and redirects to login.
+  })
+})
 </script>

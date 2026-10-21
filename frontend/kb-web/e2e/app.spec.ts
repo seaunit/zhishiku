@@ -15,7 +15,42 @@ const summary = {
   updatedAt: '2026-10-21T08:00:00Z',
 }
 
+const profile = {
+  ownerId: '123e4567-e89b-42d3-a456-426614174099',
+  email: 'linzhou@example.com',
+  displayName: '林舟',
+  locale: 'zh-CN',
+}
+
 test.beforeEach(async ({ page }) => {
+  await page.route('**/kb/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...profile,
+        csrfToken: 'csrf-session',
+      }),
+    })
+  })
+
+  await page.route('**/kb/api/v1/profile', async (route) => {
+    if (route.request().method() === 'PATCH') {
+      const payload = route.request().postDataJSON() as { displayName: string }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...profile, displayName: payload.displayName.trim() }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(profile),
+    })
+  })
+
   await page.route('**/kb/api/v1/knowledge-items**', async (route) => {
     await route.fulfill({
       status: 200,
@@ -35,6 +70,201 @@ test.beforeEach(async ({ page }) => {
       }),
     })
   })
+})
+
+test('opens the account menu instead of signing out when the avatar is clicked', async ({
+  page,
+}) => {
+  let logoutRequests = 0
+  await page.route('**/kb/api/v1/auth/logout', async (route) => {
+    logoutRequests += 1
+    await route.fulfill({ status: 204 })
+  })
+
+  await page.goto('/kb/')
+  const avatar = page.getByRole('button', { name: '打开林舟的账户菜单' })
+  await avatar.click()
+
+  const menu = page.getByRole('menu', { name: '账户菜单' })
+  await expect(menu).toBeVisible()
+  await expect(menu.getByText('林舟')).toBeVisible()
+  await expect(menu.getByText('linzhou@example.com')).toBeVisible()
+  await expect(menu.getByRole('menuitem', { name: '个人资料' })).toBeVisible()
+  await expect(menu.getByRole('menuitem', { name: '退出登录' })).toBeVisible()
+  expect(logoutRequests).toBe(0)
+
+  await page.getByRole('heading', { level: 1, name: '识海' }).click()
+  await expect(menu).toHaveCount(0)
+  await expect(avatar).toBeFocused()
+
+  await avatar.click()
+  await expect(menu).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(menu).toHaveCount(0)
+  await expect(avatar).toBeFocused()
+
+  await avatar.press('Enter')
+  await expect(menu).toBeVisible()
+  await menu.getByRole('menuitem', { name: '个人资料' }).click()
+  await expect(page).toHaveURL(/\/kb\/profile$/)
+  await expect(page.getByRole('heading', { level: 1, name: '个人资料' })).toBeVisible()
+})
+
+test('keeps the account menu and profile usable at 320 pixels', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.goto('/kb/')
+  const avatar = page.getByRole('button', { name: '打开林舟的账户菜单' })
+  await avatar.click()
+
+  const menu = page.getByRole('menu', { name: '账户菜单' })
+  const box = await menu.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.x).toBeGreaterThanOrEqual(0)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(320)
+  for (const item of await menu.getByRole('menuitem').all()) {
+    expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+  }
+
+  await menu.getByRole('menuitem', { name: '个人资料' }).click()
+  await expect(page.getByLabel('显示名称')).toBeVisible()
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true)
+})
+
+test('edits the display name and immediately updates the account menu', async ({ page }) => {
+  let updatePayload: Record<string, unknown> | undefined
+  await page.route('**/kb/api/v1/profile', async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.fallback()
+      return
+    }
+    updatePayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...profile, displayName: '海风' }),
+    })
+  })
+
+  await page.goto('/kb/profile')
+  await expect(page.getByLabel('登录邮箱')).toHaveValue('linzhou@example.com')
+  await page.getByLabel('显示名称').fill('海风')
+  await page.getByRole('button', { name: '保存修改' }).click()
+  await expect(page.getByText('个人资料已保存')).toBeVisible()
+  expect(updatePayload).toMatchObject({ displayName: '海风' })
+
+  await page.getByRole('button', { name: '打开海风的账户菜单' }).click()
+  await expect(page.getByRole('menu', { name: '账户菜单' }).getByText('海风')).toBeVisible()
+})
+
+test('accepts 40 Unicode display-name code points and clears stale saved status', async ({
+  page,
+}) => {
+  const emojiName = '界'.repeat(39) + '😀'
+  let updatePayload: Record<string, unknown> | undefined
+  await page.route('**/kb/api/v1/profile', async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.fallback()
+      return
+    }
+    updatePayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...profile, displayName: emojiName }),
+    })
+  })
+
+  await page.goto('/kb/profile')
+  await page.getByLabel('显示名称').fill(emojiName)
+  await page.getByRole('button', { name: '保存修改' }).click()
+  await expect(page.getByText('个人资料已保存')).toBeVisible()
+  expect(Array.from(String(updatePayload?.displayName))).toHaveLength(40)
+
+  await page.getByLabel('显示名称').fill('深海')
+  await expect(page.getByText('个人资料已保存')).toHaveCount(0)
+})
+
+test('rejects bidirectional Unicode controls in display names', async ({ page }) => {
+  let updateRequests = 0
+  await page.route('**/kb/api/v1/profile', async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.fallback()
+      return
+    }
+    updateRequests += 1
+    await route.fulfill({ status: 500 })
+  })
+
+  await page.goto('/kb/profile')
+  await page.getByLabel('显示名称').fill('Alice\u202eevil')
+  await page.getByRole('button', { name: '保存修改' }).click()
+  await expect(page.getByRole('alert')).toContainText('不能包含')
+  expect(updateRequests).toBe(0)
+})
+
+test('confirms sign out and keeps the session when cancelled', async ({ page }) => {
+  let logoutRequests = 0
+  await page.route('**/kb/api/v1/auth/logout', async (route) => {
+    logoutRequests += 1
+    await route.fulfill({ status: 204 })
+  })
+
+  await page.goto('/kb/')
+  await page.getByRole('button', { name: '打开林舟的账户菜单' }).click()
+  await page.getByRole('menuitem', { name: '退出登录' }).click()
+
+  const dialog = page.getByRole('alertdialog', { name: '退出登录？' })
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Shift+Tab')
+  await expect(dialog.getByRole('button', { name: '确认退出' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  expect(logoutRequests).toBe(0)
+
+  await page.getByRole('button', { name: '打开林舟的账户菜单' }).click()
+  await page.getByRole('menuitem', { name: '退出登录' }).click()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: '取消' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page).toHaveURL(/\/kb\/$/)
+  expect(logoutRequests).toBe(0)
+
+  await page.getByRole('button', { name: '打开林舟的账户菜单' }).click()
+  await page.getByRole('menuitem', { name: '退出登录' }).click()
+  await page.getByRole('alertdialog', { name: '退出登录？' })
+    .getByRole('button', { name: '确认退出' })
+    .click()
+  await expect(page).toHaveURL(/\/kb\/login$/)
+  expect(logoutRequests).toBe(1)
+})
+
+test('keeps the local session when sign-out fails', async ({ page }) => {
+  await page.route('**/kb/api/v1/auth/logout', async (route) => {
+    await route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'STATE_CONFLICT',
+        message: 'Sign out failed.',
+        requestId: 'logout-failed',
+        retryable: true,
+      }),
+    })
+  })
+
+  await page.goto('/kb/')
+  await page.getByRole('button', { name: '打开林舟的账户菜单' }).click()
+  await page.getByRole('menuitem', { name: '退出登录' }).click()
+  await page.getByRole('alertdialog', { name: '退出登录？' })
+    .getByRole('button', { name: '确认退出' })
+    .click()
+
+  const dialog = page.getByRole('alertdialog', { name: '退出登录？' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('alert')).toContainText('退出登录失败')
+  await expect(page.getByRole('button', { name: '打开林舟的账户菜单' })).toBeVisible()
 })
 
 test('searches from the prototype-aligned home screen', async ({ page }) => {
@@ -340,6 +570,7 @@ test('logs in after fetching a CSRF token', async ({ page }) => {
       body: JSON.stringify({
         ownerId: '123e4567-e89b-42d3-a456-426614174000',
         email: 'owner@seaunit.site',
+        displayName: 'Owner',
         locale: 'zh-CN',
         csrfToken: 'csrf-session',
       }),

@@ -1,0 +1,80 @@
+openapi: 3.1.0
+info:
+  title: 识海账户资料 API
+  version: 1.0.0
+  description: 当前认证账号的个人资料读取和显示名称更新。
+servers:
+  - url: http://127.0.0.1:8082/kb
+security:
+  - sessionCookie: []
+x-csrf:
+  requiredFor: [PATCH]
+  header: X-XSRF-TOKEN
+paths:
+  /api/v1/profile:
+    get:
+      operationId: getCurrentProfile
+      summary: 读取当前账号资料。
+      responses:
+        "200":
+          description: 当前账号资料。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          description: 需要登录。
+    patch:
+      operationId: updateCurrentProfile
+      summary: 更新当前账号显示名称。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfile"
+      responses:
+        "200":
+          description: 更新后的当前账号资料。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          description: 会话已失效。
+        "422":
+          description: 显示名称不符合规范。
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: zhishiku_session
+  schemas:
+    Profile:
+      type: object
+      required: [ownerId, email, displayName, locale]
+      additionalProperties: false
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 40
+        locale:
+          type: string
+          enum: [zh-CN, en]
+    UpdateProfile:
+      type: object
+      required: [displayName]
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 40

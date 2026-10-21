@@ -30,6 +30,7 @@ Open `http://127.0.0.1:8088/`.
 - Processing: monitor provisional classification, failure, and retry.
 - Trash: restore or permanently remove deleted items.
 - Settings: manage AI service/content-type authorization, language, and retention.
+- Profile: view the current account, edit the display name, and review account boundaries.
 
 ## Interactions
 
@@ -46,6 +47,8 @@ Open `http://127.0.0.1:8088/`.
 - Drop or choose a document or JPG/PNG/WebP/HEIC image in the Document tab; the visible file button
   is keyboard accessible and the input enforces the 25 MiB prototype limit.
 - Toggle Chinese and English interface copy.
+- Open the account menu from the avatar; choose Profile or a separately confirmed sign-out.
+- Edit the display name and see the avatar initial and account menu update immediately.
 - Restore a trashed item.
 - Switch application views in the rail or mobile bottom navigation.
 
@@ -66,7 +69,10 @@ implementation.
 ## Validation
 
 - Taste source lint: `0 FAIL`, `0 WARN`
-- Taste browser inspection at 1440, 768, 390, and 360 px: `0 FAIL`
+- Taste browser inspection at 1440, 768, and 390 px: `0 FAIL`
+- Account profile inspection: `0 FAIL`, one retained `tiny-text` warning for the established
+  11–12px navigation metadata.
+- Account menu, profile save, and logout confirmation were exercised in Chrome at 1440 and 390px.
 - Screenshot empty state, pasted-preview state, and Document/Image state were reviewed separately.
 - Rich-text editor state was reviewed separately at all three widths; source lint and browser
   inspection both report `0 FAIL`.
@@ -82,6 +88,7 @@ http://127.0.0.1:8088/?view=capture&mode=screenshot
 http://127.0.0.1:8088/?view=capture&mode=screenshot&demoScreenshot=1
 http://127.0.0.1:8088/?view=capture&mode=document
 http://127.0.0.1:8088/?view=capture&mode=manual
+http://127.0.0.1:8088/?view=profile
 ```
 
 `demoScreenshot=1` is a visual-review fixture only. Normal interaction uses a real ClipboardEvent;

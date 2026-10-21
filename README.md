@@ -5,7 +5,8 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 ## 项目状态
 
 当前已完成可运行的 MVP：带一次性图形验证码的多账号登录、邮箱验证码公开注册、
-富文本知识录入与编辑、正文图片、知识列表、详情查看和 PostgreSQL 单框搜索。AI 自动分类、
+头像账户菜单、个人显示名称编辑与确认退出、富文本知识录入与编辑、正文图片、知识列表、
+详情查看和 PostgreSQL 单框搜索。AI 自动分类、
 单页链接收藏、TXT/Markdown 与图片文件入口、剪贴板截图入口、DeepSeek 联网搜索和单页
 Fetch 保存已经可用；AI 网页截图分析、PDF/Word 内容解析、OCR、自动分类和 Waffo 点数计费
 仍在后续任务中，真实收费在 P0/P1 门禁通过前保持关闭。
@@ -41,6 +42,10 @@ Fetch 保存已经可用；AI 网页截图分析、PDF/Word 内容解析、OCR�
 - [富文本实施计划](specs/004-rich-text-editor/plan.md)
 - [富文本数据模型](specs/004-rich-text-editor/data-model.md)
 - [富文本任务表](specs/004-rich-text-editor/tasks.md)
+- [账户菜单与个人资料规格](specs/005-account-profile/spec.md)
+- [账户资料实施计划](specs/005-account-profile/plan.md)
+- [账户资料数据模型](specs/005-account-profile/data-model.md)
+- [账户资料任务表](specs/005-account-profile/tasks.md)
 
 ## 交互原型
 

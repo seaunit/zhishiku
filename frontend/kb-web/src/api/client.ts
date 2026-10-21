@@ -7,6 +7,7 @@ import type {
   ExternalSearchResponse,
   KnowledgeItem,
   KnowledgeItemPage,
+  ProfileResponse,
   RegistrationEmailCodeResponse,
   RegistrationRequest,
   RegistrationResponse,
@@ -15,6 +16,7 @@ import type {
   SearchResponse,
   SessionResponse,
   UpdateKnowledgeItemRequest,
+  UpdateProfileRequest,
 } from '@/types/api'
 
 export const API_BASE = '/kb/api/v1'
@@ -179,9 +181,26 @@ export async function login(
   return session
 }
 
+export async function getCurrentSession(): Promise<SessionResponse> {
+  const session = await request<SessionResponse>('/auth/me')
+  setCsrfToken(session.csrfToken)
+  return session
+}
+
 export async function logout(): Promise<void> {
   await request<void>('/auth/logout', { method: 'POST' })
   resetCsrfToken()
+}
+
+export function getProfile(): Promise<ProfileResponse> {
+  return request<ProfileResponse>('/profile')
+}
+
+export function updateProfile(payload: UpdateProfileRequest): Promise<ProfileResponse> {
+  return request<ProfileResponse>('/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
 }
 
 export function listKnowledgeItems(limit = 20): Promise<KnowledgeItemPage> {
