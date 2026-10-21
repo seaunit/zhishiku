@@ -2,13 +2,13 @@
 
 **日期**：2026-10-22
 
-**部署提交**：`5fbf8e6b00429511b1d93fe49764832e077d63b7`
+**部署提交**：`0ddc96ba97134c242ead2557302a987a87e039c2`
 
-**发布 tag**：`v0.1.15-mvp`
+**发布 tag**：`v0.1.16-mvp`
 
-**运行 release**：`/opt/zhishiku/releases/5fbf8e6b0042-20261021211906`
+**运行 release**：`/opt/zhishiku/releases/0ddc96ba9713-20261021212647`
 
-**门户 release**：`/opt/seaunit-portal/releases/5fbf8e6b0042-20261021211906`
+**门户 release**：`/opt/seaunit-portal/releases/0ddc96ba9713-20261021212647`
 
 ## 部署结果
 
@@ -17,6 +17,7 @@
 - 应用入口：`https://seaunit.site/kb/`。
 - 双应用门户：`https://seaunit.site/`，提供拾题和识海入口。
 - 识海前端：已按批准原型切换为深海蓝图标轨、移动底栏、知识海图和双栏详情。
+- 注册：只要求邮箱验证码，不显示图形验证码；登录仍保留图形验证码。
 - API 前缀：`https://seaunit.site/kb/api/`。
 - 健康端点：`https://seaunit.site/kb/api/actuator/health`。
 - 数据库：独立 PostgreSQL 18.6 数据库 `zhishiku`。

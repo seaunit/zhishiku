@@ -387,6 +387,9 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 证据：`EmailVerificationServiceTest`、`AuthControllerRegistrationTest`、
   `frontend/kb-web/e2e/app.spec.ts`、`artifacts/001/email-only-registration.md`、
   `.taste-skill/email-only-registration/`。
+- 生产部署：`v0.1.16-mvp` 已部署，release 为
+  `0ddc96ba9713-20261021212647`；生产注册页图形验证码字段数为 0，只提交邮箱的发码请求
+  进入注册业务逻辑，原应用和健康检查全部通过。
 - 覆盖：FR-068 至 FR-073；登录验证码、注册邮箱验证码、60 秒频控和邮箱唯一性。
 - 风险与回滚：回滚会重新要求注册图形验证码并使旧前端请求失败，必须前后端与契约同版本回滚；
   已签发邮箱验证码和账号数据不受影响。

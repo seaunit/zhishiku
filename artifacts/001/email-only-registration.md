@@ -39,3 +39,15 @@ Content-Type: application/json
 | 前端 lint/typecheck/build | 通过 |
 
 视觉证据位于 `.taste-skill/email-only-registration/`。
+
+## 生产部署
+
+2026-10-22 已发布 `v0.1.16-mvp`，Git commit 为
+`0ddc96ba97134c242ead2557302a987a87e039c2`，运行 release 为
+`/opt/zhishiku/releases/0ddc96ba9713-20261021212647`。
+
+- 生产 `/kb/register` 图形验证码字段数为 0。
+- 使用已注册邮箱且请求体只包含 `email` 时，接口返回 `409 EMAIL_ALREADY_REGISTERED`，
+  证明请求已进入注册业务逻辑而非被图形验证码字段校验拦截。
+- `/`、`/app`、`/login`、`/bank/1`、`/kb/`、`/kb/register` 和健康检查均返回 HTTP 200。
+- 拾题服务、支付侧车和识海服务均保持 active。
