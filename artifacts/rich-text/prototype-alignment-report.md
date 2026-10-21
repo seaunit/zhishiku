@@ -54,6 +54,17 @@ node C:\Users\95611\.codex\skills\taste-skill\scripts\lint.mjs --app `
 
 结果：源检查 `0 FAIL`；保留 3 个浮层阴影和 1 组应用文案破折号警告。
 
+## 生产部署
+
+2026-10-22 已发布 `v0.1.15-mvp`，Git commit 为
+`5fbf8e6b00429511b1d93fe49764832e077d63b7`。生产 release 为
+`/opt/zhishiku/releases/5fbf8e6b0042-20261021211906`。
+
+- 生产登录页 Taste 检查：1440/768/390 全部 `0 FAIL`。
+- `/`、`/app`、`/login`、`/bank/1`、`/kb/`、`/kb/login` 和健康检查均返回 HTTP 200。
+- 拾题服务、支付侧车和识海服务均保持 active。
+- 注册状态接口继续返回 `{"open":true}`。
+
 ## 允许的视觉差异
 
 - 登录品牌区保留大面积留白，作为品牌标题与表单之间的安静分隔。

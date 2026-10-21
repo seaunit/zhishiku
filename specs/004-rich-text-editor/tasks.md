@@ -273,6 +273,9 @@ FR/SC 映射、风险和回滚。
   `.taste-skill/prototype-alignment-home-inspect/`、
   `.taste-skill/prototype-alignment-capture-inspect/`、
   `.taste-skill/prototype-alignment-detail-inspect/`。
+- 生产部署：`v0.1.15-mvp` 已从 GitHub 部署，运行 release 为
+  `5fbf8e6b0042-20261021211906`；门户、拾题原路由、识海登录、健康检查和注册状态接口通过，
+  登录页生产 Taste 检查为 `0 FAIL`。
 - 覆盖：FR-022 至 FR-028、FR-045 至 FR-048、SC-007、SC-008、SC-013 和项目宪法 XI。
 - 风险与回滚：设置页的 AI 授权开关目前只保存当前浏览器偏好，服务端授权 API 接入后必须
   改为服务端权威状态；回收站页面在删除 API 接入前只显示真实空状态。回滚前端提交即可恢复

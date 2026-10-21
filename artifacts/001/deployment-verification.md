@@ -2,13 +2,13 @@
 
 **日期**：2026-10-22
 
-**部署提交**：`83d2a824cb1a5c68060850276c1095baa8476cde`
+**部署提交**：`5fbf8e6b00429511b1d93fe49764832e077d63b7`
 
-**发布 tag**：`v0.1.14-mvp`
+**发布 tag**：`v0.1.15-mvp`
 
-**运行 release**：`/opt/zhishiku/releases/83d2a824cb1a-20261021210232`
+**运行 release**：`/opt/zhishiku/releases/5fbf8e6b0042-20261021211906`
 
-**门户 release**：`/opt/seaunit-portal/releases/83d2a824cb1a-20261021210232`
+**门户 release**：`/opt/seaunit-portal/releases/5fbf8e6b0042-20261021211906`
 
 ## 部署结果
 
@@ -16,6 +16,7 @@
 - 首次部署入口：GitHub Raw 上的 `deploy/scripts/provision-ubuntu.sh`。
 - 应用入口：`https://seaunit.site/kb/`。
 - 双应用门户：`https://seaunit.site/`，提供拾题和识海入口。
+- 识海前端：已按批准原型切换为深海蓝图标轨、移动底栏、知识海图和双栏详情。
 - API 前缀：`https://seaunit.site/kb/api/`。
 - 健康端点：`https://seaunit.site/kb/api/actuator/health`。
 - 数据库：独立 PostgreSQL 18.6 数据库 `zhishiku`。
@@ -35,6 +36,7 @@
 | `https://seaunit.site/bank/1` | HTTP 200 |
 | `/kb/login` 注册入口 | 始终显示“注册账户”；已有账号不关闭其他邮箱注册 |
 | `/kb/api/v1/auth/registration-status` | HTTP 200，`{"open":true}` |
+| `/kb/login` 生产 Taste 检查 | 1440/768/390 全部 `0 FAIL` |
 | `owner_account.instance_key` | 列数 0，实例级唯一账号约束不存在 |
 | Flyway | 最新成功迁移 `0006`，现有账号保留 |
 | `https://seaunit.site/terms` | HTTP 200 |
