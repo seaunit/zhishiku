@@ -431,6 +431,9 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   390px 四个入口截图已人工复核；Taste 采集页检查为 `0 FAIL`。
 - 证据：`frontend/kb-web/src/views/CaptureView.vue`、`frontend/kb-web/e2e/app.spec.ts`、
   `artifacts/001/capture-modes.md`、`.taste-skill/capture-modes/`。
+- 生产部署：`v0.1.18-mvp` 已部署，release 为
+  `62e69e39553a-20261021214427`；生产采集页显示四个入口，网页和文档控件可切换，截图入口
+  文件输入数为 0，原应用和健康检查全部通过。
 - 覆盖：FR-017 至 FR-022、FR-031、FR-066、FR-067。
 - 风险与回滚：PDF/Word 内容解析、网页 AI 截图分析和 OCR 仍未接入，分别继续由 T048、
   T049、T051-T052 承载。回滚前端可恢复单入口采集，不影响已保存知识、上传或来源记录。
