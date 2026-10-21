@@ -2,67 +2,91 @@
 
 **功能**：`001-ai-personal-knowledge-base`
 
-**目的**：实现完成后验证 Vue 3 + Spring Boot + PostgreSQL 知识库的完整闭环。本文是
-验收指南，不代表当前应用代码已实现。
+**目的**：验证 Vue 3 + Spring Boot + PostgreSQL 知识库。本文同时记录当前可运行 MVP
+的验收方式，以及 AI、外部采集、计费和完整生命周期等后续目标的验收门禁。
 
 ## 前置条件
 
-- Java 17 LTS 和 Maven Wrapper。
-- Vue 3 构建所需的 Node.js 20/22 LTS 和 pnpm；生产不运行 Node 前端服务器。
-- PostgreSQL 18，启用 `pg_trgm`。
-- S3 兼容对象存储，本地可使用 MinIO。
-- Playwright Java 对应 Chromium。
-- Tesseract、libvips 和 Apache Tika/PDFBox 所需系统包。
-- Waffo 测试桥接使用独立 Node.js 环境和测试凭据。
+- 当前 MVP：Java 17 LTS、Maven Wrapper、Node.js 20/22 LTS、pnpm 和 PostgreSQL 18。
+- 当前 MVP 图片使用 `KB_STORAGE_ROOT` 指定的本地持久目录，不要求 S3 或 MinIO。
+- 完整目标另需 S3、Playwright Java、Tesseract、libvips、Tika/PDFBox 和 Waffo 测试桥接；
+  这些能力尚未实现，不能作为当前 MVP 的放行依据。
+
+终端 A：
+
+```powershell
+cd infra
+docker compose -f compose.yml up -d postgres
+cd ../backend
+./mvnw -pl kb-app spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+终端 B：
+
+```powershell
+cd ../frontend/kb-web
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+另开终端运行后端测试和前端检查：
 
 ```powershell
 cd backend
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local,worker
+./mvnw -pl kb-app -am test
+
 cd ../frontend/kb-web
-pnpm install
-pnpm dev
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
 预期端点：
 
-- Vue 开发服务器：`http://localhost:5173/kb/`
-- Spring Boot API：`http://127.0.0.1:8082/kb/api`
-- Waffo 桥接：`http://127.0.0.1:8091`
-- PostgreSQL、MinIO、browser worker：仅内部访问
+- Vue 开发服务器：`http://127.0.0.1:4173/kb/`
+- Spring Boot API：`http://127.0.0.1:8082/kb/api/v1`
+- Spring Boot 健康：`http://127.0.0.1:8082/kb/api/actuator/health`
+- 生产入口：`https://seaunit.site/kb/`
+- PostgreSQL、本地附件目录和后续 worker：仅内部访问
 
 ## 环境变量
 
 ```dotenv
 APP_ENV=test
-APP_BASE_URL=http://localhost:8082/kb
-DATABASE_URL=jdbc:postgresql://localhost:5432/zhishiku
+SERVER_PORT=8082
+DATABASE_URL=jdbc:postgresql://127.0.0.1:55432/zhishiku
 DATABASE_USERNAME=zhishiku
 DATABASE_PASSWORD=replace-me
-SESSION_COOKIE_NAME=zhishiku_session
-S3_ENDPOINT=http://localhost:9000
-S3_BUCKET=zhishiku
-S3_ACCESS_KEY=replace-me
-S3_SECRET_KEY=replace-me
-DEEPSEEK_API_KEY=replace-me
-DEEPSEEK_SEARCH_API_KEY=replace-me
-DEEPSEEK_FETCH_API_KEY=replace-me
-TRASH_RETENTION_DAYS=30
-BACKUP_RETENTION_DAYS=30
-MAX_UPLOAD_BYTES=26214400
-BILLING_ENABLED=false
-BILLING_BRIDGE_URL=http://127.0.0.1:8091
-BILLING_DB_ENV=test
+SESSION_COOKIE_SECURE=false
+KB_STORAGE_ROOT=.data/uploads
+KB_AUTO_BOOTSTRAP=true
+KB_OWNER_EMAIL=owner@zhishiku.local
+KB_OWNER_PASSWORD=local-dev-password-change-me
 ```
 
-Waffo 私钥只进入桥接环境文件。应用启动只报告缺失变量名，不打印变量值。
+以上仅用于本地开发。生产环境必须使用 `SESSION_COOKIE_SECURE=true`、随机数据库密码，
+并在首次初始化后设置 `KB_AUTO_BOOTSTRAP=false`。任何 AI、S3 或 Waffo 密钥只能放在
+服务器受限环境文件或受管密钥服务中。
 
 ## 验证场景
 
+### 当前可验证范围
+
+1. 使用本地占位账号登录，或使用生产服务器 `/root/zhishiku-initial-password` 中的一次性凭据。
+2. 创建富文本条目，插入正文图片并保存。
+3. 打开详情，确认安全富文本和图片正常显示。
+4. 使用首页单一搜索框按标题、正文和标签信息检索。
+5. 在 390px 和 360px 宽度检查导航、编辑器和详情无横向溢出。
+6. 确认 `/kb/api/actuator/health` 返回 `{"status":"UP"}`。
+
+以下第 3 小节及之后的部分包含尚未实现的完整目标能力；任务表未完成项不得据此宣称已上线。
+
 ### 1. 引导、会话与访问控制
 
-1. 使用一次性 bootstrap token 打开 `/kb/setup`。
-2. 创建唯一所有者，确认 Spring Security 会话写入数据库。
-3. 确认 `/kb/setup` 关闭，匿名访问 `/kb/library` 被拒绝。
+1. 本地使用占位账号，或生产使用 `/root/zhishiku-initial-password` 中的一次性凭据登录。
+2. 确认 Spring Security 会话写入 PostgreSQL，首次初始化后不能再次创建所有者。
+3. 确认匿名访问 `/kb/` 会跳转到 `/kb/login`。
 4. 检查 Cookie 名为 `zhishiku_session`、路径 `/kb`、具备 HttpOnly/SameSite/安全属性。
 5. 获取 `/kb/api/v1/auth/csrf`，确认缺少或错误 `X-XSRF-TOKEN` 的写请求返回 403。
 6. 退出登录并确认会话撤销。

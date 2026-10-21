@@ -10,7 +10,7 @@
 - Java 17 LTS、Maven Wrapper、Node.js 20/22 LTS、pnpm 和 Docker Compose v2。
 - PostgreSQL、Spring Boot API/Worker 和 Node Waffo 桥接本地运行。
 - Waffo 测试环境已配置独立识海商品和测试凭据。
-- Vue 可通过 `http://localhost:5173/kb/` 访问，Spring API 位于
+- Vue 可通过 `http://127.0.0.1:4173/kb/` 访问，Spring API 位于
   `http://127.0.0.1:8082/kb/api`。
 - 测试支付凭据由 Waffo 测试环境提供，不写入仓库或本文。
 
@@ -69,7 +69,7 @@ pnpm dev
 
 预期端点：
 
-- Vue：`http://localhost:5173/kb/`
+- Vue：`http://127.0.0.1:4173/kb/`
 - Spring API：`http://127.0.0.1:8082/kb/api`
 - Waffo 桥接：`http://127.0.0.1:8091`
 - PostgreSQL：仅内部网络

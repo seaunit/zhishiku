@@ -14,8 +14,9 @@
 - AI 能力采用一次性点数制，通过 Waffo 个人支付购买；当前商业规格见
   `specs/002-ai-credit-billing/spec.md`。
 - 内容以 Markdown 为主，强调准确性、可检索性、可维护性和可追溯性。
-- 仓库当前尚未初始化应用代码；以下技术栈是已批准的实施约束。实际脚手架、命令和版本以
-  后续提交的 `pom.xml`、`pnpm-lock.yaml` 和部署脚本为准，并及时回写本文件。
+- 仓库已初始化 Vue 3 + Spring Boot + PostgreSQL 的 MVP 应用，并已通过 GitHub 固定 ref
+  部署到 `https://seaunit.site/kb/`。实际脚手架、命令和版本以 `backend/pom.xml`、
+  `frontend/kb-web/pnpm-lock.yaml`、`README.md` 和 `deploy/` 为准，并应及时回写本文件。
 
 ## 工作原则
 

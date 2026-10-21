@@ -22,7 +22,7 @@ pnpm install
 pnpm dev
 ```
 
-打开 `http://localhost:5173/kb/`。
+打开 `http://127.0.0.1:4173/kb/`。
 
 ## 验证场景
 

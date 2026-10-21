@@ -21,6 +21,7 @@ Waffo 点数计费仍在后续任务中，真实收费在 P0/P1 门禁通过前�
 - [实施计划](specs/001-ai-personal-knowledge-base/plan.md)
 - [数据模型](specs/001-ai-personal-knowledge-base/data-model.md)
 - [部署共存方案](specs/001-ai-personal-knowledge-base/deployment.md)
+- [生产部署验收记录](artifacts/001/deployment-verification.md)
 - [验证指南](specs/001-ai-personal-knowledge-base/quickstart.md)
 - [OpenAPI 契约](specs/001-ai-personal-knowledge-base/contracts/openapi.yaml)
 - [付费功能规格](specs/002-ai-credit-billing/spec.md)

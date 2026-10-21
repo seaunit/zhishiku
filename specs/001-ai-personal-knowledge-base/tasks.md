@@ -123,7 +123,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T072 [P1] 在 `tests/e2e/zero-impact.spec.ts` 中验证 `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`、证书、Cookie 和支付 sidecar 零回归
 - [ ] T073 [P1] [P] 在 `tests/e2e/taste.spec.ts` 中执行 1440/768/430/390/360/320、手机横屏、安全区和 200% 字体 Taste 检查
 - [ ] T074 [P1] 在 `artifacts/001/acceptance.md` 中映射全部 FR/SC、测试证据和目标提交 SHA
-- [ ] T075 [P1] 在 `README.md`、`AGENTS.md` 和 `specs/001-ai-personal-knowledge-base/quickstart.md` 中同步实际命令、端口、环境变量和限制
+- [x] T075 [P1] 在 `README.md`、`AGENTS.md` 和 `specs/001-ai-personal-knowledge-base/quickstart.md` 中同步实际命令、端口、环境变量和限制
 
 ## 阶段 9：P2 加固
 
@@ -175,7 +175,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 摘要：新增现有应用部署前预检脚本。
 - 详情：检查内存、磁盘、`8082` 端口、PostgreSQL `5432` 占用、Nginx 配置以及
   `shuati.service`、`shuati-payments.service` 和 Nginx 活跃状态；`8082` 被占用时阻断部署。
-- 验证：Git Bash `bash -n` 通过；脚本通过 `--help` 入口解析；未执行生产变更。
+- 验证：Git Bash `bash -n` 通过；脚本通过 `--help` 入口解析；生产首次部署前已执行预检，
+  原应用、Nginx、`8082` 和 PostgreSQL 状态均符合预期。
 - 证据：`deploy/scripts/preflight-existing-app.sh`。
 - 覆盖：T067；支持部署约束中的端口隔离、Nginx 共存和现有应用零影响预检。
 - 风险与回滚：脚本只读；任何非预期服务状态仅告警，不修改现有 unit。
@@ -196,5 +197,26 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 证据：`deploy/scripts/provision-ubuntu.sh`、`deploy/scripts/deploy.sh`、
   `deploy/systemd/zhishiku-api.service`、`deploy/nginx/zhishiku-kb.conf`、`deploy/README.md`。
 - 覆盖：T070；部署固定 ref、构建、Flyway、健康检查、备份和回滚。
-- 风险与回滚：生产首次执行尚未记录；脚本失败时切回上一 release 并恢复 Nginx 备份，数据库迁移
-  保持向前兼容，不删除 PostgreSQL 数据或上传目录。
+- 验证补充：2026-10-21 使用 GitHub 固定提交 `3bda0d82a47d` 完成生产首次部署；
+  `/kb/`、`/kb/login`、`/kb/api/actuator/health`、`/app` 和 `/` 均返回 HTTP 200，
+  登录接口返回 HTTP 200，`zhishiku-api`、Nginx、`shuati.service` 和
+  `shuati-payments.service` 均为 active。
+- 风险与回滚：脚本失败时切回上一 release 并恢复 Nginx 备份，数据库迁移保持向前兼容，
+  不删除 PostgreSQL 数据或上传目录。首次部署生成了独立 2 GiB swap 和受限制的初始凭据文件。
+
+### 完成记录：T075
+
+- 日期：2026-10-21
+- 状态：已完成
+- 执行子智能体：开发
+- Git commit：`3bda0d82a47d`
+- 摘要：同步当前实现、部署命令、端口、环境变量和范围限制。
+- 详情：README 记录 MVP 能力与 GitHub 一键部署；AGENTS 标记应用已初始化；quickstart
+  删除“尚未实现应用代码”的过期描述，改为当前端口 `4173`、Actuator 路径、本地 PostgreSQL
+  和本地附件配置，并明确 AI、S3、OCR、Waffo 等尚未实现能力。
+- 验证：交叉检查 README、AGENTS、部署设计和实际运行入口；本地与生产健康端点均为 HTTP 200。
+- 证据：`README.md`、`AGENTS.md`、`specs/001-ai-personal-knowledge-base/quickstart.md`、
+  `artifacts/001/deployment-verification.md`。
+- 覆盖：T075；命令、端口、环境变量和能力边界。
+- 风险与回滚：文档同步不改变运行行为；如实现范围变化，必须同时更新 README、AGENTS、
+  quickstart 和任务完成记录。
