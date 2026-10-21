@@ -229,7 +229,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 日期：2026-10-21
 - 状态：已完成
 - 执行子智能体：开发
-- Git commit：`未提交`
+- Git commit：`ae943a9`
 - 摘要：登录新增服务端缓存的一次性 Kaptcha 图形验证码。
 - 详情：验证码使用 Kaptcha 生成 5 位 PNG，答案写入有界 Caffeine 缓存；默认 120 秒过期，
   每次消费后立即删除，忽略大小写。登录必须先校验验证码，失败返回 422 `CAPTCHA_INVALID`，
