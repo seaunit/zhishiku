@@ -37,31 +37,54 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test('searches from the single-field home screen', async ({ page }) => {
+test('searches from the prototype-aligned home screen', async ({ page }) => {
   await page.goto('/kb/')
-  await expect(page.getByRole('heading', { level: 1, name: '搜索知识' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: '识海' })).toBeVisible()
   await expect(page.getByText('深海检索笔记')).toBeVisible()
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(6, 21, 34)')
+  const navigation = page.getByRole('navigation', { name: '主导航' })
+  await expect(navigation).toBeVisible()
+  for (const label of ['首页', '知识库', '采集', '待处理', '回收站', '设置']) {
+    await expect(navigation.getByRole('link', { name: label, exact: true })).toBeVisible()
+  }
 
   await page.getByRole('searchbox', { name: '搜索全部知识' }).fill('深海')
-  await page.getByRole('button', { name: '搜索' }).click()
+  await page.getByRole('button', { name: '潜入检索' }).click()
   await expect(page.getByText('找到 1 条知识')).toBeVisible()
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true })
 })
 
-test('folds navigation into a touch-sized header on a phone', async ({ page }) => {
+test('uses the prototype bottom navigation on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/kb/')
 
-  const menu = page.getByRole('button', { name: '打开菜单' })
-  await expect(menu).toBeVisible()
-  await expect(menu).toHaveCSS('width', '44px')
-  await expect(menu).toHaveCSS('height', '44px')
+  await expect(page.getByRole('button', { name: '打开菜单' })).toHaveCount(0)
+  const navigation = page.getByRole('navigation', { name: '主导航' })
+  await expect(navigation).toBeVisible()
+  await expect(navigation.getByRole('link')).toHaveCount(6)
+  await expect(navigation.getByRole('link', { name: '设置', exact: true })).toBeVisible()
   await page.screenshot({ path: 'test-results/home-mobile.png', fullPage: true })
+})
 
-  await menu.click()
-  await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible()
-  await page.waitForTimeout(250)
-  await page.screenshot({ path: 'test-results/home-mobile-menu.png', fullPage: true })
+test('opens every prototype navigation destination', async ({ page }) => {
+  await page.goto('/kb/')
+  const navigation = page.getByRole('navigation', { name: '主导航' })
+
+  await navigation.getByRole('link', { name: '知识库', exact: true }).click()
+  await expect(page).toHaveURL(/\/kb\/library$/)
+  await expect(page.getByRole('heading', { level: 1, name: '知识库' })).toBeVisible()
+
+  await navigation.getByRole('link', { name: '待处理', exact: true }).click()
+  await expect(page).toHaveURL(/\/kb\/processing$/)
+  await expect(page.getByRole('heading', { level: 1, name: '待处理' })).toBeVisible()
+
+  await navigation.getByRole('link', { name: '回收站', exact: true }).click()
+  await expect(page).toHaveURL(/\/kb\/trash$/)
+  await expect(page.getByRole('heading', { level: 1, name: '回收站' })).toBeVisible()
+
+  await navigation.getByRole('link', { name: '设置', exact: true }).click()
+  await expect(page).toHaveURL(/\/kb\/settings$/)
+  await expect(page.getByRole('heading', { level: 1, name: '设置' })).toBeVisible()
 })
 
 test('logs in after fetching a CSRF token', async ({ page }) => {
@@ -107,7 +130,7 @@ test('logs in after fetching a CSRF token', async ({ page }) => {
   await page.getByLabel('验证码', { exact: true }).fill('A1B2C')
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page).toHaveURL(/\/kb\/$/)
-  await expect(page.getByRole('heading', { level: 1, name: '搜索知识' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: '识海' })).toBeVisible()
 })
 
 test('keeps the registration form available on an initialized instance', async ({
@@ -929,12 +952,14 @@ test('keeps bilingual rich text labels and 200 percent text usable', async ({ pa
   await page.goto('/kb/capture')
   await expect(page.getByRole('toolbar', { name: '正文格式工具栏' })).toBeVisible()
 
-  await page.getByRole('button', { name: '打开菜单' }).click()
   await page.getByRole('button', { name: '切换到英文' }).click()
-  await page
-    .getByRole('complementary', { name: 'Main navigation' })
-    .getByRole('button', { name: 'Close menu' })
-    .click()
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
+  await expect(
+    page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', {
+      name: 'Capture',
+      exact: true,
+    }),
+  ).toBeVisible()
   await expect(page.getByRole('toolbar', { name: 'Body formatting toolbar' })).toBeVisible()
   await page.getByRole('button', { name: 'More formats' }).click()
   await expect(page.getByRole('button', { name: 'Clear formatting' })).toBeVisible()

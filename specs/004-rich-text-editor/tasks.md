@@ -22,6 +22,7 @@ Vitest/Vue Test Utils，E2E 使用 Playwright，富文本 JSON 契约由 Vue 与
 - [x] T002 [P0] 在 `prototype/app.js`、`prototype/styles.css` 和 `prototype/index.html` 中把手动采集升级为交互式富文本编辑器，包含格式、图片、撤销/重做和清除格式
 - [x] T003 [P0] 在 `prototype/app.js`、`prototype/styles.css` 和 `prototype/index.html` 中让详情按富文本安全展示，并显示图片说明和替代文本
 - [x] T004 [P0] 在 `prototype/README.md` 和 `artifacts/rich-text/prototype-report.md` 中记录 `data-terminal` 方向、移动工具栏、截图/文档入口和 Taste 检查
+- [x] T080 [P0] 在 Vue 应用壳、首页、知识库、采集、待处理、回收站、设置和详情页中按最新原型实现深海蓝主题、图标轨、移动底栏、知识海图和中英文导航，并完成 Taste 对照验收
 
 ## 阶段 1：跨语言契约与工程基础
 
@@ -253,6 +254,29 @@ FR/SC 映射、风险和回滚。
 | T076 | 验证刷新、服务重建、上传状态和过期恢复。 | `ImageUploadRecoveryTest` 2 项通过；前端草稿恢复 E2E 通过。 | 上传状态依赖数据库；回滚服务不删除临时对象。 |
 | T077 | 验证 200,000 字符、20 图、详情和移动输入性能。 | 性能测试 3 项预算通过；`artifacts/rich-text/performance-report.md`。 | 本机性能不等于生产容量；回滚不涉及数据。 |
 | T079 | 记录 schema 演进、迁移回滚、浏览器和依赖升级维护流程。 | `artifacts/rich-text/maintenance.md` 已生成并通过链接/格式检查。 | 维护文档可独立回滚。 |
+
+### 完成记录：T080
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：产品、开发、测试
+- Git commit：未提交
+- 摘要：将 Vue 前端从浅色双菜单侧栏改为最新原型批准的深海蓝数据工作台。
+- 详情：应用壳采用 72px 图标轨、顶部知识域栏和移动端六项底部导航；首页补齐统计条、
+  单框检索、结果列表、知识海图和待处理侧栏；新增知识库、待处理、回收站和设置路由；
+  详情改为正文与分类/来源/状态双栏；登录注册同步深海主题；字体切换为 Public Sans。
+- 验证：`pnpm lint`、`pnpm typecheck`、Vitest 41 项、生产构建、20 项前端 E2E 和
+  `richtext-taste.spec.ts` 全部通过；登录态 Taste inspector 在 1440/768/390 为
+  `0 FAIL / 0 WARN`，采集和详情页均为 `0 FAIL`；Taste 源检查为 `0 FAIL`。
+- 证据：`frontend/kb-web/src/prototype-theme.css`、`frontend/kb-web/e2e/app.spec.ts`、
+  `artifacts/rich-text/prototype-alignment-report.md`、
+  `.taste-skill/prototype-alignment-home-inspect/`、
+  `.taste-skill/prototype-alignment-capture-inspect/`、
+  `.taste-skill/prototype-alignment-detail-inspect/`。
+- 覆盖：FR-022 至 FR-028、FR-045 至 FR-048、SC-007、SC-008、SC-013 和项目宪法 XI。
+- 风险与回滚：设置页的 AI 授权开关目前只保存当前浏览器偏好，服务端授权 API 接入后必须
+  改为服务端权威状态；回收站页面在删除 API 接入前只显示真实空状态。回滚前端提交即可恢复
+  旧视觉，不修改数据库或富文本内容。
 
 ### 未完成与外部阻塞
 

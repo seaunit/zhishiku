@@ -1,37 +1,37 @@
 :root {
-  --ground: #f2f6f8;
-  --surface: #ffffff;
-  --raised: #e9f0f4;
-  --active: #dfeaf0;
-  --border: #d8e3e9;
-  --rule: #e8eef2;
-  --control: #aebfc9;
-  --text: #0d2736;
-  --muted: #506874;
-  --faint: #667e89;
-  --accent: #0b6482;
-  --accent-strong: #084b63;
-  --primary: #0b3144;
-  --primary-ink: #ffffff;
-  --positive: #247b50;
-  --negative: #b62f38;
-  --pill-positive-bg: #ddf5e8;
-  --pill-positive-ink: #155e3b;
-  --pill-negative-bg: #fbe8e9;
-  --pill-negative-ink: #8e222a;
-  --pill-warning-bg: #fff7df;
-  --pill-warning-ink: #7a4d08;
-  --pill-neutral-bg: #edf2f5;
-  --pill-neutral-ink: #3e5661;
-  --font: "Geist Variable", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
-  --sidebar-width: 236px;
-  --pad: 32px;
+  --ground: #061522;
+  --surface: #081d2c;
+  --raised: #0c273a;
+  --active: #102f45;
+  --border: #15384d;
+  --rule: #102d40;
+  --control: #245068;
+  --text: #effaff;
+  --muted: #9bb8c8;
+  --faint: #7697aa;
+  --accent: #66d7e6;
+  --accent-strong: #92ecf4;
+  --primary: #effaff;
+  --primary-ink: #061522;
+  --positive: #61d3a1;
+  --negative: #ff879b;
+  --pill-positive-bg: #0c332b;
+  --pill-positive-ink: #72dfb1;
+  --pill-negative-bg: #351b25;
+  --pill-negative-ink: #ff9aab;
+  --pill-warning-bg: #322b18;
+  --pill-warning-ink: #f0c875;
+  --pill-neutral-bg: #0f293b;
+  --pill-neutral-ink: #b3cfdd;
+  --font: "Public Sans Variable", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  --sidebar-width: 72px;
+  --pad: 28px;
   --gap: 16px;
-  --card-pad: 22px;
-  --radius-card: 8px;
+  --card-pad: 18px;
+  --radius-card: 6px;
   --radius-control: 6px;
-  --radius-pill: 999px;
-  --control-height: 40px;
+  --radius-pill: 3px;
+  --control-height: 36px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -44,6 +44,8 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  color-scheme: dark;
+  background: var(--ground);
 }
 
 body {
@@ -110,7 +112,7 @@ ol {
 }
 
 ::selection {
-  background: #cfe8f0;
+  background: #16495f;
   color: var(--text);
 }
 

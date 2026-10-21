@@ -1,9 +1,19 @@
 <template>
   <section class="page detail-page">
-    <RouterLink class="back-link" to="/">
-      <ArrowLeft :size="17" />
-      <span>{{ t('detail.backToSearch') }}</span>
-    </RouterLink>
+    <div class="detail-topline">
+      <RouterLink class="back-link" to="/library">
+        <ArrowLeft :size="17" />
+        <span>{{ t('detail.backToLibrary') }}</span>
+      </RouterLink>
+      <RouterLink
+        v-if="item?.bodyDocument"
+        class="button primary detail-edit-action"
+        :to="`/library/${item.id}/edit`"
+      >
+        <Pencil :size="17" />
+        <span>{{ t('detail.edit') }}</span>
+      </RouterLink>
+    </div>
 
     <div v-if="loading" class="detail-skeleton" aria-busy="true" :aria-label="t('a11y.loading')">
       <span class="skeleton detail-title-line" />
@@ -23,43 +33,90 @@
     </div>
 
     <template v-else-if="item">
-      <header class="detail-heading">
-        <div>
-          <h1>{{ item.title }}</h1>
-          <p>{{ t('detail.updated', { date: formatDate(item.updatedAt) }) }}</p>
-        </div>
-        <RouterLink
-          v-if="item.bodyDocument"
-          class="button primary"
-          :to="`/library/${item.id}/edit`"
-        >
-          <Pencil :size="17" />
-          <span>{{ t('detail.edit') }}</span>
-        </RouterLink>
-      </header>
+      <div class="detail-layout">
+        <article class="detail-main">
+          <header class="detail-heading">
+            <div>
+              <h1>{{ item.title }}</h1>
+              <p>{{ t('detail.updated', { date: formatDate(item.updatedAt) }) }}</p>
+            </div>
+          </header>
 
-      <div class="detail-meta">
-        <span class="tag">{{ item.source.kind }}</span>
-        <span v-for="tag in item.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
-        <span class="muted">{{ t('detail.processing', { status: item.processingStatus }) }}</span>
+          <div class="detail-meta">
+            <span class="tag">{{ item.category?.name || t('home.noCategory') }}</span>
+            <span v-for="tag in item.tags.slice(0, 4)" :key="tag.id" class="tag">
+              {{ tag.name }}
+            </span>
+            <span class="status-pill" :class="statusClass(item.processingStatus)">
+              {{ statusLabel(item.processingStatus) }}
+            </span>
+          </div>
+
+          <div class="detail-body">
+            <div v-if="documentError" class="inline-error" role="alert">
+              <CircleAlert :size="20" />
+              <p>{{ documentError }}</p>
+            </div>
+            <RichTextDocument v-else-if="item.bodyDocument" :document="item.bodyDocument" />
+            <div v-else class="legacy-text">
+              <h2>{{ t('detail.migrated') }}</h2>
+              <p>{{ item.body || '—' }}</p>
+            </div>
+          </div>
+
+          <aside v-if="item.note" class="note-panel">
+            <h2>{{ t('detail.note') }}</h2>
+            <p>{{ item.note }}</p>
+          </aside>
+        </article>
+
+        <aside class="detail-aside">
+          <section class="aside-section">
+            <h2>{{ t('detail.classification') }}</h2>
+            <div class="aside-field">
+              <span>{{ t('detail.category') }}</span>
+              <strong>{{ item.category?.name || t('home.noCategory') }}</strong>
+            </div>
+            <div class="aside-field">
+              <span>{{ t('detail.tags') }}</span>
+              <div class="tag-list">
+                <span v-for="tag in item.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
+                <span v-if="item.tags.length === 0" class="muted">{{ t('detail.noTags') }}</span>
+              </div>
+            </div>
+            <div v-if="item.category?.confidence" class="confidence">
+              <span>{{ Math.round(item.category.confidence * 100) }}%</span>
+              <div class="meter">
+                <span :style="{ width: `${item.category.confidence * 100}%` }" />
+              </div>
+            </div>
+          </section>
+
+          <section class="aside-section">
+            <h2>{{ t('detail.sourceInfo') }}</h2>
+            <div class="aside-field">
+              <span>{{ t('detail.sourceKind') }}</span>
+              <strong>{{ sourceLabel(item.source.kind) }}</strong>
+            </div>
+            <div class="aside-field">
+              <span>{{ t('detail.capturedAt') }}</span>
+              <strong>{{ item.source.capturedAt ? formatDate(item.source.capturedAt) : '—' }}</strong>
+            </div>
+            <div class="aside-field">
+              <span>{{ t('detail.updatedAt') }}</span>
+              <strong>{{ formatDate(item.updatedAt) }}</strong>
+            </div>
+          </section>
+
+          <section class="aside-section">
+            <h2>{{ t('detail.statusInfo') }}</h2>
+            <div class="aside-field">
+              <span>{{ t('detail.processingStatus') }}</span>
+              <strong>{{ statusLabel(item.processingStatus) }}</strong>
+            </div>
+          </section>
+        </aside>
       </div>
-
-      <article class="detail-sheet">
-        <div v-if="documentError" class="inline-error" role="alert">
-          <CircleAlert :size="20" />
-          <p>{{ documentError }}</p>
-        </div>
-        <RichTextDocument v-else-if="item.bodyDocument" :document="item.bodyDocument" />
-        <div v-else class="legacy-text">
-          <h2>{{ t('detail.migrated') }}</h2>
-          <p>{{ item.body || '—' }}</p>
-        </div>
-      </article>
-
-      <aside v-if="item.note" class="note-panel">
-        <h2>{{ t('detail.note') }}</h2>
-        <p>{{ item.note }}</p>
-      </aside>
     </template>
   </section>
 </template>
@@ -81,6 +138,28 @@ const loading = ref(true)
 const error = ref('')
 const notFound = ref(false)
 const documentError = ref('')
+
+function statusClass(status: string) {
+  if (status === 'failed') return 'failed'
+  if (status === 'processing') return 'processing'
+  if (status === 'review' || status === 'pending') return 'review'
+  return 'done'
+}
+
+function statusLabel(status: string) {
+  if (status === 'failed') return t('processing.failed')
+  if (status === 'processing') return t('processing.processing')
+  if (status === 'review' || status === 'pending') return t('processing.review')
+  return t('common.organized')
+}
+
+function sourceLabel(kind: string) {
+  if (kind === 'webpage') return t('library.webpage')
+  if (kind === 'document') return t('library.document')
+  if (kind === 'screenshot') return t('library.screenshot')
+  if (kind === 'manual' || kind === 'native') return t('library.manual')
+  return kind
+}
 
 function formatDate(value: string) {
   const date = new Date(value)

@@ -1,93 +1,106 @@
 <template>
   <div class="app-shell">
-    <header class="mobile-header">
-      <button
-        type="button"
-        class="icon-button menu-button"
-        :aria-label="ui.menuOpen ? t('a11y.closeMenu') : t('a11y.openMenu')"
-        :aria-expanded="ui.menuOpen"
-        aria-controls="primary-sidebar"
-        @click="ui.toggleMenu"
-      >
-        <X v-if="ui.menuOpen" :size="20" />
-        <Menu v-else :size="20" />
-      </button>
-      <BrandMark />
-      <RouterLink class="icon-button" :aria-label="t('nav.capture')" to="/capture" @click="ui.closeMenu">
-        <SquarePen :size="19" />
+    <aside class="rail" aria-label="应用侧栏">
+      <RouterLink class="rail-brand" to="/" :aria-label="t('nav.home')">
+        <BrandMark compact />
       </RouterLink>
-    </header>
 
-    <button
-      v-if="ui.menuOpen"
-      type="button"
-      class="menu-scrim"
-      :aria-label="t('a11y.closeMenu')"
-      @click="ui.closeMenu"
-    />
+      <nav class="rail-nav" :aria-label="t('a11y.mainNavigation')">
+        <div class="rail-main">
+          <RouterLink
+            v-for="item in primaryItems"
+            :key="item.name"
+            class="rail-item"
+            :to="item.to"
+            :exact-active-class="item.name === 'home' ? 'is-active' : undefined"
+            :active-class="item.name === 'home' ? undefined : 'is-active'"
+            :aria-label="item.label"
+            :title="item.label"
+          >
+            <component :is="item.icon" :size="18" :stroke-width="1.6" />
+            <span>{{ item.label }}</span>
+            <b v-if="item.name === 'processing' && pendingCount > 0" class="nav-count">
+              {{ pendingCount }}
+            </b>
+          </RouterLink>
+        </div>
 
-    <aside
-      id="primary-sidebar"
-      class="sidebar"
-      :class="{ open: ui.menuOpen }"
-      :aria-label="t('a11y.mainNavigation')"
-    >
-      <div class="sidebar-head">
-        <BrandMark />
-        <button
-          type="button"
-          class="icon-button mobile-only"
-          :aria-label="t('a11y.closeMenu')"
-          @click="ui.closeMenu"
-        >
-          <X :size="20" />
-        </button>
-      </div>
-
-      <nav class="primary-nav" :aria-label="t('a11y.mainNavigation')">
-        <RouterLink class="nav-item" to="/" exact-active-class="active" @click="ui.closeMenu">
-          <Search :size="18" />
-          <span>{{ t('nav.search') }}</span>
-        </RouterLink>
-        <RouterLink class="nav-item" to="/capture" @click="ui.closeMenu">
-          <SquarePen :size="18" />
-          <span>{{ t('nav.capture') }}</span>
-        </RouterLink>
+        <div class="rail-bottom">
+          <RouterLink
+            class="rail-item"
+            to="/settings"
+            active-class="is-active"
+            :aria-label="t('nav.settings')"
+            :title="t('nav.settings')"
+          >
+            <Settings :size="18" :stroke-width="1.6" />
+            <span>{{ t('nav.settings') }}</span>
+          </RouterLink>
+        </div>
       </nav>
-
-      <div class="sidebar-foot">
-        <LocaleSwitch />
-        <button type="button" class="account-row" @click="signOut">
-          <LogOut :size="17" />
-          <span>{{ t('nav.logout') }}</span>
-        </button>
-      </div>
     </aside>
 
-    <main class="app-main">
-      <RouterView />
-    </main>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="scope-line">
+          <BrandMark compact />
+          <div>
+            <p class="scope-label">{{ t('common.scopeLabel') }}</p>
+            <p class="scope-name">{{ t('common.appName') }}</p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <span class="sync-state"><i aria-hidden="true" />{{ t('common.synced') }}</span>
+          <LocaleSwitch />
+          <button
+            type="button"
+            class="avatar-button"
+            :aria-label="t('nav.logout')"
+            :title="t('nav.logout')"
+            @click="signOut"
+          >
+            {{ accountInitial }}
+          </button>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <RouterView />
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { LogOut, Menu, Search, SquarePen, X } from 'lucide-vue-next'
+import { Home, Inbox, Library, Plus, Settings, Trash2 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
-import { useUiStore } from '@/stores/ui'
 import BrandMark from './BrandMark.vue'
 import LocaleSwitch from './LocaleSwitch.vue'
 
 const { t } = useI18n()
-const ui = useUiStore()
-const session = useSessionStore()
 const router = useRouter()
+const session = useSessionStore()
+const pendingCount = ref(0)
+
+const primaryItems = computed(() => [
+  { name: 'home', to: '/', label: t('nav.home'), icon: Home },
+  { name: 'library', to: '/library', label: t('nav.library'), icon: Library },
+  { name: 'capture', to: '/capture', label: t('nav.capture'), icon: Plus },
+  { name: 'processing', to: '/processing', label: t('nav.processing'), icon: Inbox },
+  { name: 'trash', to: '/trash', label: t('nav.trash'), icon: Trash2 },
+])
+
+const accountInitial = computed(() => {
+  const email = session.session?.email
+  return email ? email.charAt(0).toUpperCase() : '识'
+})
 
 async function signOut() {
   await session.logout()
-  ui.closeMenu()
   await router.push({ name: 'login' })
 }
 </script>
-

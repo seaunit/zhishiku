@@ -32,6 +32,30 @@ export const router = createRouter({
           meta: { title: '新建知识' },
         },
         {
+          path: 'library',
+          name: 'library',
+          component: () => import('@/views/LibraryView.vue'),
+          meta: { title: '知识库' },
+        },
+        {
+          path: 'processing',
+          name: 'processing',
+          component: () => import('@/views/ProcessingView.vue'),
+          meta: { title: '待处理' },
+        },
+        {
+          path: 'trash',
+          name: 'trash',
+          component: () => import('@/views/TrashView.vue'),
+          meta: { title: '回收站' },
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: () => import('@/views/SettingsView.vue'),
+          meta: { title: '设置' },
+        },
+        {
           path: 'library/:id',
           name: 'detail',
           component: () => import('@/views/DetailView.vue'),
