@@ -2,13 +2,13 @@
 
 **日期**：2026-10-22
 
-**部署提交**：`62e69e39553ae0cad8902aba27409823913b15db`
+**部署提交**：`ed0f515a8952d5a57f3c15a1bd824af411a29b98`
 
-**发布 tag**：`v0.1.18-mvp`
+**发布 tag**：`v0.1.19-mvp`
 
-**运行 release**：`/opt/zhishiku/releases/62e69e39553a-20261021214427`
+**运行 release**：`/opt/zhishiku/releases/ed0f515a8952-20261021215401`
 
-**门户 release**：`/opt/seaunit-portal/releases/62e69e39553a-20261021214427`
+**门户 release**：`/opt/seaunit-portal/releases/ed0f515a8952-20261021215401`
 
 ## 部署结果
 
@@ -20,6 +20,8 @@
 - 注册：只要求邮箱验证码，不显示图形验证码；登录仍保留图形验证码。
 - 密码：登录、注册和初始化账号统一为 8–256 位。
 - 采集：恢复手动录入、网页链接、文档和截图四个入口；PDF/Word 解析和网页 AI 截图分析待接入。
+- 联网搜索：本地搜索完成后显示“继续搜索互联网”；用户再次点击后才调用 DeepSeek Search。
+  候选可打开来源或收入知识库，收入时只 Fetch 用户选择的单个 URL。
 - API 前缀：`https://seaunit.site/kb/api/`。
 - 健康端点：`https://seaunit.site/kb/api/actuator/health`。
 - 数据库：独立 PostgreSQL 18.6 数据库 `zhishiku`。
@@ -37,8 +39,13 @@
 | `https://seaunit.site/` | HTTP 200，显示“拾题与识海”和两个应用入口 |
 | `https://seaunit.site/login` | HTTP 200 |
 | `https://seaunit.site/bank/1` | HTTP 200 |
+| `https://seaunit.site/kb/capture` | HTTP 200 |
 | `/kb/login` 注册入口 | 始终显示“注册账户”；已有账号不关闭其他邮箱注册 |
 | `/kb/api/v1/auth/registration-status` | HTTP 200，`{"open":true}` |
+| `/kb/api/v1/search/external` | 未登录 POST 返回 HTTP 401，联网接口已部署且受登录保护 |
+| 生产前端资源 | 包含“继续搜索互联网”和“收入识海”文案 |
+| DeepSeek Search | HTTP 200，返回 3 条结果，首条标题为“首次调用 API \| DeepSeek API Docs” |
+| DeepSeek Fetch | HTTP 200，标题为“首次调用 API \| DeepSeek API Docs”，正文 2866 字符 |
 | `/kb/login` 生产 Taste 检查 | 1440/768/390 全部 `0 FAIL` |
 | `owner_account.instance_key` | 列数 0，实例级唯一账号约束不存在 |
 | Flyway | 最新成功迁移 `0006`，现有账号保留 |
@@ -64,8 +71,10 @@
 - 门户只接管精确的 `/` 和独立的 `/seaunit-portal/` 静态资源前缀；`/app`、`/login`、
   `/bank`、`/api`、`/pay` 和 `/apk` 继续由拾题处理。
 - 识海使用独立 cookie、数据库、系统用户、环境文件、release、日志标识和上传目录。
-- Waffo 支付、AI 分类、网页截图、OCR、外部搜索和完整生命周期尚未部署，当前入口不应
-  对外宣称这些能力已经可用。
+- Waffo 支付、AI 分类、网页截图、OCR 和完整生命周期尚未部署，当前入口不应对外宣称
+  这些能力已经可用。
+- 联网搜索已部署 Search/Fetch，但 MVP 尚未接入 002 点数扣费，正式收费前必须补上报价、
+  预留、结算和释放门禁。
 
 ## 已知风险
 

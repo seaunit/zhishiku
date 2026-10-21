@@ -29,6 +29,12 @@ Search 请求只发送查询词、结果数量和 `need_content=false`。只有�
 - Provider 测试：Search/Fetch 的 Bearer 认证、请求体、响应字段映射通过。
 - Service 测试：候选按账号缓存、Fetch 内容转换为 `internet_result` 来源知识。
 - 后端编译和定向测试通过。
+- 生产前端：`v0.1.19-mvp` 的构建资源包含“继续搜索互联网”和“收入识海”，入口位于本地
+  搜索结果下方；只有输入关键词并执行本地搜索后才会显示。
+- 生产接口：未登录请求 `POST /kb/api/v1/search/external` 返回 HTTP 401，确认路由已部署且
+  受登录保护。
+- 生产 Provider 冒烟：Search 返回 HTTP 200 和 3 条结果；对首条结果执行单 URL Fetch，
+  返回 HTTP 200，标题为“首次调用 API | DeepSeek API Docs”，正文 2866 字符。
 
 ## 当前边界
 

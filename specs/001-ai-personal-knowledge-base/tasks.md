@@ -451,10 +451,15 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   用户选择“收入识海”后，后端使用 `DEEPSEEK_FETCH_API_KEY` 获取单个 URL 的 Markdown，转换为
   富文本并以 `internet_result` 来源保存。
 - 验证：Provider Search/Fetch 协议、Bearer 认证和响应映射测试通过；候选归属与保存来源测试
-  通过；前端 E2E 验证本地结果先显示、点击前不联网、显式同意字段和候选保存。
+  通过；前端 E2E 验证本地结果先显示、点击前不联网、显式同意字段和候选保存。生产
+  `v0.1.19-mvp` 已确认前端入口存在，Search 返回 3 条真实结果，单 URL Fetch 返回 2866
+  字符正文；未登录调用联网接口返回 HTTP 401。
 - 证据：`DeepSeekWebProvider.java`、`ExternalSearchService.java`、
   `DeepSeekWebProviderTest.java`、`ExternalSearchServiceTest.java`、
-  `frontend/kb-web/e2e/app.spec.ts`、`artifacts/001/internet-search.md`。
+  `frontend/kb-web/e2e/app.spec.ts`、`artifacts/001/internet-search.md`、
+  `artifacts/001/deployment-verification.md`。
+- 生产部署：commit `ed0f515`，tag `v0.1.19-mvp`，release
+  `ed0f515a8952-20261021215401`；原拾题入口、识海入口和健康检查均正常。
 - 覆盖：FR-008 至 FR-012、FR-040 至 FR-041、FR-060。
 - 风险与回滚：MVP 当前不扣除 002 点数，正式收费前必须接入计费门禁；候选缓存重启后失效；
   Search/Fetch Provider 故障只影响联网区，不清空本地结果。回滚可移除互联网入口和后端端点，
