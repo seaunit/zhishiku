@@ -11,6 +11,89 @@ PORT="${KB_PORT:-8082}"
 NGINX_CONFIG="${KB_NGINX_CONFIG:-/etc/nginx/conf.d/shuati.conf}"
 NGINX_SNIPPET="/etc/nginx/snippets/zhishiku-kb.conf"
 SKIP_TESTS="${KB_SKIP_TESTS:-0}"
+PROMPT_SECRETS="${KB_PROMPT_SECRETS:-1}"
+ROTATE_SECRETS="${KB_ROTATE_SECRETS:-0}"
+
+read_env_value() {
+  local key="$1"
+  awk -v key="$key" '
+    index($0, key "=") == 1 {
+      sub(/^[^=]*=/, "")
+      print
+      exit
+    }
+  ' "$ENV_FILE"
+}
+
+prompt_secret() {
+  local label="$1"
+  local current="$2"
+  local value=""
+
+  if [[ "$PROMPT_SECRETS" != "1" || ! -r /dev/tty ]]; then
+    printf '%s' "$current"
+    return 0
+  fi
+  if [[ -n "$current" && "$ROTATE_SECRETS" != "1" ]]; then
+    printf '%s' "$current"
+    return 0
+  fi
+
+  if [[ -n "$current" ]]; then
+    printf '%s [configured, blank keeps current]: ' "$label" > /dev/tty
+  else
+    printf '%s [input hidden, blank leaves unset]: ' "$label" > /dev/tty
+  fi
+  IFS= read -r -s value < /dev/tty || value=""
+  printf '\n' > /dev/tty
+  value="$(printf '%s' "$value" | tr -d '[:space:]')"
+  if [[ -z "$value" && -n "$current" ]]; then
+    value="$current"
+  fi
+  printf '%s' "$value"
+}
+
+set_env_value() {
+  local key="$1"
+  local value="$2"
+  local env_tmp
+  env_tmp="$(mktemp "${ENV_FILE}.XXXXXX")"
+  awk -v key="$key" 'index($0, key "=") != 1' "$ENV_FILE" > "$env_tmp"
+  printf '%s=%s\n' "$key" "$value" >> "$env_tmp"
+  chmod 0600 "$env_tmp"
+  chown root:root "$env_tmp"
+  mv "$env_tmp" "$ENV_FILE"
+}
+
+ensure_secrets() {
+  local ai_key search_key fetch_key smtp_password
+  ai_key="${DEEPSEEK_API_KEY:-$(read_env_value DEEPSEEK_API_KEY)}"
+  search_key="${DEEPSEEK_SEARCH_API_KEY:-$(read_env_value DEEPSEEK_SEARCH_API_KEY)}"
+  fetch_key="${DEEPSEEK_FETCH_API_KEY:-$(read_env_value DEEPSEEK_FETCH_API_KEY)}"
+  smtp_password="${SMTP_PASSWORD:-$(read_env_value SMTP_PASSWORD)}"
+
+  ai_key="$(prompt_secret "DeepSeek AI API key" "$ai_key")"
+  search_key="$(prompt_secret "DeepSeek Search API key (blank reuses AI key)" "$search_key")"
+  fetch_key="$(prompt_secret "DeepSeek Fetch API key (blank reuses AI key)" "$fetch_key")"
+  smtp_password="$(prompt_secret "SMTP password/app key" "$smtp_password")"
+
+  if [[ -z "$search_key" ]]; then
+    search_key="$ai_key"
+  fi
+  if [[ -z "$fetch_key" ]]; then
+    fetch_key="$ai_key"
+  fi
+
+  set_env_value DEEPSEEK_API_KEY "$ai_key"
+  set_env_value DEEPSEEK_SEARCH_API_KEY "$search_key"
+  set_env_value DEEPSEEK_FETCH_API_KEY "$fetch_key"
+  set_env_value SMTP_PASSWORD "$smtp_password"
+
+  printf '[deploy] DeepSeek AI credential: %s\n' \
+    "$([[ -n "$ai_key" ]] && printf configured || printf unset)"
+  printf '[deploy] SMTP credential: %s\n' \
+    "$([[ -n "$smtp_password" ]] && printf configured || printf unset)"
+}
 
 usage() {
   cat <<'EOF'
@@ -59,6 +142,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
   printf 'Run provision-ubuntu.sh first.\n' >&2
   exit 1
 fi
+
+ensure_secrets
 
 WORK_DIR="$(mktemp -d)"
 SOURCE_DIR="$WORK_DIR/source"
@@ -199,10 +284,11 @@ systemctl reload nginx
 
 # Finalize the one-time owner bootstrap without leaving the password in systemd config.
 if grep -q '^KB_AUTO_BOOTSTRAP=true$' "$ENV_FILE"; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE"
-  set +a
+  DATABASE_URL="$(read_env_value DATABASE_URL)"
+  DATABASE_USERNAME="$(read_env_value DATABASE_USERNAME)"
+  DATABASE_PASSWORD="$(read_env_value DATABASE_PASSWORD)"
+  KB_OWNER_EMAIL="$(read_env_value KB_OWNER_EMAIL)"
+  KB_OWNER_PASSWORD="$(read_env_value KB_OWNER_PASSWORD)"
   owner_count="$(
     PGPASSWORD="$DATABASE_PASSWORD" psql \
       -h 127.0.0.1 \

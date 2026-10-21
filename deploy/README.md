@@ -19,6 +19,28 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 首次安装会使用 `/swapfile-zhishiku` 补充 2 GiB swap，避免小内存服务器在 Maven 和
 Vite 构建期间触发 OOM；可通过 `KB_SWAP_SIZE_MB=0` 禁用。
 
+## 交互式密钥
+
+首次执行会从 `/dev/tty` 隐藏读取以下值，因此可以通过 `curl | sudo bash` 执行：
+
+- `DEEPSEEK_API_KEY`
+- `DEEPSEEK_SEARCH_API_KEY`，留空时复用主 AI Key
+- `DEEPSEEK_FETCH_API_KEY`，留空时复用主 AI Key
+- `SMTP_PASSWORD`
+
+输入内容不会回显，也不会写入 Git、命令行参数或部署日志。值保存在
+`/etc/zhishiku/kb.env`，权限为 `600`。已有值默认保留。
+
+需要轮换时执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/deploy.sh \
+  | sudo env KB_ROTATE_SECRETS=1 bash -s -- --ref v0.1.1-mvp
+```
+
+在完全非交互的 CI 中，可先由受管密钥系统写入环境文件，再设置
+`KB_PROMPT_SECRETS=0` 执行。
+
 ## 后续更新
 
 ```bash

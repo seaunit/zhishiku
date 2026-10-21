@@ -167,12 +167,16 @@ S3_SECRET_KEY=<环境变量>
 DEEPSEEK_API_KEY=<环境变量>
 DEEPSEEK_SEARCH_API_KEY=<环境变量>
 DEEPSEEK_FETCH_API_KEY=<环境变量>
+SMTP_PASSWORD=<环境变量>
 BILLING_ENABLED=false
 BILLING_BRIDGE_URL=http://127.0.0.1:8091
 BILLING_DB_ENV=production
 ```
 
 Waffo 私钥只进入 `/etc/zhishiku/waffo.env`。日志不得输出变量值、支付载荷或用户内容。
+首次执行部署脚本时，AI API Key 和 SMTP 密码必须通过 `/dev/tty` 隐藏交互输入；已有密钥
+默认保留，只有显式设置 `KB_ROTATE_SECRETS=1` 才进入轮换输入。密钥只写入权限为 `600`
+的 `/etc/zhishiku/kb.env`，不得放入命令行参数、Git、部署日志或文档示例。
 
 ## 一键部署
 

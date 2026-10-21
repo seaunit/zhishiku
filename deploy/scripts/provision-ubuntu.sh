@@ -6,6 +6,50 @@ RAW_BASE="${KB_RAW_BASE:-https://raw.githubusercontent.com/seaunit/zhishiku}"
 REF="${KB_REF:-main}"
 ENV_FILE="${KB_ENV_FILE:-/etc/zhishiku/kb.env}"
 SWAP_SIZE_MB="${KB_SWAP_SIZE_MB:-2048}"
+PROMPT_SECRETS="${KB_PROMPT_SECRETS:-1}"
+ROTATE_SECRETS="${KB_ROTATE_SECRETS:-0}"
+
+read_env_value() {
+  local key="$1"
+  if [[ ! -f "$ENV_FILE" ]]; then
+    return 0
+  fi
+  awk -v key="$key" '
+    index($0, key "=") == 1 {
+      sub(/^[^=]*=/, "")
+      print
+      exit
+    }
+  ' "$ENV_FILE"
+}
+
+prompt_secret() {
+  local label="$1"
+  local current="$2"
+  local value=""
+
+  if [[ "$PROMPT_SECRETS" != "1" || ! -r /dev/tty ]]; then
+    printf '%s' "$current"
+    return 0
+  fi
+  if [[ -n "$current" && "$ROTATE_SECRETS" != "1" ]]; then
+    printf '%s' "$current"
+    return 0
+  fi
+
+  if [[ -n "$current" ]]; then
+    printf '%s [configured, blank keeps current]: ' "$label" > /dev/tty
+  else
+    printf '%s [input hidden, blank leaves unset]: ' "$label" > /dev/tty
+  fi
+  IFS= read -r -s value < /dev/tty || value=""
+  printf '\n' > /dev/tty
+  value="$(printf '%s' "$value" | tr -d '[:space:]')"
+  if [[ -z "$value" && -n "$current" ]]; then
+    value="$current"
+  fi
+  printf '%s' "$value"
+}
 
 usage() {
   cat <<'EOF'
@@ -126,12 +170,8 @@ DB_PORT="${DB_PORT:-5432}"
 DB_PASSWORD=""
 OWNER_PASSWORD=""
 if [[ -f "$ENV_FILE" ]]; then
-  # shellcheck disable=SC1090
-  set -a
-  . "$ENV_FILE"
-  set +a
-  DB_PASSWORD="${DATABASE_PASSWORD:-}"
-  OWNER_PASSWORD="${KB_OWNER_PASSWORD:-}"
+  DB_PASSWORD="${DATABASE_PASSWORD:-$(read_env_value DATABASE_PASSWORD)}"
+  OWNER_PASSWORD="${KB_OWNER_PASSWORD:-$(read_env_value KB_OWNER_PASSWORD)}"
 fi
 DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 24)}"
 
@@ -159,6 +199,28 @@ if [[ "$auto_bootstrap" == "true" && -z "$OWNER_PASSWORD" ]]; then
   OWNER_PASSWORD="$(openssl rand -hex 16)"
 fi
 
+OWNER_EMAIL="${KB_OWNER_EMAIL:-$(read_env_value KB_OWNER_EMAIL)}"
+OWNER_EMAIL="${OWNER_EMAIL:-owner@seaunit.site}"
+BOOTSTRAP_TOKEN="${KB_BOOTSTRAP_TOKEN:-$(read_env_value KB_BOOTSTRAP_TOKEN)}"
+BOOTSTRAP_TOKEN="${BOOTSTRAP_TOKEN:-$(openssl rand -hex 32)}"
+
+DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-$(read_env_value DEEPSEEK_API_KEY)}"
+DEEPSEEK_SEARCH_API_KEY="${DEEPSEEK_SEARCH_API_KEY:-$(read_env_value DEEPSEEK_SEARCH_API_KEY)}"
+DEEPSEEK_FETCH_API_KEY="${DEEPSEEK_FETCH_API_KEY:-$(read_env_value DEEPSEEK_FETCH_API_KEY)}"
+SMTP_PASSWORD="${SMTP_PASSWORD:-$(read_env_value SMTP_PASSWORD)}"
+
+DEEPSEEK_API_KEY="$(prompt_secret "DeepSeek AI API key" "$DEEPSEEK_API_KEY")"
+DEEPSEEK_SEARCH_API_KEY="$(prompt_secret "DeepSeek Search API key (blank reuses AI key)" "$DEEPSEEK_SEARCH_API_KEY")"
+DEEPSEEK_FETCH_API_KEY="$(prompt_secret "DeepSeek Fetch API key (blank reuses AI key)" "$DEEPSEEK_FETCH_API_KEY")"
+SMTP_PASSWORD="$(prompt_secret "SMTP password/app key" "$SMTP_PASSWORD")"
+
+if [[ -z "$DEEPSEEK_SEARCH_API_KEY" ]]; then
+  DEEPSEEK_SEARCH_API_KEY="$DEEPSEEK_API_KEY"
+fi
+if [[ -z "$DEEPSEEK_FETCH_API_KEY" ]]; then
+  DEEPSEEK_FETCH_API_KEY="$DEEPSEEK_API_KEY"
+fi
+
 env_tmp="$(mktemp)"
 cat > "$env_tmp" <<EOF
 APP_ENV=production
@@ -169,8 +231,12 @@ DATABASE_PASSWORD=${DB_PASSWORD}
 SESSION_COOKIE_SECURE=true
 KB_STORAGE_ROOT=/var/lib/zhishiku/uploads
 KB_AUTO_BOOTSTRAP=${auto_bootstrap}
-KB_OWNER_EMAIL=${KB_OWNER_EMAIL:-owner@seaunit.site}
-KB_BOOTSTRAP_TOKEN=$(openssl rand -hex 32)
+KB_OWNER_EMAIL=${OWNER_EMAIL}
+KB_BOOTSTRAP_TOKEN=${BOOTSTRAP_TOKEN}
+DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+DEEPSEEK_SEARCH_API_KEY=${DEEPSEEK_SEARCH_API_KEY}
+DEEPSEEK_FETCH_API_KEY=${DEEPSEEK_FETCH_API_KEY}
+SMTP_PASSWORD=${SMTP_PASSWORD}
 EOF
 if [[ "$auto_bootstrap" == "true" ]]; then
   printf 'KB_OWNER_PASSWORD=%s\n' "$OWNER_PASSWORD" >> "$env_tmp"
@@ -191,6 +257,8 @@ bash "$deploy_tmp" --ref "$REF"
 rm -f "$deploy_tmp"
 
 printf '\nZhishiku provisioning completed.\n'
+printf 'DeepSeek AI: %s\n' "$([[ -n "$DEEPSEEK_API_KEY" ]] && printf configured || printf unset)"
+printf 'SMTP credential: %s\n' "$([[ -n "$SMTP_PASSWORD" ]] && printf configured || printf unset)"
 if [[ -f /root/zhishiku-initial-password ]]; then
   printf 'Initial login details: /root/zhishiku-initial-password\n'
 fi

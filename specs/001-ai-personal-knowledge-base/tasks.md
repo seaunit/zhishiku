@@ -191,7 +191,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 详情：`provision-ubuntu.sh` 安装 Java 17、Node.js、pnpm、PostgreSQL 18，创建独立用户、
   数据库和受限环境文件；`deploy.sh` 从 GitHub fetch 指定分支、tag 或 commit，执行测试与构建，
   生成不可变 release，切换 `current`，安装 systemd 和 Nginx 片段，执行本地健康检查；
-  健康或 Nginx 校验失败时回滚上一 release 和配置备份。
+  健康或 Nginx 校验失败时回滚上一 release 和配置备份。AI API Key 和 SMTP 密码通过
+  `/dev/tty` 隐藏交互输入，已有值默认保留，支持显式轮换。
 - 验证：`bash -n`、脚本帮助入口、后端 6 项测试、Spotless、前端 lint/typecheck、9 项 Vitest、
   Vite 生产构建和真实全栈 Playwright 通过。
 - 证据：`deploy/scripts/provision-ubuntu.sh`、`deploy/scripts/deploy.sh`、
