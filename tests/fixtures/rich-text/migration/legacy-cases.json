@@ -1,0 +1,36 @@
+{
+  "cases": [
+    {
+      "id": "plain-multiline",
+      "input": "第一段\n第二行\n\n第三段",
+      "expected": {
+        "paragraphCount": 3,
+        "preservedLineBreaks": 1
+      }
+    },
+    {
+      "id": "safe-link",
+      "input": "参考 https://example.com/docs 的说明",
+      "expected": {
+        "linkHref": "https://example.com/docs",
+        "visibleTextPreserved": true
+      }
+    },
+    {
+      "id": "code-like-text",
+      "input": "function demo() {\n  return \"<script>\";\n}",
+      "expected": {
+        "codeTextPreserved": true,
+        "executableMarkup": false
+      }
+    },
+    {
+      "id": "dangerous-legacy-html",
+      "input": "<img src=x onerror=window.__legacyXss=true><form action=javascript:alert(1)>",
+      "expected": {
+        "visibleTextOnly": true,
+        "executableMarkup": false
+      }
+    }
+  ]
+}

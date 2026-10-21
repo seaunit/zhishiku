@@ -31,3 +31,8 @@ app:
 logging:
   level:
     site.seaunit.zhishiku: DEBUG
+
+management:
+  health:
+    mail:
+      enabled: false

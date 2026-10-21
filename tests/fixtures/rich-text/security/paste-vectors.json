@@ -1,0 +1,32 @@
+[
+  {
+    "id": "script-and-event",
+    "html": "<p onclick=\"window.__pasteXss=1\">粘贴正文<script>window.__pasteXss=2</script></p>",
+    "plain": "粘贴正文",
+    "mustNotContain": ["<script", "onclick", "__pasteXss"]
+  },
+  {
+    "id": "iframe-form",
+    "html": "<iframe src=\"https://example.invalid/frame\"></iframe><form action=\"https://example.invalid/post\"><input name=\"secret\" value=\"x\"></form><p>保留文字</p>",
+    "plain": "保留文字",
+    "mustNotContain": ["<iframe", "<form", "<input"]
+  },
+  {
+    "id": "remote-images",
+    "html": "<p><img src=\"https://example.invalid/pixel.png\" onerror=\"window.__imgXss=1\"></p><p data-remote=\"https://example.invalid/meta\">图片位置</p>",
+    "plain": "图片位置",
+    "mustNotContain": ["<img", "onerror"]
+  },
+  {
+    "id": "dangerous-links",
+    "html": "<p><a href=\"javascript:window.__linkXss=1\">危险链接</a><a href=\"data:text/html,<script>1</script>\">数据链接</a></p>",
+    "plain": "危险链接 数据链接",
+    "mustNotContain": ["javascript:", "data:text/html"]
+  },
+  {
+    "id": "credential-url",
+    "html": "<p><a href=\"https://user:password@example.com/private\">凭据链接</a></p><pre>Authorization: Bearer test-only-token</pre>",
+    "plain": "凭据链接 Authorization: Bearer test-only-token",
+    "mustNotContain": ["user:password@", "test-only-token</"]
+  }
+]

@@ -1,0 +1,139 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": { "level": 2 },
+      "content": [{ "type": "text", "text": "识海富文本契约" }]
+    },
+    {
+      "type": "paragraph",
+      "attrs": { "textAlign": "left" },
+      "content": [
+        {
+          "type": "text",
+          "text": "安全、语义化、可检索",
+          "marks": [
+            { "type": "bold" },
+            { "type": "italic" },
+            { "type": "underline" }
+          ]
+        },
+        { "type": "hardBreak" },
+        {
+          "type": "text",
+          "text": "公开链接",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": { "href": "https://example.com/reference" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [{ "type": "text", "text": "自动分类" }]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [{ "type": "text", "text": "单框检索" }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "blockquote",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [{ "type": "text", "text": "引用只保留可见语义。" }]
+        }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "attrs": { "language": "sql" },
+      "content": [{ "type": "text", "text": "select plain_text from knowledge_item;" }]
+    },
+    { "type": "horizontalRule" },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-426614174001",
+        "nodeId": "node-image-valid",
+        "alt": "数据库迁移示意图",
+        "caption": "图片由系统内扫描后的附件提供服务",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "table",
+      "attrs": { "headerRow": true },
+      "content": [
+        {
+          "type": "tableHeaderRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [{ "type": "text", "text": "格式" }]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [{ "type": "text", "text": "用途" }]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableBodyRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [{ "type": "text", "text": "JSONB" }]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [{ "type": "text", "text": "保存格式结构" }]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,22 @@
 <template>
   <div class="safe-image" :style="aspectStyle">
+    <button
+      v-if="src && interactive && !decorative"
+      type="button"
+      class="safe-image-open"
+      :aria-label="t('detail.openImage', { name: accessibleAlt })"
+      @click="$emit('open')"
+    >
+      <img
+        :src="src"
+        :alt="alt"
+        loading="lazy"
+        decoding="async"
+        @error="handleImageError"
+      />
+    </button>
     <img
-      v-if="src"
+      v-else-if="src"
       :src="src"
       :alt="decorative ? '' : alt"
       :aria-hidden="decorative ? 'true' : undefined"
@@ -37,19 +52,27 @@ const props = withDefaults(
     decorative?: boolean
     previewUrl?: string
     aspectRatio?: number
+    interactive?: boolean
   }>(),
   {
     alt: '',
     decorative: false,
     previewUrl: undefined,
     aspectRatio: 1.5,
+    interactive: false,
   },
 )
+
+defineEmits<{
+  open: []
+}>()
 
 const { t } = useI18n()
 const src = ref('')
 const loading = ref(false)
 let generatedUrl = ''
+
+const accessibleAlt = computed(() => props.alt.trim() || t('common.image'))
 
 const aspectStyle = computed(() => ({
   aspectRatio: String(Math.max(0.01, Math.min(100, props.aspectRatio))),

@@ -4,8 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -16,6 +14,8 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,12 +40,18 @@ import site.seaunit.zhishiku.richtext.RichDocumentEntity;
 import site.seaunit.zhishiku.richtext.RichDocumentRepository;
 import site.seaunit.zhishiku.richtext.RichImageUploadEntity;
 import site.seaunit.zhishiku.richtext.RichImageUploadRepository;
+import site.seaunit.zhishiku.richtext.conflict.RichTextConflictPolicy;
+import site.seaunit.zhishiku.richtext.conflict.RichTextConflictPolicy.ConflictDecision;
+import site.seaunit.zhishiku.richtext.lifecycle.RichTextLifecycleService;
+import site.seaunit.zhishiku.richtext.provenance.SourceProvenance;
+import site.seaunit.zhishiku.richtext.provenance.SourceProvenancePolicy;
+import site.seaunit.zhishiku.search.richtext.SearchProjection;
+import site.seaunit.zhishiku.search.richtext.SearchProjectionBuilder;
 
 @Service
 public class KnowledgeService {
   private static final long MAX_TOTAL_IMAGE_BYTES = 50L * 1024 * 1024;
   private static final String ACTIVE = "active";
-  private static final String CONVERTER_VERSION = "richtext-java-v1";
 
   private final CurrentOwnerService currentOwnerService;
   private final KnowledgeItemRepository items;
@@ -56,6 +62,10 @@ public class KnowledgeService {
   private final ObjectMapper mapper;
   private final RichTextValidator validator;
   private final PlainTextProjector projector;
+  private final RichTextConflictPolicy conflicts;
+  private final SourceProvenancePolicy sourcePolicy;
+  private final SearchProjectionBuilder searchProjections;
+  private final RichTextLifecycleService lifecycle;
 
   public KnowledgeService(
       CurrentOwnerService currentOwnerService,
@@ -64,7 +74,11 @@ public class KnowledgeService {
       RichImageUploadRepository uploads,
       AttachmentRepository attachments,
       JdbcTemplate jdbc,
-      ObjectMapper mapper) {
+      ObjectMapper mapper,
+      RichTextConflictPolicy conflicts,
+      SourceProvenancePolicy sourcePolicy,
+      SearchProjectionBuilder searchProjections,
+      RichTextLifecycleService lifecycle) {
     this.currentOwnerService = currentOwnerService;
     this.items = items;
     this.documents = documents;
@@ -74,6 +88,10 @@ public class KnowledgeService {
     this.mapper = mapper;
     this.validator = RichTextValidator.defaults();
     this.projector = new PlainTextProjector();
+    this.conflicts = conflicts;
+    this.sourcePolicy = sourcePolicy;
+    this.searchProjections = searchProjections;
+    this.lifecycle = lifecycle;
   }
 
   @Transactional
@@ -81,6 +99,7 @@ public class KnowledgeService {
       CreateKnowledgeRequest request, Authentication authentication) {
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
     PreparedDocument prepared = prepare(request.bodyDocument(), owner, null);
+    SourceProvenance provenance = authorizeSource(request.bodySource());
     KnowledgeItemEntity item =
         items.saveAndFlush(
             KnowledgeItemEntity.create(
@@ -95,11 +114,11 @@ public class KnowledgeService {
             prepared.totalImageBytes(),
             item.getVersion());
     documents.save(document);
-    UUID revisionId = insertRevision(item, prepared, "create", 1);
+    SourceRecord source = insertSource(item, provenance, prepared.hash());
+    UUID revisionId = insertRevision(item, prepared, "create", 1, source.id());
     insertImageReferences(item, revisionId, prepared.images());
-    insertSource(item, request.bodySource(), prepared.hash());
-    updateSearch(item, prepared.plainText());
-    return response(item, document);
+    updateSearch(item, prepared.document());
+    return response(item, document, source.summary());
   }
 
   @Transactional
@@ -108,13 +127,21 @@ public class KnowledgeService {
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
     KnowledgeItemEntity item =
         items
-            .findByIdAndOwnerIdAndLifecycleState(itemId, owner.getId(), ACTIVE)
+            .findByIdAndOwnerIdAndLifecycleStateForUpdate(itemId, owner.getId(), ACTIVE)
             .orElseThrow(() -> new IllegalArgumentException("Knowledge item was not found."));
-    if (item.getVersion() != request.expectedVersion()) {
+    ConflictDecision decision =
+        conflicts.decide(
+            request.expectedVersion(),
+            item.getVersion(),
+            RichTextConflictPolicy.ConflictResolution.parse(request.conflictResolution()));
+    if (decision == ConflictDecision.REJECT) {
       throw new RichTextConflictException(item.getVersion());
     }
 
     PreparedDocument prepared = prepare(request.bodyDocument(), owner, item.getId());
+    if (decision == ConflictDecision.APPLY_AS_NEW) {
+      return saveAsNew(request, owner, prepared);
+    }
     item.update(request.title(), prepared.plainText(), request.note());
     item = items.saveAndFlush(item);
     RichDocumentEntity document =
@@ -129,16 +156,22 @@ public class KnowledgeService {
         prepared.totalImageBytes(),
         item.getVersion());
     documents.saveAndFlush(document);
+    SourceRecord source =
+        request.bodySource() == null
+            ? latestSource(item.getId())
+            : insertSource(item, authorizeSource(request.bodySource()), prepared.hash());
     int nextRevision =
         jdbc.queryForObject(
                 "SELECT COALESCE(MAX(revision_no), 0) + 1 FROM rich_document_revision WHERE item_id = ?",
                 Integer.class,
                 item.getId())
             .intValue();
-    UUID revisionId = insertRevision(item, prepared, "edit", nextRevision);
+    UUID revisionId =
+        insertRevision(item, prepared, "edit", nextRevision, source == null ? null : source.id());
+    lifecycle.markSupersededReferences(item.getId(), revisionId);
     insertImageReferences(item, revisionId, prepared.images());
-    updateSearch(item, prepared.plainText());
-    return response(item, document);
+    updateSearch(item, prepared.document());
+    return response(item, document, source == null ? SourceSummary.manual() : source.summary());
   }
 
   @Transactional(readOnly = true)
@@ -148,11 +181,20 @@ public class KnowledgeService {
         items
             .findByIdAndOwnerIdAndLifecycleState(itemId, owner.getId(), ACTIVE)
             .orElseThrow(() -> new IllegalArgumentException("Knowledge item was not found."));
-    RichDocumentEntity document =
-        documents
-            .findById(item.getId())
-            .orElseThrow(() -> new IllegalStateException("Rich document is missing."));
-    return response(item, document);
+    Optional<RichDocumentEntity> document = documents.findById(item.getId());
+    String migrationState =
+        effectiveMigrationState(item.getBodyMigrationState(), document.isPresent());
+    if (document.isEmpty() || !Set.of("completed", "not_required").contains(migrationState)) {
+      SourceRecord latest = latestSource(item.getId());
+      return response(
+          item, null, migrationState, latest == null ? SourceSummary.manual() : latest.summary());
+    }
+    SourceRecord source = latestSource(item.getId());
+    return response(
+        item,
+        document.get(),
+        migrationState,
+        source == null ? SourceSummary.manual() : source.summary());
   }
 
   @Transactional(readOnly = true)
@@ -272,10 +314,12 @@ public class KnowledgeService {
     var existing = attachments.findByIdAndOwnerId(assetId, owner.getId());
     if (existing.isPresent()) {
       AttachmentEntity attachment = existing.get();
-      if (!"clean".equals(attachment.getScanState())) {
+      if (!"clean".equals(attachment.getScanState())
+          || !List.of("none", "not_required", "redacted")
+              .contains(attachment.getRedactionState())) {
         throw new IllegalArgumentException("Inline image is not safe.");
       }
-      return new ResolvedAsset(attachment.getId(), 0);
+      return new ResolvedAsset(attachment.getId(), attachment.getSizeBytes());
     }
     RichImageUploadEntity upload =
         uploads
@@ -294,15 +338,43 @@ public class KnowledgeService {
     return new ResolvedAsset(attachment.getId(), upload.getSizeBytes());
   }
 
+  private KnowledgeItemResponse saveAsNew(
+      UpdateKnowledgeRequest request, OwnerAccountEntity owner, PreparedDocument prepared) {
+    KnowledgeItemEntity item =
+        items.saveAndFlush(
+            KnowledgeItemEntity.create(
+                owner.getId(), request.title(), prepared.plainText(), request.note()));
+    RichDocumentEntity document =
+        RichDocumentEntity.create(
+            item.getId(),
+            prepared.document(),
+            prepared.plainText(),
+            prepared.hash(),
+            prepared.images().size(),
+            prepared.totalImageBytes(),
+            item.getVersion());
+    documents.save(document);
+    SourceRecord source =
+        insertSource(item, authorizeSource(request.bodySource()), prepared.hash());
+    UUID revisionId = insertRevision(item, prepared, "conflict_overwrite", 1, source.id());
+    insertImageReferences(item, revisionId, prepared.images());
+    updateSearch(item, prepared.document());
+    return response(item, document, source.summary());
+  }
+
   private UUID insertRevision(
-      KnowledgeItemEntity item, PreparedDocument prepared, String reason, int revisionNo) {
+      KnowledgeItemEntity item,
+      PreparedDocument prepared,
+      String reason,
+      int revisionNo,
+      UUID sourceId) {
     UUID revisionId = UUID.randomUUID();
     jdbc.update(
         """
         INSERT INTO rich_document_revision
           (id, item_id, revision_no, schema_version, document, plain_text,
-           document_hash, reason, created_at)
-        VALUES (?, ?, ?, 1, ?::jsonb, ?, ?, ?, ?)
+           document_hash, reason, source_id, created_at)
+        VALUES (?, ?, ?, 1, ?::jsonb, ?, ?, ?, ?, ?)
         """,
         revisionId,
         item.getId(),
@@ -311,6 +383,7 @@ public class KnowledgeService {
         prepared.plainText(),
         prepared.hash(),
         reason,
+        sourceId,
         Timestamp.from(Instant.now()));
     return revisionId;
   }
@@ -323,8 +396,8 @@ public class KnowledgeService {
           """
           INSERT INTO rich_image_reference
             (id, item_id, revision_id, attachment_id, node_id, alt_text, caption,
-             display_width_px, alignment, decorative, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             display_width_px, alignment, decorative, status, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
           """,
           UUID.randomUUID(),
           item.getId(),
@@ -341,20 +414,14 @@ public class KnowledgeService {
     }
   }
 
-  private void insertSource(KnowledgeItemEntity item, BodySourceRequest input, String hash) {
+  private SourceProvenance authorizeSource(BodySourceRequest input) {
     BodySourceRequest source = input == null ? new BodySourceRequest("native", null, null) : input;
-    String kind = normalizeSourceKind(source.kind());
-    String sourceUrl = sanitizeUrl(source.sourceUrl());
-    String host = null;
-    if (sourceUrl != null) {
-      try {
-        host = new URI(sourceUrl).getHost();
-      } catch (URISyntaxException ignored) {
-        throw new IllegalArgumentException("Source URL is invalid.");
-      }
-    }
-    Instant now = Instant.now();
-    Timestamp nowTimestamp = Timestamp.from(now);
+    return sourcePolicy.authorize(source.kind(), source.sourceUrl(), source.capturedAt());
+  }
+
+  private SourceRecord insertSource(
+      KnowledgeItemEntity item, SourceProvenance source, String hash) {
+    Timestamp nowTimestamp = Timestamp.from(source.convertedAt());
     UUID sourceId = UUID.randomUUID();
     jdbc.update(
         """
@@ -365,12 +432,12 @@ public class KnowledgeService {
         """,
         sourceId,
         item.getId(),
-        kind,
-        sourceUrl,
-        host,
+        source.kind(),
+        source.url(),
+        source.host(),
         source.capturedAt() == null ? null : Timestamp.from(source.capturedAt()),
         nowTimestamp,
-        CONVERTER_VERSION,
+        source.converterVersion(),
         hash,
         nowTimestamp);
     jdbc.update(
@@ -382,51 +449,103 @@ public class KnowledgeService {
         """,
         UUID.randomUUID(),
         sourceId,
-        CONVERTER_VERSION,
+        source.converterVersion(),
         nowTimestamp);
+    return new SourceRecord(
+        sourceId,
+        new SourceSummary(
+            source.kind(), inputMethod(source.kind()), source.url(), source.capturedAt()));
   }
 
-  private void updateSearch(KnowledgeItemEntity item, String plainText) {
-    String searchable = (item.getTitle() + "\n" + plainText + "\n" + item.getNote()).strip();
+  private SourceRecord latestSource(UUID itemId) {
+    List<SourceRecord> sources =
+        jdbc.query(
+            """
+            SELECT id, source_kind, source_url, captured_at
+            FROM rich_document_source
+            WHERE item_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (result, row) ->
+                new SourceRecord(
+                    result.getObject("id", UUID.class),
+                    new SourceSummary(
+                        result.getString("source_kind"),
+                        inputMethod(result.getString("source_kind")),
+                        result.getString("source_url"),
+                        result.getTimestamp("captured_at") == null
+                            ? null
+                            : result.getTimestamp("captured_at").toInstant())),
+            itemId);
+    return sources.isEmpty() ? null : sources.get(0);
+  }
+
+  private static String inputMethod(String kind) {
+    return switch (kind) {
+      case "webpage", "internet_result" -> "url";
+      case "clipboard" -> "clipboard";
+      case "document", "word", "google_docs" -> "upload";
+      case "screenshot" -> "screenshot";
+      case "legacy_text" -> "migration";
+      default -> "manual";
+    };
+  }
+
+  private void updateSearch(KnowledgeItemEntity item, JsonNode document) {
+    SearchProjection projection =
+        searchProjections.withRevision(
+            searchProjections.project(item.getTitle(), document, item.getNote()),
+            item.getSearchRevision());
     jdbc.update(
         """
         INSERT INTO search_document
-          (item_id, owner_id, title_text, body_text, note_text, search_text,
-           search_revision, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          (item_id, owner_id, title_text, body_text, note_text, image_text,
+           search_text, search_revision, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (item_id) DO UPDATE SET
           title_text = EXCLUDED.title_text,
           body_text = EXCLUDED.body_text,
           note_text = EXCLUDED.note_text,
+          image_text = EXCLUDED.image_text,
           search_text = EXCLUDED.search_text,
           search_revision = EXCLUDED.search_revision,
           updated_at = EXCLUDED.updated_at
         """,
         item.getId(),
         item.getOwnerId(),
-        item.getTitle(),
-        plainText,
-        item.getNote(),
-        searchable,
-        item.getSearchRevision(),
+        projection.titleText(),
+        projection.bodyText(),
+        projection.noteText(),
+        projection.imageText(),
+        projection.searchText(),
+        projection.expectedSearchRevision(),
         Timestamp.from(Instant.now()));
   }
 
   private static KnowledgeItemResponse response(
-      KnowledgeItemEntity item, RichDocumentEntity document) {
+      KnowledgeItemEntity item, RichDocumentEntity document, SourceSummary source) {
+    return response(item, document, item.getBodyMigrationState(), source);
+  }
+
+  private static KnowledgeItemResponse response(
+      KnowledgeItemEntity item,
+      RichDocumentEntity document,
+      String migrationState,
+      SourceSummary source) {
     return new KnowledgeItemResponse(
         item.getId(),
         item.getTitle(),
         item.getBody(),
-        document.getDocument(),
-        document.getSchemaVersion(),
-        item.getBodyMigrationState(),
+        document == null ? null : document.getDocument(),
+        document == null ? 0 : document.getSchemaVersion(),
+        migrationState,
         item.getNote(),
         null,
         item.getProcessingStatus(),
         item.getLifecycleState(),
         false,
-        new SourceSummary("manual", "manual", null, null),
+        source,
         null,
         List.of(),
         item.getVersion(),
@@ -442,7 +561,7 @@ public class KnowledgeService {
         null,
         item.getProcessingStatus(),
         item.getLifecycleState(),
-        new SourceSummary("manual", "manual", null, null),
+        SourceSummary.manual(),
         null,
         List.of(),
         item.getVersion(),
@@ -458,47 +577,11 @@ public class KnowledgeService {
     return clean.length() <= 220 ? clean : clean.substring(0, 217) + "...";
   }
 
-  private static String normalizeSourceKind(String kind) {
-    String value = kind == null ? "native" : kind.strip().toLowerCase(Locale.ROOT);
-    if (!List.of(
-            "native",
-            "clipboard",
-            "word",
-            "google_docs",
-            "webpage",
-            "document",
-            "screenshot",
-            "legacy_text",
-            "internet_result")
-        .contains(value)) {
-      throw new IllegalArgumentException("Unsupported body source kind.");
+  static String effectiveMigrationState(String storedState, boolean documentPresent) {
+    if (!documentPresent && !"failed".equals(storedState)) {
+      return "pending";
     }
-    return value;
-  }
-
-  private static String sanitizeUrl(String raw) {
-    if (raw == null || raw.isBlank()) {
-      return null;
-    }
-    try {
-      URI uri = new URI(raw.strip());
-      if (!List.of("http", "https").contains(uri.getScheme())
-          || uri.getHost() == null
-          || uri.getUserInfo() != null) {
-        throw new IllegalArgumentException("Source URL must be a public HTTP/HTTPS URL.");
-      }
-      return new URI(
-              uri.getScheme(),
-              null,
-              uri.getHost(),
-              uri.getPort(),
-              uri.getPath(),
-              uri.getQuery(),
-              null)
-          .toString();
-    } catch (URISyntaxException error) {
-      throw new IllegalArgumentException("Source URL is invalid.");
-    }
+    return storedState == null ? "pending" : storedState;
   }
 
   private String writeJson(JsonNode document) {
@@ -537,4 +620,6 @@ public class KnowledgeService {
       long sizeBytes) {}
 
   private record ResolvedAsset(UUID attachmentId, long sizeBytes) {}
+
+  private record SourceRecord(UUID id, SourceSummary summary) {}
 }

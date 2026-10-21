@@ -1,0 +1,506 @@
+{
+  "version": 1,
+  "invariant": "payload 必须被拒绝、降级为纯文本或作为不可执行文本显示",
+  "cases": [
+    {
+      "id": "html-001",
+      "category": "html",
+      "payload": "<script>window.__richTextXss=1</script>"
+    },
+    {
+      "id": "html-002",
+      "category": "html",
+      "payload": "<img src=\"https://example.invalid/pixel.png\" onerror=\"window.__richTextXss=2\">"
+    },
+    {
+      "id": "html-003",
+      "category": "html",
+      "payload": "<iframe src=\"https://example.invalid/frame\"></iframe>"
+    },
+    {
+      "id": "html-004",
+      "category": "html",
+      "payload": "<form action=\"https://example.invalid/post\"><input name=\"secret\"></form>"
+    },
+    {
+      "id": "html-005",
+      "category": "html",
+      "payload": "<a href=\"javascript:window.__richTextXss=3\">link</a>"
+    },
+    {
+      "id": "html-006",
+      "category": "html",
+      "payload": "<a href=\"data:text/html,<script>1</script>\">data</a>"
+    },
+    {
+      "id": "html-007",
+      "category": "html",
+      "payload": "<object data=\"https://example.invalid/object\"></object>"
+    },
+    {
+      "id": "html-008",
+      "category": "html",
+      "payload": "<embed src=\"https://example.invalid/embed\">"
+    },
+    {
+      "id": "html-009",
+      "category": "html",
+      "payload": "<svg onload=\"window.__richTextXss=4\"></svg>"
+    },
+    {
+      "id": "html-010",
+      "category": "html",
+      "payload": "<math><mi xlink:href=\"javascript:window.__richTextXss=5\">x</mi></math>"
+    },
+    {
+      "id": "html-011",
+      "category": "html",
+      "payload": "<script>window.__richTextXss=1</script>"
+    },
+    {
+      "id": "html-012",
+      "category": "html",
+      "payload": "<img src=\"https://example.invalid/pixel.png\" onerror=\"window.__richTextXss=2\">"
+    },
+    {
+      "id": "html-013",
+      "category": "html",
+      "payload": "<iframe src=\"https://example.invalid/frame\"></iframe>"
+    },
+    {
+      "id": "html-014",
+      "category": "html",
+      "payload": "<form action=\"https://example.invalid/post\"><input name=\"secret\"></form>"
+    },
+    {
+      "id": "html-015",
+      "category": "html",
+      "payload": "<a href=\"javascript:window.__richTextXss=3\">link</a>"
+    },
+    {
+      "id": "html-016",
+      "category": "html",
+      "payload": "<a href=\"data:text/html,<script>1</script>\">data</a>"
+    },
+    {
+      "id": "html-017",
+      "category": "html",
+      "payload": "<object data=\"https://example.invalid/object\"></object>"
+    },
+    {
+      "id": "html-018",
+      "category": "html",
+      "payload": "<embed src=\"https://example.invalid/embed\">"
+    },
+    {
+      "id": "html-019",
+      "category": "html",
+      "payload": "<svg onload=\"window.__richTextXss=4\"></svg>"
+    },
+    {
+      "id": "html-020",
+      "category": "html",
+      "payload": "<math><mi xlink:href=\"javascript:window.__richTextXss=5\">x</mi></math>"
+    },
+    {
+      "id": "html-021",
+      "category": "html",
+      "payload": "<script>window.__richTextXss=1</script>"
+    },
+    {
+      "id": "html-022",
+      "category": "html",
+      "payload": "<img src=\"https://example.invalid/pixel.png\" onerror=\"window.__richTextXss=2\">"
+    },
+    {
+      "id": "html-023",
+      "category": "html",
+      "payload": "<iframe src=\"https://example.invalid/frame\"></iframe>"
+    },
+    {
+      "id": "html-024",
+      "category": "html",
+      "payload": "<form action=\"https://example.invalid/post\"><input name=\"secret\"></form>"
+    },
+    {
+      "id": "html-025",
+      "category": "html",
+      "payload": "<a href=\"javascript:window.__richTextXss=3\">link</a>"
+    },
+    {
+      "id": "html-026",
+      "category": "html",
+      "payload": "<a href=\"data:text/html,<script>1</script>\">data</a>"
+    },
+    {
+      "id": "html-027",
+      "category": "html",
+      "payload": "<object data=\"https://example.invalid/object\"></object>"
+    },
+    {
+      "id": "html-028",
+      "category": "html",
+      "payload": "<embed src=\"https://example.invalid/embed\">"
+    },
+    {
+      "id": "html-029",
+      "category": "html",
+      "payload": "<svg onload=\"window.__richTextXss=4\"></svg>"
+    },
+    {
+      "id": "html-030",
+      "category": "html",
+      "payload": "<math><mi xlink:href=\"javascript:window.__richTextXss=5\">x</mi></math>"
+    },
+    {
+      "id": "html-031",
+      "category": "html",
+      "payload": "<script>window.__richTextXss=1</script>"
+    },
+    {
+      "id": "html-032",
+      "category": "html",
+      "payload": "<img src=\"https://example.invalid/pixel.png\" onerror=\"window.__richTextXss=2\">"
+    },
+    {
+      "id": "html-033",
+      "category": "html",
+      "payload": "<iframe src=\"https://example.invalid/frame\"></iframe>"
+    },
+    {
+      "id": "html-034",
+      "category": "html",
+      "payload": "<form action=\"https://example.invalid/post\"><input name=\"secret\"></form>"
+    },
+    {
+      "id": "html-035",
+      "category": "html",
+      "payload": "<a href=\"javascript:window.__richTextXss=3\">link</a>"
+    },
+    {
+      "id": "html-036",
+      "category": "html",
+      "payload": "<a href=\"data:text/html,<script>1</script>\">data</a>"
+    },
+    {
+      "id": "html-037",
+      "category": "html",
+      "payload": "<object data=\"https://example.invalid/object\"></object>"
+    },
+    {
+      "id": "html-038",
+      "category": "html",
+      "payload": "<embed src=\"https://example.invalid/embed\">"
+    },
+    {
+      "id": "html-039",
+      "category": "html",
+      "payload": "<svg onload=\"window.__richTextXss=4\"></svg>"
+    },
+    {
+      "id": "html-040",
+      "category": "html",
+      "payload": "<math><mi xlink:href=\"javascript:window.__richTextXss=5\">x</mi></math>"
+    },
+    {
+      "id": "protocol-041",
+      "category": "protocol",
+      "payload": "<a href=\"javascript:payload-40\">link</a>"
+    },
+    {
+      "id": "protocol-042",
+      "category": "protocol",
+      "payload": "<a href=\"data:payload-41\">link</a>"
+    },
+    {
+      "id": "protocol-043",
+      "category": "protocol",
+      "payload": "<a href=\"blob:payload-42\">link</a>"
+    },
+    {
+      "id": "protocol-044",
+      "category": "protocol",
+      "payload": "<a href=\"cid:payload-43\">link</a>"
+    },
+    {
+      "id": "protocol-045",
+      "category": "protocol",
+      "payload": "<a href=\"file:payload-44\">link</a>"
+    },
+    {
+      "id": "protocol-046",
+      "category": "protocol",
+      "payload": "<a href=\"javascript:payload-45\">link</a>"
+    },
+    {
+      "id": "protocol-047",
+      "category": "protocol",
+      "payload": "<a href=\"data:payload-46\">link</a>"
+    },
+    {
+      "id": "protocol-048",
+      "category": "protocol",
+      "payload": "<a href=\"blob:payload-47\">link</a>"
+    },
+    {
+      "id": "protocol-049",
+      "category": "protocol",
+      "payload": "<a href=\"cid:payload-48\">link</a>"
+    },
+    {
+      "id": "protocol-050",
+      "category": "protocol",
+      "payload": "<a href=\"file:payload-49\">link</a>"
+    },
+    {
+      "id": "protocol-051",
+      "category": "protocol",
+      "payload": "<a href=\"javascript:payload-50\">link</a>"
+    },
+    {
+      "id": "protocol-052",
+      "category": "protocol",
+      "payload": "<a href=\"data:payload-51\">link</a>"
+    },
+    {
+      "id": "protocol-053",
+      "category": "protocol",
+      "payload": "<a href=\"blob:payload-52\">link</a>"
+    },
+    {
+      "id": "protocol-054",
+      "category": "protocol",
+      "payload": "<a href=\"cid:payload-53\">link</a>"
+    },
+    {
+      "id": "protocol-055",
+      "category": "protocol",
+      "payload": "<a href=\"file:payload-54\">link</a>"
+    },
+    {
+      "id": "protocol-056",
+      "category": "protocol",
+      "payload": "<a href=\"javascript:payload-55\">link</a>"
+    },
+    {
+      "id": "protocol-057",
+      "category": "protocol",
+      "payload": "<a href=\"data:payload-56\">link</a>"
+    },
+    {
+      "id": "protocol-058",
+      "category": "protocol",
+      "payload": "<a href=\"blob:payload-57\">link</a>"
+    },
+    {
+      "id": "protocol-059",
+      "category": "protocol",
+      "payload": "<a href=\"cid:payload-58\">link</a>"
+    },
+    {
+      "id": "protocol-060",
+      "category": "protocol",
+      "payload": "<a href=\"file:payload-59\">link</a>"
+    },
+    {
+      "id": "image-061",
+      "category": "image",
+      "payload": "<img src=\"https://example.invalid/a.png\" onerror=\"window.__richTextXss=60\">"
+    },
+    {
+      "id": "image-062",
+      "category": "image",
+      "payload": "<img src=\"http://127.0.0.1/private.png\" onerror=\"window.__richTextXss=61\">"
+    },
+    {
+      "id": "image-063",
+      "category": "image",
+      "payload": "<img src=\"http://10.0.0.1/private.png\" onerror=\"window.__richTextXss=62\">"
+    },
+    {
+      "id": "image-064",
+      "category": "image",
+      "payload": "<img src=\"http://[::1]/private.png\" onerror=\"window.__richTextXss=63\">"
+    },
+    {
+      "id": "image-065",
+      "category": "image",
+      "payload": "<img src=\"https://user:pass@example.invalid/private.png\" onerror=\"window.__richTextXss=64\">"
+    },
+    {
+      "id": "image-066",
+      "category": "image",
+      "payload": "<img src=\"https://example.invalid/a.png\" onerror=\"window.__richTextXss=65\">"
+    },
+    {
+      "id": "image-067",
+      "category": "image",
+      "payload": "<img src=\"http://127.0.0.1/private.png\" onerror=\"window.__richTextXss=66\">"
+    },
+    {
+      "id": "image-068",
+      "category": "image",
+      "payload": "<img src=\"http://10.0.0.1/private.png\" onerror=\"window.__richTextXss=67\">"
+    },
+    {
+      "id": "image-069",
+      "category": "image",
+      "payload": "<img src=\"http://[::1]/private.png\" onerror=\"window.__richTextXss=68\">"
+    },
+    {
+      "id": "image-070",
+      "category": "image",
+      "payload": "<img src=\"https://user:pass@example.invalid/private.png\" onerror=\"window.__richTextXss=69\">"
+    },
+    {
+      "id": "image-071",
+      "category": "image",
+      "payload": "<img src=\"https://example.invalid/a.png\" onerror=\"window.__richTextXss=70\">"
+    },
+    {
+      "id": "image-072",
+      "category": "image",
+      "payload": "<img src=\"http://127.0.0.1/private.png\" onerror=\"window.__richTextXss=71\">"
+    },
+    {
+      "id": "image-073",
+      "category": "image",
+      "payload": "<img src=\"http://10.0.0.1/private.png\" onerror=\"window.__richTextXss=72\">"
+    },
+    {
+      "id": "image-074",
+      "category": "image",
+      "payload": "<img src=\"http://[::1]/private.png\" onerror=\"window.__richTextXss=73\">"
+    },
+    {
+      "id": "image-075",
+      "category": "image",
+      "payload": "<img src=\"https://user:pass@example.invalid/private.png\" onerror=\"window.__richTextXss=74\">"
+    },
+    {
+      "id": "image-076",
+      "category": "image",
+      "payload": "<img src=\"https://example.invalid/a.png\" onerror=\"window.__richTextXss=75\">"
+    },
+    {
+      "id": "image-077",
+      "category": "image",
+      "payload": "<img src=\"http://127.0.0.1/private.png\" onerror=\"window.__richTextXss=76\">"
+    },
+    {
+      "id": "image-078",
+      "category": "image",
+      "payload": "<img src=\"http://10.0.0.1/private.png\" onerror=\"window.__richTextXss=77\">"
+    },
+    {
+      "id": "image-079",
+      "category": "image",
+      "payload": "<img src=\"http://[::1]/private.png\" onerror=\"window.__richTextXss=78\">"
+    },
+    {
+      "id": "image-080",
+      "category": "image",
+      "payload": "<img src=\"https://user:pass@example.invalid/private.png\" onerror=\"window.__richTextXss=79\">"
+    },
+    {
+      "id": "image-081",
+      "category": "image",
+      "payload": "<img src=\"https://example.invalid/a.png\" onerror=\"window.__richTextXss=80\">"
+    },
+    {
+      "id": "image-082",
+      "category": "image",
+      "payload": "<img src=\"http://127.0.0.1/private.png\" onerror=\"window.__richTextXss=81\">"
+    },
+    {
+      "id": "image-083",
+      "category": "image",
+      "payload": "<img src=\"http://10.0.0.1/private.png\" onerror=\"window.__richTextXss=82\">"
+    },
+    {
+      "id": "image-084",
+      "category": "image",
+      "payload": "<img src=\"http://[::1]/private.png\" onerror=\"window.__richTextXss=83\">"
+    },
+    {
+      "id": "image-085",
+      "category": "image",
+      "payload": "<img src=\"https://user:pass@example.invalid/private.png\" onerror=\"window.__richTextXss=84\">"
+    },
+    {
+      "id": "image-086",
+      "category": "image",
+      "payload": "<img src=\"https://example.invalid/a.png\" onerror=\"window.__richTextXss=85\">"
+    },
+    {
+      "id": "image-087",
+      "category": "image",
+      "payload": "<img src=\"http://127.0.0.1/private.png\" onerror=\"window.__richTextXss=86\">"
+    },
+    {
+      "id": "image-088",
+      "category": "image",
+      "payload": "<img src=\"http://10.0.0.1/private.png\" onerror=\"window.__richTextXss=87\">"
+    },
+    {
+      "id": "image-089",
+      "category": "image",
+      "payload": "<img src=\"http://[::1]/private.png\" onerror=\"window.__richTextXss=88\">"
+    },
+    {
+      "id": "image-090",
+      "category": "image",
+      "payload": "<img src=\"https://user:pass@example.invalid/private.png\" onerror=\"window.__richTextXss=89\">"
+    },
+    {
+      "id": "image-091",
+      "category": "image",
+      "payload": "<img src=\"https://example.invalid/a.png\" onerror=\"window.__richTextXss=90\">"
+    },
+    {
+      "id": "image-092",
+      "category": "image",
+      "payload": "<img src=\"http://127.0.0.1/private.png\" onerror=\"window.__richTextXss=91\">"
+    },
+    {
+      "id": "image-093",
+      "category": "image",
+      "payload": "<img src=\"http://10.0.0.1/private.png\" onerror=\"window.__richTextXss=92\">"
+    },
+    {
+      "id": "image-094",
+      "category": "image",
+      "payload": "<img src=\"http://[::1]/private.png\" onerror=\"window.__richTextXss=93\">"
+    },
+    {
+      "id": "image-095",
+      "category": "image",
+      "payload": "<img src=\"https://user:pass@example.invalid/private.png\" onerror=\"window.__richTextXss=94\">"
+    },
+    {
+      "id": "image-096",
+      "category": "image",
+      "payload": "<img src=\"https://example.invalid/a.png\" onerror=\"window.__richTextXss=95\">"
+    },
+    {
+      "id": "image-097",
+      "category": "image",
+      "payload": "<img src=\"http://127.0.0.1/private.png\" onerror=\"window.__richTextXss=96\">"
+    },
+    {
+      "id": "image-098",
+      "category": "image",
+      "payload": "<img src=\"http://10.0.0.1/private.png\" onerror=\"window.__richTextXss=97\">"
+    },
+    {
+      "id": "image-099",
+      "category": "image",
+      "payload": "<img src=\"http://[::1]/private.png\" onerror=\"window.__richTextXss=98\">"
+    },
+    {
+      "id": "image-100",
+      "category": "image",
+      "payload": "<img src=\"https://user:pass@example.invalid/private.png\" onerror=\"window.__richTextXss=99\">"
+    }
+  ]
+}
