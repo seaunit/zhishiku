@@ -111,9 +111,9 @@ printf '[deploy] Building %s (%s)\n' "$REF" "$SOURCE_SHA"
 (
   cd "$SOURCE_DIR/backend"
   if [[ "$SKIP_TESTS" != "1" ]]; then
-    ./mvnw -q -pl kb-app -am test
+    MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" ./mvnw -q -pl kb-app -am test
   fi
-  ./mvnw -q -pl kb-app -am package -DskipTests
+  MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" ./mvnw -q -pl kb-app -am package -DskipTests
 )
 
 (
@@ -123,7 +123,7 @@ printf '[deploy] Building %s (%s)\n' "$REF" "$SOURCE_SHA"
     pnpm lint
     pnpm test
   fi
-  pnpm build
+  NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=768}" pnpm build
 )
 
 RELEASE_ID="${SOURCE_SHA:0:12}-$(date -u +%Y%m%d%H%M%S)"

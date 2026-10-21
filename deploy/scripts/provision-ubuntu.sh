@@ -5,6 +5,7 @@ REPO_URL="${KB_REPO_URL:-https://github.com/seaunit/zhishiku.git}"
 RAW_BASE="${KB_RAW_BASE:-https://raw.githubusercontent.com/seaunit/zhishiku}"
 REF="${KB_REF:-main}"
 ENV_FILE="${KB_ENV_FILE:-/etc/zhishiku/kb.env}"
+SWAP_SIZE_MB="${KB_SWAP_SIZE_MB:-2048}"
 
 usage() {
   cat <<'EOF'
@@ -95,6 +96,21 @@ if ! dpkg -s postgresql-18 >/dev/null 2>&1; then
 fi
 
 systemctl enable --now postgresql
+
+if ! swapon --show=NAME --noheadings | grep -q . && ((SWAP_SIZE_MB > 0)); then
+  SWAP_FILE="/swapfile-zhishiku"
+  if [[ ! -f "$SWAP_FILE" ]]; then
+    fallocate -l "${SWAP_SIZE_MB}M" "$SWAP_FILE"
+    chmod 0600 "$SWAP_FILE"
+    mkswap "$SWAP_FILE"
+  fi
+  if ! swapon --show=NAME --noheadings | grep -qx "$SWAP_FILE"; then
+    swapon "$SWAP_FILE"
+  fi
+  if ! grep -q "^$SWAP_FILE " /etc/fstab; then
+    printf '%s none swap sw 0 0\n' "$SWAP_FILE" >> /etc/fstab
+  fi
+fi
 
 if ! id zhishiku >/dev/null 2>&1; then
   useradd --system --home /opt/zhishiku --shell /usr/sbin/nologin zhishiku

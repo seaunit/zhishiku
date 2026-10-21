@@ -16,6 +16,9 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 `zhishiku` 用户、数据库、环境文件、systemd 服务和 `/kb` Nginx 片段。初始登录信息写入
 `/root/zhishiku-initial-password`，登录后应删除。
 
+首次安装会使用 `/swapfile-zhishiku` 补充 2 GiB swap，避免小内存服务器在 Maven 和
+Vite 构建期间触发 OOM；可通过 `KB_SWAP_SIZE_MB=0` 禁用。
+
 ## 后续更新
 
 ```bash
