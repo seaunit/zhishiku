@@ -46,7 +46,29 @@ Testcontainers PostgreSQL 测试因本机无 Docker 跳过，迁移将在生产�
 
 ## 生产验证
 
-待 GitHub 提交和部署后填写。
+**部署提交**：`e4ccf5bb6f635a16a3e88eef913d312392f39510`
+
+**发布 tag**：`v0.1.21-mvp`
+
+**运行 release**：`/opt/zhishiku/releases/e4ccf5bb6f63-20261021223455`
+
+| 检查 | 结果 |
+|------|------|
+| 生产 Flyway | `0007:true` |
+| `owner_account.display_name` | 列存在 |
+| 显示名称为空或越界账号 | 0 |
+| `/kb/profile` | HTTP 200 |
+| `/kb/api/v1/profile` 未登录 | HTTP 401 |
+| 生产登录 | HTTP 200 |
+| 资料读取 | HTTP 200，返回当前账号 |
+| 名称修改 | HTTP 200，返回值与提交一致 |
+| 原显示名称恢复 | HTTP 200，恢复成功 |
+| 退出登录 | HTTP 204，随后 `/auth/me` 返回 401 |
+| `/`、`/app`、`/login`、`/bank/1`、`/kb/`、`/kb/login` | HTTP 200 |
+| `zhishiku-api.service` / Nginx / 拾题 / 支付 sidecar | active |
+
+真实测试使用临时 `debugAnswer` 完成一次验证码登录，测试脚本退出时自动恢复环境文件并重启服务；
+最终检查确认 `APP_CAPTCHA_EXPOSE_ANSWER` 配置数量为 0，临时备份已删除，服务健康为 UP。
 
 ## 已知边界
 

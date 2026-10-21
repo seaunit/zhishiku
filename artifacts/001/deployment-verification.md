@@ -2,13 +2,13 @@
 
 **日期**：2026-10-22
 
-**部署提交**：`48cdb70a72def4d85e7b1b3b50a2d0d2e80eaafd`
+**部署提交**：`e4ccf5bb6f635a16a3e88eef913d312392f39510`
 
-**发布 tag**：`v0.1.20-mvp`
+**发布 tag**：`v0.1.21-mvp`
 
-**运行 release**：`/opt/zhishiku/releases/48cdb70a72de-20261021220815`
+**运行 release**：`/opt/zhishiku/releases/e4ccf5bb6f63-20261021223455`
 
-**门户 release**：`/opt/seaunit-portal/releases/48cdb70a72de-20261021220815`
+**门户 release**：`/opt/seaunit-portal/releases/e4ccf5bb6f63-20261021223455`
 
 ## 部署结果
 
@@ -20,6 +20,7 @@
 - 注册：只要求邮箱验证码，不显示图形验证码；登录仍保留图形验证码。
 - 密码：登录、注册和初始化账号统一为 8–256 位。
 - 采集：恢复手动录入、网页链接、文档和截图四个入口；PDF/Word 解析和网页 AI 截图分析待接入。
+- 账户：头像点击打开菜单，不直接退出；个人资料支持编辑显示名称，邮箱只读；退出需要确认。
 - 富文本图片：生产安装 `libvips-tools 8.15.1`；正文图片和剪贴板图片粘贴会先执行方向修正、
   格式规范化和元数据清理。
 - 联网搜索：本地搜索完成后显示“继续搜索互联网”；用户再次点击后才调用 DeepSeek Search。
@@ -42,6 +43,8 @@
 | `https://seaunit.site/login` | HTTP 200 |
 | `https://seaunit.site/bank/1` | HTTP 200 |
 | `https://seaunit.site/kb/capture` | HTTP 200 |
+| `https://seaunit.site/kb/profile` | HTTP 200 |
+| `/kb/api/v1/profile` 未登录 | HTTP 401 |
 | `/kb/login` 注册入口 | 始终显示“注册账户”；已有账号不关闭其他邮箱注册 |
 | `/kb/api/v1/auth/registration-status` | HTTP 200，`{"open":true}` |
 | `/kb/api/v1/search/external` | 未登录 POST 返回 HTTP 401，联网接口已部署且受登录保护 |
@@ -50,6 +53,10 @@
 | 图片规范化 | `zhishiku` 服务用户完成 1×1 和 640×480 PNG 的 `autorot`、`[strip]` 与输出检查 |
 | `/kb/api/v1/rich-text/image-uploads` | 未登录 POST 返回 HTTP 401，图片接口已部署且受登录保护 |
 | 部署脚本图片门禁 | 缺失 `vips` 时退出码 1；安装后切换到 release 前检查通过 |
+| Flyway 账户资料迁移 | `0007:true`；`display_name` 已创建并回填，非法空值 0 |
+| 生产账户流程 | 登录、资料读取、名称修改、原名恢复均 HTTP 200；退出 HTTP 204 |
+| 退出后会话 | `/kb/api/v1/auth/me` 返回 HTTP 401 |
+| 临时验证码调试配置 | 测试后已恢复，配置数量 0 |
 | DeepSeek Search | HTTP 200，返回 3 条结果，首条标题为“首次调用 API \| DeepSeek API Docs” |
 | DeepSeek Fetch | HTTP 200，标题为“首次调用 API \| DeepSeek API Docs”，正文 2866 字符 |
 | `/kb/login` 生产 Taste 检查 | 1440/768/390 全部 `0 FAIL` |
