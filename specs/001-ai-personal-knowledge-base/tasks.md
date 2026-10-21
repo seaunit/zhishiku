@@ -115,10 +115,10 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 
 - [ ] T065 [P0] [P] 在 `tests/performance/search-benchmark/` 中生成冻结语料、500 条查询和正确性清单
 - [ ] T066 [P0] 在 `artifacts/001/search-benchmark.md` 中记录 PostgreSQL 搜索结果并决定是否需要 Meilisearch
-- [ ] T067 [P1] [P] 在 `deploy/scripts/preflight-existing-app.sh` 中检查端口、内存、磁盘、数据库、Nginx 和现有应用基线
+- [x] T067 [P1] [P] 在 `deploy/scripts/preflight-existing-app.sh` 中检查端口、内存、磁盘、数据库、Nginx 和现有应用基线
 - [ ] T068 [P1] [P] 在 `deploy/systemd/zhishiku-api.service`、`worker` 和 `browser-worker` 中创建独立 unit
 - [ ] T069 [P1] [P] 在 `deploy/nginx/kb.conf` 和 `backend/kb-app/src/test/java/site/seaunit/zhishiku/deployment/nginx/` 中实现 Vue 构建产物、SPA fallback、`/kb/api`、Cookie 路径、CSRF 和增量 `/` 门户的 staging 冒烟
-- [ ] T070 [P1] 在 `deploy/scripts/provision-ubuntu.sh` 和 `deploy/scripts/deploy.sh` 中实现固定 ref 拉取、构建、Flyway、健康检查、备份和回滚
+- [x] T070 [P1] 在 `deploy/scripts/provision-ubuntu.sh` 和 `deploy/scripts/deploy.sh` 中实现固定 ref 拉取、构建、Flyway、健康检查、备份和回滚
 - [ ] T071 [P1] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/deployment/` 中验证迁移失败回滚、配置缺失和健康失败关闭
 - [ ] T072 [P1] 在 `tests/e2e/zero-impact.spec.ts` 中验证 `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`、证书、Cookie 和支付 sidecar 零回归
 - [ ] T073 [P1] [P] 在 `tests/e2e/taste.spec.ts` 中执行 1440/768/430/390/360/320、手机横屏、安全区和 200% 字体 Taste 检查
@@ -163,3 +163,38 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 
 每个任务完成后必须勾选并记录任务 ID、日期、执行角色、提交 SHA、摘要、详情、验证命令、
 证据路径、FR/SC 映射、风险和回滚。
+
+## Completion Log
+
+### 完成记录：T067
+
+- 日期：2026-10-21
+- 状态：已完成
+- 执行子智能体：开发
+- Git commit：`ba221ae`
+- 摘要：新增现有应用部署前预检脚本。
+- 详情：检查内存、磁盘、`8082` 端口、PostgreSQL `5432` 占用、Nginx 配置以及
+  `shuati.service`、`shuati-payments.service` 和 Nginx 活跃状态；`8082` 被占用时阻断部署。
+- 验证：Git Bash `bash -n` 通过；脚本通过 `--help` 入口解析；未执行生产变更。
+- 证据：`deploy/scripts/preflight-existing-app.sh`。
+- 覆盖：T067；支持部署约束中的端口隔离、Nginx 共存和现有应用零影响预检。
+- 风险与回滚：脚本只读；任何非预期服务状态仅告警，不修改现有 unit。
+
+### 完成记录：T070
+
+- 日期：2026-10-21
+- 状态：已完成
+- 执行子智能体：开发
+- Git commit：`ba221ae`
+- 摘要：新增从 GitHub 固定 ref 拉取的一键部署链路。
+- 详情：`provision-ubuntu.sh` 安装 Java 17、Node.js、pnpm、PostgreSQL 18，创建独立用户、
+  数据库和受限环境文件；`deploy.sh` 从 GitHub fetch 指定分支、tag 或 commit，执行测试与构建，
+  生成不可变 release，切换 `current`，安装 systemd 和 Nginx 片段，执行本地健康检查；
+  健康或 Nginx 校验失败时回滚上一 release 和配置备份。
+- 验证：`bash -n`、脚本帮助入口、后端 6 项测试、Spotless、前端 lint/typecheck、9 项 Vitest、
+  Vite 生产构建和真实全栈 Playwright 通过。
+- 证据：`deploy/scripts/provision-ubuntu.sh`、`deploy/scripts/deploy.sh`、
+  `deploy/systemd/zhishiku-api.service`、`deploy/nginx/zhishiku-kb.conf`、`deploy/README.md`。
+- 覆盖：T070；部署固定 ref、构建、Flyway、健康检查、备份和回滚。
+- 风险与回滚：生产首次执行尚未记录；脚本失败时切回上一 release 并恢复 Nginx 备份，数据库迁移
+  保持向前兼容，不删除 PostgreSQL 数据或上传目录。
