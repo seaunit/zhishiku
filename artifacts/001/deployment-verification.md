@@ -2,13 +2,13 @@
 
 **日期**：2026-10-22
 
-**部署提交**：`e4ccf5bb6f635a16a3e88eef913d312392f39510`
+**部署提交**：`b3e6a89993d291ee351229483e681c6d8e1f9d26`
 
-**发布 tag**：`v0.1.21-mvp`
+**发布 tag**：`v0.1.22-mvp`
 
-**运行 release**：`/opt/zhishiku/releases/e4ccf5bb6f63-20261021223455`
+**运行 release**：`/opt/zhishiku/releases/b3e6a89993d2-20261021225015`
 
-**门户 release**：`/opt/seaunit-portal/releases/e4ccf5bb6f63-20261021223455`
+**门户 release**：`/opt/seaunit-portal/releases/b3e6a89993d2-20261021225015`
 
 ## 部署结果
 
@@ -21,6 +21,7 @@
 - 密码：登录、注册和初始化账号统一为 8–256 位。
 - 采集：恢复手动录入、网页链接、文档和截图四个入口；PDF/Word 解析和网页 AI 截图分析待接入。
 - 账户：头像点击打开菜单，不直接退出；个人资料支持编辑显示名称，邮箱只读；退出需要确认。
+- 状态语义：无分类显示“未分类”；`not_requested` 显示“未整理”；未知状态不再默认显示“已整理”。
 - 富文本图片：生产安装 `libvips-tools 8.15.1`；正文图片和剪贴板图片粘贴会先执行方向修正、
   格式规范化和元数据清理。
 - 联网搜索：本地搜索完成后显示“继续搜索互联网”；用户再次点击后才调用 DeepSeek Search。
@@ -57,6 +58,7 @@
 | 生产账户流程 | 登录、资料读取、名称修改、原名恢复均 HTTP 200；退出 HTTP 204 |
 | 退出后会话 | `/kb/api/v1/auth/me` 返回 HTTP 401 |
 | 临时验证码调试配置 | 测试后已恢复，配置数量 0 |
+| 状态语义生产构建 | 包含“未分类”“未整理”“状态未知”；生产条目“测试知识库”为 `not_requested` |
 | DeepSeek Search | HTTP 200，返回 3 条结果，首条标题为“首次调用 API \| DeepSeek API Docs” |
 | DeepSeek Fetch | HTTP 200，标题为“首次调用 API \| DeepSeek API Docs”，正文 2866 字符 |
 | `/kb/login` 生产 Taste 检查 | 1440/768/390 全部 `0 FAIL` |

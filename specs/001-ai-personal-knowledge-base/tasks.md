@@ -101,6 +101,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T052 [P1] [US3] 在 `tests/e2e/us3-imports.spec.ts` 中验证文档、JPG/PNG/WebP/HEIC、剪贴板截图、拒绝和重试
 - [x] T088 [P1] [US3] 在采集页恢复手动录入、网页链接、文档和截图四个入口；实现单页 URL 收藏、TXT/Markdown 与图片文件入库、仅剪贴板截图上传，并对未接入的 PDF/Word 解析明确拒绝
 - [x] T089 [P0] [US4] 在首页恢复“继续搜索互联网”，接入 DeepSeek Search/Fetch Provider、显式同意、短期候选、来源打开与收入知识库，并保持本地结果优先
+- [x] T090 [P0] [US1] 统一首页、知识库、待处理和详情页的分类占位与处理状态映射；无分类显示“未分类”，`not_requested` 显示“未整理”，未知状态不再默认显示“已整理”
 
 ## 阶段 6：用户故事 4 — 互联网搜索与候选保存
 
@@ -464,3 +465,22 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 风险与回滚：MVP 当前不扣除 002 点数，正式收费前必须接入计费门禁；候选缓存重启后失效；
   Search/Fetch Provider 故障只影响联网区，不清空本地结果。回滚可移除互联网入口和后端端点，
   不影响已保存的 `internet_result` 知识。
+
+### 完成记录：T090
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：产品、开发、测试
+- Git commit：`b3e6a89`
+- 摘要：修复“待整理”分类与“已整理”处理状态同时出现的语义冲突。
+- 详情：移除分类缺失对 `home.noCategory` 的复用，统一显示“未分类”；新增共享处理状态映射，
+  `not_requested` 显示“未整理”，未知状态显示“状态未知”；首页、知识库、待处理、详情和原型
+  同步使用同一语义。
+- 验证：`knowledge-status.test.ts` 3 项、Vitest 44 项、Playwright 32 项、lint、typecheck、build
+  通过；E2E 使用无分类且 `not_requested` 的详情数据确认显示“未分类 / 未整理”。
+- 证据：`frontend/kb-web/src/lib/knowledge-status.ts`、`frontend/kb-web/src/i18n.ts`、
+  `frontend/kb-web/e2e/app.spec.ts`、`artifacts/001/status-semantics.md`。
+- 生产部署：commit `b3e6a89`，tag `v0.1.22-mvp`，release
+  `b3e6a89993d2-20261021225015`；生产条目“测试知识库”状态为 `not_requested`。
+- 覆盖：FR-013、FR-023、FR-049。
+- 风险与回滚：仅前端展示和 i18n 变化，不改数据库或 API；回滚 release 即可恢复旧映射。
