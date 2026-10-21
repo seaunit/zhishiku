@@ -43,7 +43,7 @@ Vite 构建期间触发 OOM；可通过 `KB_SWAP_SIZE_MB=0` 禁用。
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/deploy.sh \
-  | sudo bash -s -- --ref v0.1.7-mvp
+  | sudo bash -s -- --ref v0.1.8-mvp
 ```
 
 在完全非交互的 CI 中，可先由受管密钥系统写入环境文件，再设置
