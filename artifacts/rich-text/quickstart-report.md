@@ -13,7 +13,7 @@
 
 | 项目 | 实际值 |
 | --- | --- |
-| Git commit/tag | 当前工作树；完成提交后回填 tag |
+| Git commit/tag | `a640e81`；尚未创建部署 tag |
 | 操作系统 | Windows，PowerShell |
 | Java 17 版本 | 17.0.18 |
 | Node/pnpm 版本 | Node 24.14.0；pnpm 10.33.0 |
