@@ -15,6 +15,7 @@ public record AppProperties(
   public record Captcha(long ttlSeconds, long maxEntries, boolean exposeAnswer) {}
 
   public record Registration(
+      boolean enabled,
       long codeTtlSeconds,
       long resendCooldownSeconds,
       long sendWindowSeconds,

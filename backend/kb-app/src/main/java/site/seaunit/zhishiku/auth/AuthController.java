@@ -116,7 +116,7 @@ public class AuthController {
             UsernamePasswordAuthenticationToken.unauthenticated(
                 request.email().strip().toLowerCase(), request.password()));
     persist(authentication, servletRequest, servletResponse);
-    return response(csrfToken);
+    return response(csrfToken, authentication);
   }
 
   @PostMapping("/setup")
@@ -133,12 +133,12 @@ public class AuthController {
             UsernamePasswordAuthenticationToken.unauthenticated(
                 request.email().strip().toLowerCase(), request.password()));
     persist(authentication, servletRequest, servletResponse);
-    return response(csrfToken);
+    return response(csrfToken, authentication);
   }
 
   @GetMapping("/me")
-  SessionResponse me(CsrfToken csrfToken) {
-    return response(csrfToken);
+  SessionResponse me(CsrfToken csrfToken, Authentication authentication) {
+    return response(csrfToken, authentication);
   }
 
   @PostMapping("/logout")
@@ -156,8 +156,11 @@ public class AuthController {
     CONTEXT_REPOSITORY.saveContext(context, request, response);
   }
 
-  private SessionResponse response(CsrfToken token) {
-    OwnerAccountEntity owner = ownerService.requireOwner();
+  private SessionResponse response(CsrfToken token, Authentication authentication) {
+    OwnerAccountEntity owner =
+        ownerService
+            .findByEmail(authentication.getName())
+            .orElseThrow(() -> new IllegalStateException("Account is unavailable."));
     return new SessionResponse(
         owner.getId(), owner.getEmailNormalized(), owner.getLocale(), token.getToken());
   }

@@ -14,7 +14,7 @@
         <LocaleSwitch />
       </div>
 
-      <form v-if="registrationOpen" class="login-form register-form" @submit.prevent="submit">
+      <form class="login-form register-form" @submit.prevent="submit">
         <div>
           <h2>{{ t('register.title') }}</h2>
           <p>{{ t('register.subtitle') }}</p>
@@ -141,17 +141,6 @@
           {{ t('register.haveAccount') }}
         </RouterLink>
       </form>
-
-      <div v-else class="register-closed">
-        <LoaderCircle v-if="statusLoading" class="spin" :size="22" />
-        <template v-else>
-          <h2>{{ t('register.closedTitle') }}</h2>
-          <p>{{ formError || t('register.closedBody') }}</p>
-          <RouterLink class="button secondary" to="/login">
-            {{ t('register.haveAccount') }}
-          </RouterLink>
-        </template>
-      </div>
     </section>
   </main>
 </template>
@@ -164,7 +153,6 @@ import { useRouter } from 'vue-router'
 import {
   ApiError,
   getCaptcha,
-  getRegistrationStatus,
   registerAccount,
   sendRegistrationEmailCode,
 } from '@/api/client'
@@ -173,8 +161,6 @@ import LocaleSwitch from '@/components/LocaleSwitch.vue'
 
 const { t, locale } = useI18n()
 const router = useRouter()
-const registrationOpen = ref(false)
-const statusLoading = ref(true)
 const email = ref('')
 const captchaId = ref('')
 const captchaCode = ref('')
@@ -226,8 +212,9 @@ function errorMessage(caught: unknown) {
       case 'RATE_LIMITED':
         return t('register.rateLimited')
       case 'REGISTRATION_CLOSED':
-        registrationOpen.value = false
         return t('register.registrationClosed')
+      case 'EMAIL_ALREADY_REGISTERED':
+        return t('register.emailAlreadyRegistered')
       case 'PASSWORD_CONFIRMATION_MISMATCH':
         return t('register.passwordMismatch')
       default:
@@ -257,19 +244,7 @@ async function loadCaptcha(preserveError = false) {
 }
 
 async function initialize() {
-  statusLoading.value = true
-  try {
-    const status = await getRegistrationStatus()
-    registrationOpen.value = status.open
-    if (status.open) {
-      await loadCaptcha()
-    }
-  } catch {
-    registrationOpen.value = false
-    formError.value = t('register.loadFailed')
-  } finally {
-    statusLoading.value = false
-  }
+  await loadCaptcha()
 }
 
 function startCooldown(seconds: number) {

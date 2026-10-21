@@ -63,6 +63,7 @@ app:
     max-entries: ${KB_CAPTCHA_MAX_ENTRIES:10000}
     expose-answer: ${KB_CAPTCHA_EXPOSE_ANSWER:false}
   registration:
+    enabled: ${REGISTRATION_ENABLED:true}
     code-ttl-seconds: ${REGISTRATION_CODE_TTL_SECONDS:600}
     resend-cooldown-seconds: ${REGISTRATION_RESEND_COOLDOWN_SECONDS:60}
     send-window-seconds: ${REGISTRATION_SEND_WINDOW_SECONDS:3600}

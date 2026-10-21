@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.test.web.servlet.MockMvc;
 import site.seaunit.zhishiku.auth.captcha.CaptchaService;
+import site.seaunit.zhishiku.auth.registration.EmailAlreadyRegisteredException;
 import site.seaunit.zhishiku.auth.registration.EmailCodeIssued;
 import site.seaunit.zhishiku.auth.registration.EmailDomainNotAllowedException;
 import site.seaunit.zhishiku.auth.registration.PasswordConfirmationMismatchException;
@@ -136,6 +137,29 @@ class AuthControllerRegistrationTest {
                     """))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.code").value("PASSWORD_CONFIRMATION_MISMATCH"));
+  }
+
+  @Test
+  void rejectsDuplicateEmailRegistration() throws Exception {
+    when(registrationService.register(org.mockito.ArgumentMatchers.any()))
+        .thenThrow(new EmailAlreadyRegisteredException());
+
+    mvc.perform(
+            post("/api/v1/auth/register")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "existing@example.com",
+                      "password": "correct-horse-battery",
+                      "confirmPassword": "correct-horse-battery",
+                      "emailCode": "123456",
+                      "locale": "zh-CN"
+                    }
+                    """))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_REGISTERED"));
   }
 
   @Test

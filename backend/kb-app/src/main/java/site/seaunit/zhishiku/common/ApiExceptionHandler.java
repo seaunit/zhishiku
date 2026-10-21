@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import site.seaunit.zhishiku.auth.CaptchaValidationException;
+import site.seaunit.zhishiku.auth.registration.EmailAlreadyRegisteredException;
 import site.seaunit.zhishiku.auth.registration.EmailCodeInvalidException;
 import site.seaunit.zhishiku.auth.registration.EmailDeliveryUnavailableException;
 import site.seaunit.zhishiku.auth.registration.EmailDomainNotAllowedException;
@@ -22,6 +23,12 @@ import site.seaunit.zhishiku.richtext.image.ImageInspectionException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+  @ExceptionHandler(EmailAlreadyRegisteredException.class)
+  ResponseEntity<ErrorResponse> emailAlreadyRegistered(
+      EmailAlreadyRegisteredException error, HttpServletRequest request) {
+    return response(HttpStatus.CONFLICT, "EMAIL_ALREADY_REGISTERED", error.getMessage(), request);
+  }
+
   @ExceptionHandler(RegistrationClosedException.class)
   ResponseEntity<ErrorResponse> registrationClosed(
       RegistrationClosedException error, HttpServletRequest request) {

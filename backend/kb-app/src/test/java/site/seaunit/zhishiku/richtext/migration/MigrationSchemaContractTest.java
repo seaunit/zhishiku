@@ -28,6 +28,18 @@ class MigrationSchemaContractTest {
         .doesNotContain("rich_document_migration");
   }
 
+  @Test
+  void multiAccountMigrationRemovesTheSingleInstanceConstraint() throws Exception {
+    String sql = resource("db/migration/V0006__multi_account.sql");
+
+    assertThat(sql)
+        .contains("DROP CONSTRAINT IF EXISTS owner_account_instance_key_key")
+        .contains("DROP CONSTRAINT IF EXISTS owner_account_instance_key_check")
+        .contains("DROP COLUMN IF EXISTS instance_key")
+        .contains("ADD COLUMN IF NOT EXISTS email_verified_at")
+        .contains("ALTER COLUMN email_verified_at SET NOT NULL");
+  }
+
   private static String resource(String path) throws Exception {
     try (InputStream input =
         MigrationSchemaContractTest.class.getClassLoader().getResourceAsStream(path)) {
