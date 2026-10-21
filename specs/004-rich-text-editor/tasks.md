@@ -124,6 +124,7 @@ Vitest/Vue Test Utils，E2E 使用 Playwright，富文本 JSON 契约由 Vue 与
 - [x] T074 [P1] 在 `artifacts/acceptance/rich-text.md` 中映射 FR-001 至 FR-057、SC-001 至 SC-019
 - [ ] T075 [P1] 在新环境执行 [quickstart.md](quickstart.md) 并写入 `artifacts/rich-text/quickstart-report.md`
 - [ ] T081 [P0] 修复生产富文本图片粘贴的 libvips 依赖，安装系统包并在部署切换前执行真实图片规范化检查
+- [ ] T082 [P0] 修复部署健康检查和门户内容检查在 `pipefail` 下的 `curl | grep -q` 竞态，避免成功 release 被误回滚
 
 ## 阶段 9：P2 加固
 
@@ -293,6 +294,19 @@ FR/SC 映射、风险和回滚。
 - 验证：待完成。
 - 证据：待完成。
 - 覆盖：FR-010、FR-013、FR-021、FR-048。
+- 风险与回滚：待完成。
+
+### 完成记录：T082
+
+- 日期：2026-10-22
+- 状态：待验证
+- 执行子智能体：开发、测试
+- Git commit：未提交
+- 摘要：修复部署脚本将已启动 release 误判为健康检查失败的问题。
+- 详情：待完成。
+- 验证：待完成。
+- 证据：待完成。
+- 覆盖：项目宪法 VII、VIII、IX；FR-048。
 - 风险与回滚：待完成。
 
 ### 未完成与外部阻塞

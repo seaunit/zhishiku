@@ -216,9 +216,10 @@ trap cleanup EXIT
 
 wait_for_health() {
   local attempt
+  local body
   for attempt in $(seq 1 40); do
-    if curl -fsS --max-time 3 "http://127.0.0.1:$PORT/kb/api/actuator/health" \
-      | grep -q '"status":"UP"'; then
+    if body="$(curl -fsS --max-time 3 "http://127.0.0.1:$PORT/kb/api/actuator/health")" \
+      && [[ "$body" == *'"status":"UP"'* ]]; then
       return 0
     fi
     sleep 2
@@ -455,8 +456,11 @@ curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/kb/ >/dev/nu
 curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/app >/dev/null
 curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/bank/1 >/dev/null
 curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/login >/dev/null
-curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/ \
-  | grep -q '拾题与识海'
+portal_body="$(curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/)"
+if [[ "$portal_body" != *"拾题与识海"* ]]; then
+  printf '[deploy] Portal content check failed.\n' >&2
+  exit 1
+fi
 
 ROLLBACK_ACTIVE=0
 printf '[deploy] Release %s is live at https://seaunit.site/ and https://seaunit.site/kb/\n' "$RELEASE_ID"
