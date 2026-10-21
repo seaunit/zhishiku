@@ -37,40 +37,6 @@
         </div>
 
         <div class="field">
-          <label for="register-captcha">{{ t('register.graphicalCaptcha') }}</label>
-          <div class="captcha-control">
-            <input
-              id="register-captcha"
-              v-model.trim="captchaCode"
-              class="input"
-              type="text"
-              name="captchaCode"
-              autocomplete="off"
-              autocapitalize="characters"
-              spellcheck="false"
-              maxlength="8"
-              :placeholder="t('register.graphicalCaptchaPlaceholder')"
-              @input="captchaCode = captchaCode.toUpperCase(); clearError()"
-            />
-            <button
-              class="captcha-image-button"
-              type="button"
-              :aria-label="t('login.captchaRefresh')"
-              :title="t('login.captchaRefresh')"
-              :disabled="captchaLoading"
-              @click="loadCaptcha()"
-            >
-              <img
-                v-if="captchaImage"
-                :src="captchaImage"
-                :alt="t('login.captchaAlt')"
-              />
-              <LoaderCircle v-else class="spin" :size="20" />
-            </button>
-          </div>
-        </div>
-
-        <div class="field">
           <label for="register-email-code">{{ t('register.emailCode') }}</label>
           <div class="verification-row">
             <input
@@ -147,12 +113,11 @@
 
 <script setup lang="ts">
 import { LoaderCircle } from 'lucide-vue-next'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
   ApiError,
-  getCaptcha,
   registerAccount,
   sendRegistrationEmailCode,
 } from '@/api/client'
@@ -162,10 +127,6 @@ import LocaleSwitch from '@/components/LocaleSwitch.vue'
 const { t, locale } = useI18n()
 const router = useRouter()
 const email = ref('')
-const captchaId = ref('')
-const captchaCode = ref('')
-const captchaImage = ref('')
-const captchaLoading = ref(false)
 const emailCode = ref('')
 const emailCodeSending = ref(false)
 const resendSeconds = ref(0)
@@ -224,29 +185,6 @@ function errorMessage(caught: unknown) {
   return caught instanceof Error ? caught.message : t('errors.generic')
 }
 
-async function loadCaptcha(preserveError = false) {
-  captchaLoading.value = true
-  captchaCode.value = ''
-  try {
-    const challenge = await getCaptcha()
-    captchaId.value = challenge.captchaId
-    captchaImage.value = challenge.image
-    if (!preserveError) {
-      clearError()
-    }
-  } catch {
-    captchaId.value = ''
-    captchaImage.value = ''
-    formError.value = t('login.captchaLoadFailed')
-  } finally {
-    captchaLoading.value = false
-  }
-}
-
-async function initialize() {
-  await loadCaptcha()
-}
-
 function startCooldown(seconds: number) {
   if (resendTimer !== undefined) {
     window.clearInterval(resendTimer)
@@ -268,27 +206,16 @@ async function sendCode() {
     formError.value = t('register.invalidEmail')
     return
   }
-  if (!captchaId.value || !captchaCode.value) {
-    formError.value = t('register.captchaRequired')
-    return
-  }
-
   emailCodeSending.value = true
   try {
-    const response = await sendRegistrationEmailCode(
-      email.value,
-      captchaId.value,
-      captchaCode.value,
-    )
+    const response = await sendRegistrationEmailCode(email.value)
     if (response.debugCode) {
       emailCode.value = response.debugCode
     }
     codeNotice.value = t('register.emailCodeSent')
     startCooldown(response.resendAfterSeconds)
-    await loadCaptcha(true)
   } catch (caught) {
     formError.value = errorMessage(caught)
-    await loadCaptcha(true)
   } finally {
     emailCodeSending.value = false
   }
@@ -329,8 +256,6 @@ async function submit() {
     submitting.value = false
   }
 }
-
-onMounted(initialize)
 
 onBeforeUnmount(() => {
   if (resendTimer !== undefined) {

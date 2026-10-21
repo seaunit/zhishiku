@@ -77,9 +77,6 @@ public class AuthController {
   @ResponseStatus(HttpStatus.ACCEPTED)
   EmailCodeResponse registerEmailCode(
       @Valid @RequestBody EmailCodeRequest request, HttpServletRequest servletRequest) {
-    if (!captchaService.consume(request.captchaId(), request.captchaCode())) {
-      throw new CaptchaValidationException();
-    }
     EmailCodeIssued issued =
         registrationService.issueEmailCode(request.email(), servletRequest.getRemoteAddr());
     boolean exposeCode =

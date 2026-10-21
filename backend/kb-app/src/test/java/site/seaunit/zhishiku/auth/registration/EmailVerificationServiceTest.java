@@ -85,6 +85,28 @@ class EmailVerificationServiceTest {
   }
 
   @Test
+  void enforcesMinimumSixtySecondResendCooldown() {
+    FakeSender sender = new FakeSender();
+    MutableClock clock = new MutableClock(Instant.parse("2026-10-21T00:00:00Z"));
+    Deque<String> codes = new ArrayDeque<>(List.of("111111", "222222"));
+    EmailVerificationService.Config fastConfig =
+        new EmailVerificationService.Config(
+            Duration.ofMinutes(10), Duration.ofSeconds(5), Duration.ofHours(1), 5, 20, 5);
+    EmailVerificationService service =
+        new EmailVerificationService(
+            sender, POLICY, () -> true, clock, codes::removeFirst, fastConfig);
+
+    service.issueCode("owner@example.com", "127.0.0.1");
+    clock.advance(Duration.ofSeconds(59));
+    assertThatThrownBy(() -> service.issueCode("owner@example.com", "127.0.0.1"))
+        .isInstanceOf(RateLimitedException.class);
+
+    clock.advance(Duration.ofSeconds(1));
+    service.issueCode("owner@example.com", "127.0.0.1");
+    assertThat(sender.sent()).hasSize(2);
+  }
+
+  @Test
   void closedRegistrationDoesNotSend() {
     FakeSender sender = new FakeSender();
     EmailVerificationService service =

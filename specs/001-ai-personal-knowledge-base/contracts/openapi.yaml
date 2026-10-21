@@ -74,7 +74,7 @@ paths:
       tags: [认证]
       security: []
       operationId: sendRegistrationEmailCode
-      summary: 校验图形验证码后向常用邮箱发送一次性注册验证码。
+      summary: 向常用邮箱发送一次性注册验证码，不要求图形验证码。
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -97,7 +97,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "422":
-          description: 图形验证码、邮箱格式或临时邮箱域名不符合要求。
+          description: 邮箱格式或临时邮箱域名不符合要求。
           content:
             application/json:
               schema:
@@ -984,18 +984,11 @@ components:
           description: 是否允许新邮箱注册；已有账号不会使该值变为 false。
     RegistrationEmailCodeRequest:
       type: object
-      required: [email, captchaId, captchaCode]
+      required: [email]
       properties:
         email:
           type: string
           format: email
-        captchaId:
-          type: string
-          format: uuid
-        captchaCode:
-          type: string
-          minLength: 4
-          maxLength: 8
     RegistrationEmailCodeResponse:
       type: object
       required: [expiresInSeconds, resendAfterSeconds]

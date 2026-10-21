@@ -36,7 +36,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 
 ## 阶段 2：安全、认证与共享基础
 
-- [x] T014 [P0] [P] [US1] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/auth/` 中先验证多账号公开注册、邮箱唯一、图形/邮箱验证码、频控、临时邮箱拒绝、跨账号隔离、密码、会话、CSRF、Cookie 路径和撤销
+- [x] T014 [P0] [P] [US1] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/auth/` 中先验证多账号公开注册、邮箱唯一、登录图形验证码、注册邮箱验证码、频控、临时邮箱拒绝、跨账号隔离、密码、会话、CSRF、Cookie 路径和撤销
 - [ ] T015 [P0] [P] [US1] 在 `backend/kb-core/src/test/java/site/seaunit/zhishiku/domain/` 和 `backend/kb-app/src/test/java/site/seaunit/zhishiku/jobs/` 中为乐观锁、保留期、双 Worker `SKIP LOCKED`、租约过期、fencing token 和旧结果拒绝编写失败测试
 - [x] T016 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/` 中实现 Spring Security、BCrypt/Argon2、Session JDBC、多账号公开注册、按账号隔离及 CSRF/login/logout/register 端点；兼容字段 `owner_id` 的语义为账号 ID
 - [x] T081 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/captcha/` 和登录页中实现 Kaptcha 图形验证码、Caffeine 服务端缓存、一次性登录校验与中文错误刷新
@@ -44,6 +44,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [x] T083 [P0] [US1] 在登录页始终显示注册入口，注册页始终允许新邮箱创建账号；已有账号不得关闭其他邮箱的注册，状态接口失败也不得隐藏入口
 - [x] T084 [P0] [US1] 更新项目宪法、协作约定、README 和 001/002 SDD 文档，将识海从单所有者模型改为多账号公开注册、按账号隔离知识、附件、搜索、会话、点数、订单和账本；保留 `owner_id` 兼容字段但语义为账号 ID，不扩展团队共享
 - [x] T085 [P0] [US1] 在数据库迁移、账号服务、注册 API、登录响应和前端注册页中落实多账号模型；移除实例唯一键，允许已初始化实例继续注册新邮箱，并验证两个账号之间的知识、搜索和详情访问隔离
+- [x] T086 [P0] [US1] 移除注册图形验证码和发码接口的验证码字段，只保留邮箱验证码；注册页同步删除图形验证码控件，并在服务端强制同一邮箱发码冷却不得短于 60 秒
 - [x] T017 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/persistence/` 中实现 BaseEntity、UUID、时间戳和 `@Version`
 - [ ] T018 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/jobs/` 中实现 PostgreSQL 任务表、租约、指数退避和 `SKIP LOCKED`
 - [ ] T019 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/storage/` 中实现 S3 暂存、内容哈希、MIME 检测、正式附件提升和对象清理
@@ -298,6 +299,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   注册只创建唯一所有者，不扩展多用户。回滚时关闭注册入口并恢复登录页，不影响现有 owner 数据。
 - 治理修订（2026-10-22）：本记录描述旧版单所有者实现，已被 T084 的多账号隔离规格取代；
   其中的注册关闭和唯一所有者结论不得作为当前验收依据。
+- 注册安全修订（2026-10-22）：注册图形验证码已由 T086 移除；当前只要求邮箱验证码，登录仍
+  保留图形验证码。
 
 ### 完成记录：T083
 
@@ -366,3 +369,24 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-001、FR-002、FR-069 至 FR-073、FR-077、SC-018、SC-024。
 - 风险与回滚：V0006 为向前迁移；回滚应用版本不会恢复实例唯一键，旧版本不能安全写入多账号
   数据库。团队共享、成员邀请、跨账号转赠和公开分享仍不在范围内。
+
+### 完成记录：T086
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：产品、开发、测试
+- Git commit：未提交
+- 摘要：注册改为只输入邮箱验证码，不再要求图形验证码，并强制 60 秒发码冷却。
+- 详情：注册发码请求体由邮箱、图形验证码 ID 和答案改为只包含邮箱；注册页删除图形验证码
+  输入框、图片和加载逻辑；登录图形验证码保持不变。服务端 `EmailVerificationService.Config`
+  对发码冷却执行 60 秒硬下限，环境变量即使配置更短也不能绕过。宪法升级为 `3.0.0`，同步
+  AGENTS、README、001 规格/计划/研究/数据模型/快速验证/OpenAPI 和注册测试。
+- 验证：后端全量 111 项通过；前端 lint、类型检查、Vitest 41 项、生产构建和 E2E 20 项通过；
+  59 秒发码继续返回 `RATE_LIMITED`，60 秒后允许重新发码；注册页 Taste 检查在
+  1440/768/390 为 `0 FAIL`。
+- 证据：`EmailVerificationServiceTest`、`AuthControllerRegistrationTest`、
+  `frontend/kb-web/e2e/app.spec.ts`、`artifacts/001/email-only-registration.md`、
+  `.taste-skill/email-only-registration/`。
+- 覆盖：FR-068 至 FR-073；登录验证码、注册邮箱验证码、60 秒频控和邮箱唯一性。
+- 风险与回滚：回滚会重新要求注册图形验证码并使旧前端请求失败，必须前后端与契约同版本回滚；
+  已签发邮箱验证码和账号数据不受影响。

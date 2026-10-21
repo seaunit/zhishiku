@@ -136,17 +136,6 @@ test('logs in after fetching a CSRF token', async ({ page }) => {
 test('keeps the registration form available on an initialized instance', async ({
   page,
 }) => {
-  await page.route('**/kb/api/v1/auth/captcha', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        captchaId: 'captcha-login',
-        image: 'data:image/png;base64,abc',
-        expiresInSeconds: 120,
-      }),
-    })
-  })
   await page.route('**/kb/api/v1/auth/registration-status', async (route) => {
     await route.fulfill({
       status: 200,
@@ -165,6 +154,7 @@ test('keeps the registration form available on an initialized instance', async (
   await expect(page.getByLabel('邮箱', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '创建账户' })).toBeVisible()
   await expect(page.getByText('注册已关闭')).toHaveCount(0)
+  await expect(page.getByLabel('图形验证码', { exact: true })).toHaveCount(0)
 })
 
 test('keeps the captcha error visible after refreshing the challenge', async ({ page }) => {
@@ -223,17 +213,6 @@ test('registers an account with email verification and password confirmation', a
       body: JSON.stringify({ open: true }),
     })
   })
-  await page.route('**/kb/api/v1/auth/captcha', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        captchaId: 'captcha-register',
-        image: 'data:image/png;base64,abc',
-        expiresInSeconds: 120,
-      }),
-    })
-  })
   await page.route('**/kb/api/v1/auth/register/email-code', async (route) => {
     emailCodeRequest = route.request().postDataJSON() as Record<string, unknown>
     await route.fulfill({
@@ -259,8 +238,8 @@ test('registers an account with email verification and password confirmation', a
   await expect(
     page.getByRole('heading', { level: 2, name: '创建我的知识库账户' }),
   ).toBeVisible()
+  await expect(page.getByLabel('图形验证码', { exact: true })).toHaveCount(0)
   await page.getByLabel('邮箱', { exact: true }).fill('owner@example.com')
-  await page.getByLabel('图形验证码', { exact: true }).fill('A1B2C')
   await page.getByRole('button', { name: '发送邮箱验证码' }).click()
   await page.getByLabel('邮箱验证码', { exact: true }).fill('123456')
   await page.getByLabel('密码', { exact: true }).fill('correct-horse-battery')
@@ -271,8 +250,6 @@ test('registers an account with email verification and password confirmation', a
   await expect(page.getByRole('status')).toHaveText('账户创建成功，请登录。')
   expect(emailCodeRequest).toMatchObject({
     email: 'owner@example.com',
-    captchaId: 'captcha-register',
-    captchaCode: 'A1B2C',
   })
   expect(registrationRequest).toMatchObject({
     email: 'owner@example.com',
@@ -289,17 +266,6 @@ test('rejects disposable email domains during registration', async ({ page }) =>
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ open: true }),
-    })
-  })
-  await page.route('**/kb/api/v1/auth/captcha', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        captchaId: 'captcha-register',
-        image: 'data:image/png;base64,abc',
-        expiresInSeconds: 120,
-      }),
     })
   })
   await page.route('**/kb/api/v1/auth/register/email-code', async (route) => {
@@ -319,7 +285,6 @@ test('rejects disposable email domains during registration', async ({ page }) =>
   await page
     .getByLabel('邮箱', { exact: true })
     .fill('daniel.parkerca61598b@mailinator.com')
-  await page.getByLabel('图形验证码', { exact: true }).fill('A1B2C')
   await page.getByRole('button', { name: '发送邮箱验证码' }).click()
 
   await expect(page.getByRole('alert')).toHaveText(

@@ -24,16 +24,9 @@ async function proxyApiToBackend(page: Page) {
 async function registerAccount(context: BrowserContext, email: string) {
   const page = await context.newPage()
   await proxyApiToBackend(page)
-  const [captchaResponse] = await Promise.all([
-    page.waitForResponse((response) =>
-      response.url().endsWith('/kb/api/v1/auth/captcha'),
-    ),
-    page.goto('/kb/register'),
-  ])
-  const captcha = (await captchaResponse.json()) as { debugAnswer: string }
+  await page.goto('/kb/register')
 
   await page.getByLabel('邮箱', { exact: true }).fill(email)
-  await page.getByLabel('图形验证码', { exact: true }).fill(captcha.debugAnswer)
   const [codeResponse] = await Promise.all([
     page.waitForResponse((response) =>
       response.url().endsWith('/kb/api/v1/auth/register/email-code'),

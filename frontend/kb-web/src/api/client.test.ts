@@ -177,7 +177,7 @@ describe('email registration', () => {
     await expect(getRegistrationStatus()).resolves.toEqual({ open: true })
   })
 
-  it('sends email code with the graphical captcha', async () => {
+  it('sends email code with only the email address', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -191,19 +191,13 @@ describe('email registration', () => {
       )
     vi.stubGlobal('fetch', fetchMock)
 
-    await sendRegistrationEmailCode(
-      'owner@example.com',
-      'captcha-1',
-      'A1B2C',
-    )
+    await sendRegistrationEmailCode('owner@example.com')
 
     const request = fetchMock.mock.calls[1]
     expect(request[0]).toBe(`${API_BASE}/auth/register/email-code`)
     expect(request[1].headers.get('X-XSRF-TOKEN')).toBe('csrf-register')
     expect(JSON.parse(String(request[1].body))).toEqual({
       email: 'owner@example.com',
-      captchaId: 'captcha-1',
-      captchaCode: 'A1B2C',
     })
   })
 

@@ -2,25 +2,14 @@ import { expect, test } from '@playwright/test'
 
 test.skip(
   process.env.KB_REGISTRATION_E2E !== '1',
-  'requires a fresh local Spring Boot database instead of the initialized owner database',
+  'requires a local Spring Boot stack with registration code exposure enabled',
 )
 
-test('registers the only owner through a real email verification code', async ({ page }) => {
-  const [captchaResponse] = await Promise.all([
-    page.waitForResponse(
-      (response) =>
-        response.url().endsWith('/kb/api/v1/auth/captcha') &&
-        response.request().method() === 'GET',
-    ),
-    page.goto('/kb/register'),
-  ])
-  const captcha = (await captchaResponse.json()) as {
-    captchaId: string
-    debugAnswer: string
-  }
-
-  await page.getByLabel('邮箱', { exact: true }).fill('owner@example.com')
-  await page.getByLabel('图形验证码', { exact: true }).fill(captcha.debugAnswer)
+test('registers an account through a real email verification code', async ({ page }) => {
+  const email = `owner-${Date.now()}@example.com`
+  await page.goto('/kb/register')
+  await expect(page.getByLabel('图形验证码', { exact: true })).toHaveCount(0)
+  await page.getByLabel('邮箱', { exact: true }).fill(email)
   const [emailCodeResponse] = await Promise.all([
     page.waitForResponse(
       (response) =>
@@ -46,5 +35,5 @@ test('registers the only owner through a real email verification code', async ({
       const response = await page.request.get('/kb/api/v1/auth/registration-status')
       return (await response.json()) as { open: boolean }
     })
-    .toEqual({ open: false })
+    .toEqual({ open: true })
 })

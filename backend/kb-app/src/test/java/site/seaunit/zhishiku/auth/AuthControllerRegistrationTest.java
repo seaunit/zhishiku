@@ -47,30 +47,7 @@ class AuthControllerRegistrationTest {
   }
 
   @Test
-  void requiresGraphicalCaptchaBeforeSendingEmailCode() throws Exception {
-    when(captchaService.consume("captcha-1", "WRONG")).thenReturn(false);
-
-    mvc.perform(
-            post("/api/v1/auth/register/email-code")
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "email": "owner@example.com",
-                      "captchaId": "captcha-1",
-                      "captchaCode": "WRONG"
-                    }
-                    """))
-        .andExpect(status().isUnprocessableEntity())
-        .andExpect(jsonPath("$.code").value("CAPTCHA_INVALID"));
-
-    verifyNoInteractions(registrationService);
-  }
-
-  @Test
-  void sendsEmailCodeWithoutExposingItInProduction() throws Exception {
-    when(captchaService.consume("captcha-1", "ABCDE")).thenReturn(true);
+  void sendsEmailCodeWithoutRequiringGraphicalCaptcha() throws Exception {
     when(registrationService.issueEmailCode("owner@example.com", "127.0.0.1"))
         .thenReturn(new EmailCodeIssued(600, 60, "123456"));
 
@@ -82,20 +59,18 @@ class AuthControllerRegistrationTest {
                 .content(
                     """
                     {
-                      "email": "owner@example.com",
-                      "captchaId": "captcha-1",
-                      "captchaCode": "ABCDE"
+                      "email": "owner@example.com"
                     }
                     """))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.expiresInSeconds").value(600))
         .andExpect(jsonPath("$.resendAfterSeconds").value(60))
         .andExpect(jsonPath("$.debugCode").doesNotExist());
+    verifyNoInteractions(captchaService);
   }
 
   @Test
   void rejectsDisposableEmailDomain() throws Exception {
-    when(captchaService.consume("captcha-1", "ABCDE")).thenReturn(true);
     when(registrationService.issueEmailCode("daniel.parkerca61598b@mailinator.com", "127.0.0.1"))
         .thenThrow(new EmailDomainNotAllowedException());
 
@@ -107,9 +82,7 @@ class AuthControllerRegistrationTest {
                 .content(
                     """
                     {
-                      "email": "daniel.parkerca61598b@mailinator.com",
-                      "captchaId": "captcha-1",
-                      "captchaCode": "ABCDE"
+                      "email": "daniel.parkerca61598b@mailinator.com"
                     }
                     """))
         .andExpect(status().isUnprocessableEntity())

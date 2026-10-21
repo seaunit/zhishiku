@@ -147,12 +147,10 @@ export function getRegistrationStatus(): Promise<RegistrationStatusResponse> {
 
 export function sendRegistrationEmailCode(
   email: string,
-  captchaId: string,
-  captchaCode: string,
 ): Promise<RegistrationEmailCodeResponse> {
   return request<RegistrationEmailCodeResponse>('/auth/register/email-code', {
     method: 'POST',
-    body: JSON.stringify({ email, captchaId, captchaCode }),
+    body: JSON.stringify({ email }),
   })
 }
 

@@ -177,6 +177,12 @@ public class EmailVerificationService {
       int maxSendsPerIp,
       int maxAttempts,
       long maxCachedCodes) {
+    public Config {
+      if (resendCooldown.compareTo(Duration.ofSeconds(60)) < 0) {
+        resendCooldown = Duration.ofSeconds(60);
+      }
+    }
+
     public Config(
         Duration codeTtl,
         Duration resendCooldown,

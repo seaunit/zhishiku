@@ -86,7 +86,7 @@ KB_OWNER_PASSWORD=local-dev-password-change-me
 4. 使用首页单一搜索框按标题、正文和标签信息检索。
 5. 在 390px 和 360px 宽度检查导航、编辑器和详情无横向溢出。
 6. 确认 `/kb/api/actuator/health` 返回 `{"status":"UP"}`。
-7. 打开 `/kb/register`，使用图形验证码、SMTP 邮箱验证码和两次一致密码注册账号；再使用另一
+7. 打开 `/kb/register`，使用 SMTP 邮箱验证码和两次一致密码注册账号，确认页面没有图形验证码；再使用另一
    邮箱注册第二个账号，确认已有账号不关闭注册。
 8. 使用两个账号分别创建知识，确认列表、详情、搜索、附件和会话互不可见。
 9. 使用 `daniel.parkerca61598b@mailinator.com` 请求注册验证码，确认返回临时邮箱拒绝且没有 SMTP 投递。
