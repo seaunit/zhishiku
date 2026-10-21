@@ -117,6 +117,7 @@ apt-get install -y \
   git \
   gnupg \
   jq \
+  libvips-tools \
   nginx \
   openssl \
   python3 \

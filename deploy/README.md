@@ -12,9 +12,13 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 
 生产环境应将 `main` 替换为验收通过的 tag 或完整 commit SHA。
 
-脚本会安装 Java 17、Node.js、pnpm、PostgreSQL 18 和必要工具，创建独立的
+脚本会安装 Java 17、Node.js、pnpm、PostgreSQL 18、libvips 和必要工具，创建独立的
 `zhishiku` 用户、数据库、环境文件、systemd 服务、`/kb` Nginx 片段和双应用门户。初始登录信息
 写入 `/root/zhishiku-initial-password`，登录后应删除。
+
+`libvips-tools` 是富文本正文图片和剪贴板图片粘贴的必需依赖。更新部署在切换 release 前会
+检查 `vips` 命令，并用真实 PNG 执行一次 `autorot` 和元数据清理；缺失或无法运行时立即停止，
+不重启现有服务。
 
 新部署也可以不预置账号。任何用户都能在 `/kb/register` 通过图形验证码和 SMTP 邮箱验证创建
 独立账号；已有账号不会关闭其他邮箱的注册。每个账号独立隔离知识、附件、搜索、会话、点数、

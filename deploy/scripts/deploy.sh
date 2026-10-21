@@ -153,7 +153,7 @@ if ((EUID != 0)); then
   exit 1
 fi
 
-for command in curl git java nginx node pnpm psql python3 systemctl; do
+for command in curl git java nginx node pnpm psql python3 systemctl vips; do
   if ! command -v "$command" >/dev/null 2>&1; then
     printf 'Missing required command: %s\n' "$command" >&2
     exit 1
@@ -232,6 +232,9 @@ git -C "$SOURCE_DIR" fetch --depth=1 origin "$REF"
 git -C "$SOURCE_DIR" checkout -q --detach FETCH_HEAD
 SOURCE_SHA="$(git -C "$SOURCE_DIR" rev-parse HEAD)"
 printf '[deploy] Building %s (%s)\n' "$REF" "$SOURCE_SHA"
+
+bash "$SOURCE_DIR/deploy/scripts/check-image-normalizer.sh" \
+  "$SOURCE_DIR/tests/fixtures/rich-text/images/pixel.png.base64"
 
 (
   cd "$SOURCE_DIR/backend"

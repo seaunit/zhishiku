@@ -72,6 +72,8 @@
 - 后台任务使用 PostgreSQL 任务表和 `FOR UPDATE SKIP LOCKED`，不引入 Redis 或消息总线。
 - 附件使用 S3 兼容私有对象存储和 AWS SDK for Java v2；文档提取使用 Apache Tika/PDFBox，
   OCR 使用受控 Tesseract 进程，HEIC/方向/缩放/元数据清理使用受控 libvips 进程。
+- 生产主机必须安装 `libvips-tools`；部署前必须用真实 PNG 验证 `vips autorot` 和元数据清理
+  可用，检查失败不得切换 release 或重启现有服务。
 - 单页网页渲染使用 Playwright Java 独立 browser worker，只能处理用户明确提交的一个 URL，
   不得发现链接、遍历页面或执行无限滚动。
 - Waffo 支付桥接继续使用独立 Node.js 进程和现有 Pancake SDK；桥接不读取知识正文、

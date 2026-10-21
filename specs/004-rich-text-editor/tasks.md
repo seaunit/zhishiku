@@ -123,6 +123,7 @@ Vitest/Vue Test Utils，E2E 使用 Playwright，富文本 JSON 契约由 Vue 与
 - [x] T073 [P1] 在 `tests/e2e/richtext-zero-impact.spec.ts` 中验证 `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`、Cookie、证书和 sidecar
 - [x] T074 [P1] 在 `artifacts/acceptance/rich-text.md` 中映射 FR-001 至 FR-057、SC-001 至 SC-019
 - [ ] T075 [P1] 在新环境执行 [quickstart.md](quickstart.md) 并写入 `artifacts/rich-text/quickstart-report.md`
+- [ ] T081 [P0] 修复生产富文本图片粘贴的 libvips 依赖，安装系统包并在部署切换前执行真实图片规范化检查
 
 ## 阶段 9：P2 加固
 
@@ -280,6 +281,19 @@ FR/SC 映射、风险和回滚。
 - 风险与回滚：设置页的 AI 授权开关目前只保存当前浏览器偏好，服务端授权 API 接入后必须
   改为服务端权威状态；回收站页面在删除 API 接入前只显示真实空状态。回滚前端提交即可恢复
   旧视觉，不修改数据库或富文本内容。
+
+### 完成记录：T081
+
+- 日期：2026-10-22
+- 状态：待验证
+- 执行子智能体：开发、测试
+- Git commit：未提交
+- 摘要：修复生产富文本粘贴图片因缺少 libvips 而失败的问题。
+- 详情：待完成。
+- 验证：待完成。
+- 证据：待完成。
+- 覆盖：FR-010、FR-013、FR-021、FR-048。
+- 风险与回滚：待完成。
 
 ### 未完成与外部阻塞
 
