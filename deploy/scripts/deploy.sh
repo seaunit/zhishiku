@@ -111,9 +111,9 @@ printf '[deploy] Building %s (%s)\n' "$REF" "$SOURCE_SHA"
 (
   cd "$SOURCE_DIR/backend"
   if [[ "$SKIP_TESTS" != "1" ]]; then
-    MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" ./mvnw -q -pl kb-app -am test
+    MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" bash ./mvnw -q -pl kb-app -am test
   fi
-  MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" ./mvnw -q -pl kb-app -am package -DskipTests
+  MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" bash ./mvnw -q -pl kb-app -am package -DskipTests
 )
 
 (
