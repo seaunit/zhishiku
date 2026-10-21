@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
   API_BASE,
+  getCaptcha,
+  login,
   resetCsrfToken,
   searchKnowledge,
   uploadRichImage,
@@ -110,6 +112,55 @@ describe('CSRF handling', () => {
     expect(uploadCall[1].body).toBeInstanceOf(FormData)
     expect(uploadCall[1].headers.get('X-XSRF-TOKEN')).toBe('csrf-token')
     expect(uploadCall[1].headers.get('Idempotency-Key')).toBeTruthy()
+  })
+})
+
+describe('captcha login', () => {
+  it('loads a server-side captcha challenge', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          captchaId: 'captcha-123',
+          image: 'data:image/png;base64,abc',
+          expiresInSeconds: 120,
+        }),
+      ),
+    )
+
+    await expect(getCaptcha()).resolves.toEqual({
+      captchaId: 'captcha-123',
+      image: 'data:image/png;base64,abc',
+      expiresInSeconds: 120,
+    })
+  })
+
+  it('sends the captcha id and code with the login request', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-login', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ownerId: '123e4567-e89b-42d3-a456-426614174000',
+          email: 'owner@seaunit.site',
+          locale: 'zh-CN',
+          csrfToken: 'csrf-session',
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await login('owner@seaunit.site', 'correct-horse-battery', 'captcha-123', 'A1B2C')
+
+    const loginCall = fetchMock.mock.calls[1]
+    expect(loginCall[0]).toBe(`${API_BASE}/auth/login`)
+    expect(JSON.parse(String(loginCall[1].body))).toEqual({
+      email: 'owner@seaunit.site',
+      password: 'correct-horse-battery',
+      captchaId: 'captcha-123',
+      captchaCode: 'A1B2C',
+    })
   })
 })
 

@@ -1211,6 +1211,41 @@ ol {
   margin-top: 4px;
 }
 
+.captcha-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.captcha-image-button {
+  display: grid;
+  place-items: center;
+  width: 150px;
+  min-height: 48px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--control);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.captcha-image-button:hover {
+  border-color: #8fa5b1;
+}
+
+.captcha-image-button:disabled {
+  cursor: wait;
+}
+
+.captcha-image-button img {
+  display: block;
+  width: 150px;
+  height: 48px;
+  object-fit: cover;
+}
+
 /* Standalone states */
 .standalone-message {
   display: grid;
@@ -1309,6 +1344,15 @@ ol {
   .login-form-panel {
     min-height: 520px;
     padding: 24px 32px 48px;
+  }
+
+  .captcha-control {
+    grid-template-columns: minmax(0, 1fr) 132px;
+  }
+
+  .captcha-image-button,
+  .captcha-image-button img {
+    width: 132px;
   }
 }
 
@@ -1535,6 +1579,17 @@ ol {
   .login-form h2 {
     font-size: 24px;
     line-height: 32px;
+  }
+
+  .captcha-control {
+    grid-template-columns: minmax(0, 1fr) 124px;
+  }
+
+  .captcha-image-button,
+  .captcha-image-button img {
+    width: 124px;
+    height: 44px;
+    min-height: 44px;
   }
 }
 

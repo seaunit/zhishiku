@@ -39,6 +39,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T014 [P0] [P] [US1] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/auth/` 中先验证 bootstrap、密码、会话、CSRF、Cookie 路径和撤销
 - [ ] T015 [P0] [P] [US1] 在 `backend/kb-core/src/test/java/site/seaunit/zhishiku/domain/` 和 `backend/kb-app/src/test/java/site/seaunit/zhishiku/jobs/` 中为乐观锁、保留期、双 Worker `SKIP LOCKED`、租约过期、fencing token 和旧结果拒绝编写失败测试
 - [x] T016 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/` 中实现 Spring Security、BCrypt/Argon2、Session JDBC、一次性所有者初始化及 CSRF/login/logout/setup 端点
+- [x] T081 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/captcha/` 和登录页中实现 Kaptcha 图形验证码、Caffeine 服务端缓存、一次性登录校验与中文错误刷新
 - [x] T017 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/persistence/` 中实现 BaseEntity、UUID、时间戳和 `@Version`
 - [ ] T018 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/jobs/` 中实现 PostgreSQL 任务表、租约、指数退避和 `SKIP LOCKED`
 - [ ] T019 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/storage/` 中实现 S3 暂存、内容哈希、MIME 检测、正式附件提升和对象清理
@@ -222,3 +223,22 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：T075；命令、端口、环境变量和能力边界。
 - 风险与回滚：文档同步不改变运行行为；如实现范围变化，必须同时更新 README、AGENTS、
   quickstart 和任务完成记录。
+
+### 完成记录：T081
+
+- 日期：2026-10-21
+- 状态：已完成
+- 执行子智能体：开发
+- Git commit：`未提交`
+- 摘要：登录新增服务端缓存的一次性 Kaptcha 图形验证码。
+- 详情：验证码使用 Kaptcha 生成 5 位 PNG，答案写入有界 Caffeine 缓存；默认 120 秒过期，
+  每次消费后立即删除，忽略大小写。登录必须先校验验证码，失败返回 422 `CAPTCHA_INVALID`，
+  前端自动换图并保留中文错误提示。生产不返回答案，仅 local profile 可返回调试答案。
+- 验证：验证码服务 4 项测试、控制器 2 项测试、Kaptcha 渲染 1 项测试；前端 API 5 项测试；
+  mock 登录 E2E、错误刷新 E2E、真实全栈验证码登录 E2E；Taste app-screen lint 0 FAIL/0 WARN，
+  inspector 0 FAIL/1 个可解释的登录品牌面板空带警告。
+- 证据：`CaptchaServiceTest`、`AuthControllerCaptchaTest`、`KaptchaCaptchaRendererTest`、
+  `frontend/kb-web/e2e/live.spec.ts`、`.taste-skill/captcha-after/`。
+- 覆盖：FR-002、FR-068，登录访问控制与一次性验证码。
+- 风险与回滚：验证码缓存为单实例内存数据，应用重启后全部失效并自动重新获取；多实例部署前需改为
+  共享缓存或有粘性会话。回滚时恢复登录请求字段和页面字段，不涉及数据库迁移。

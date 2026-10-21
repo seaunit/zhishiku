@@ -59,7 +59,7 @@
 - 数据库使用 PostgreSQL 18，Flyway 管理迁移，Spring Data JPA 负责普通实体 CRUD，
   `JdbcClient` 负责搜索、任务租用、账本和复杂 SQL。
 - 认证使用 Spring Security、Spring Session JDBC、CSRF、一次性所有者初始化和独立
-  `/kb` Cookie，不使用公开注册。
+  `/kb` Cookie、服务端一次性图形验证码，不使用公开注册。
 - 搜索优先使用 PostgreSQL `pg_trgm` 与受控全文检索；Meilisearch 仅在冻结的
   100,000 条中文基准未达标时作为可选派生索引启用。
 - 后台任务使用 PostgreSQL 任务表和 `FOR UPDATE SKIP LOCKED`，不引入 Redis 或消息总线。

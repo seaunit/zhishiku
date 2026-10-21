@@ -65,6 +65,17 @@ test('folds navigation into a touch-sized header on a phone', async ({ page }) =
 })
 
 test('logs in after fetching a CSRF token', async ({ page }) => {
+  await page.route('**/kb/api/v1/auth/captcha', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        captchaId: 'captcha-login',
+        image: 'data:image/png;base64,abc',
+        expiresInSeconds: 120,
+      }),
+    })
+  })
   await page.route('**/kb/api/v1/auth/csrf', async (route) => {
     await route.fulfill({
       status: 200,
@@ -74,6 +85,10 @@ test('logs in after fetching a CSRF token', async ({ page }) => {
   })
   await page.route('**/kb/api/v1/auth/login', async (route) => {
     expect(route.request().headers()['x-xsrf-token']).toBe('csrf-login')
+    expect(route.request().postDataJSON()).toMatchObject({
+      captchaId: 'captcha-login',
+      captchaCode: 'A1B2C',
+    })
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -89,9 +104,54 @@ test('logs in after fetching a CSRF token', async ({ page }) => {
   await page.goto('/kb/login')
   await page.getByLabel('邮箱').fill('owner@seaunit.site')
   await page.getByLabel('密码').fill('correct-horse-battery')
+  await page.getByLabel('验证码', { exact: true }).fill('A1B2C')
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page).toHaveURL(/\/kb\/$/)
   await expect(page.getByRole('heading', { level: 1, name: '搜索知识' })).toBeVisible()
+})
+
+test('keeps the captcha error visible after refreshing the challenge', async ({ page }) => {
+  let captchaRequests = 0
+  await page.route('**/kb/api/v1/auth/captcha', async (route) => {
+    captchaRequests += 1
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        captchaId: `captcha-${captchaRequests}`,
+        image: 'data:image/png;base64,abc',
+        expiresInSeconds: 120,
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/auth/csrf', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token: 'csrf-login', headerName: 'X-XSRF-TOKEN' }),
+    })
+  })
+  await page.route('**/kb/api/v1/auth/login', async (route) => {
+    await route.fulfill({
+      status: 422,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'CAPTCHA_INVALID',
+        message: 'Captcha is invalid or expired.',
+        requestId: 'request-1',
+        retryable: false,
+      }),
+    })
+  })
+
+  await page.goto('/kb/login')
+  await page.getByLabel('邮箱').fill('owner@seaunit.site')
+  await page.getByLabel('密码').fill('correct-horse-battery')
+  await page.getByLabel('验证码', { exact: true }).fill('WRONG')
+  await page.getByRole('button', { name: '登录' }).click()
+
+  await expect(page.getByRole('alert')).toHaveText('验证码错误或已过期，请重新输入。')
+  expect(captchaRequests).toBe(2)
 })
 
 test('renders a rich text document recursively without v-html', async ({ page }) => {

@@ -6,6 +6,13 @@ export interface CsrfResponse {
   expiresAt?: string | null
 }
 
+export interface CaptchaResponse {
+  captchaId: string
+  image: string
+  expiresInSeconds: number
+  debugAnswer?: string
+}
+
 export interface SessionResponse {
   ownerId: string
   email: string

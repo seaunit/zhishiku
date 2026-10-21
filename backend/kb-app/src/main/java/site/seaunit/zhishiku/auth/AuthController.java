@@ -3,6 +3,7 @@ package site.seaunit.zhishiku.auth;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import site.seaunit.zhishiku.auth.captcha.CaptchaChallenge;
+import site.seaunit.zhishiku.auth.captcha.CaptchaService;
 import site.seaunit.zhishiku.owner.OwnerAccountEntity;
 import site.seaunit.zhishiku.owner.OwnerService;
 
@@ -29,15 +32,35 @@ public class AuthController {
 
   private final AuthenticationManager authenticationManager;
   private final OwnerService ownerService;
+  private final CaptchaService captchaService;
+  private final Environment environment;
 
-  public AuthController(AuthenticationManager authenticationManager, OwnerService ownerService) {
+  public AuthController(
+      AuthenticationManager authenticationManager,
+      OwnerService ownerService,
+      CaptchaService captchaService,
+      Environment environment) {
     this.authenticationManager = authenticationManager;
     this.ownerService = ownerService;
+    this.captchaService = captchaService;
+    this.environment = environment;
   }
 
   @GetMapping("/csrf")
   CsrfResponse csrf(CsrfToken token) {
     return new CsrfResponse(token.getToken(), token.getHeaderName());
+  }
+
+  @GetMapping("/captcha")
+  CaptchaResponse captcha() {
+    CaptchaChallenge challenge = captchaService.issue();
+    boolean exposeAnswer =
+        environment.getProperty("app.captcha.expose-answer", Boolean.class, false);
+    return new CaptchaResponse(
+        challenge.captchaId(),
+        challenge.image(),
+        challenge.expiresInSeconds(),
+        exposeAnswer ? challenge.answer() : null);
   }
 
   @PostMapping("/login")
@@ -46,6 +69,9 @@ public class AuthController {
       HttpServletRequest servletRequest,
       HttpServletResponse servletResponse,
       CsrfToken csrfToken) {
+    if (!captchaService.consume(request.captchaId(), request.captchaCode())) {
+      throw new CaptchaValidationException();
+    }
     Authentication authentication =
         authenticationManager.authenticate(
             UsernamePasswordAuthenticationToken.unauthenticated(

@@ -8,12 +8,20 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import site.seaunit.zhishiku.auth.CaptchaValidationException;
 import site.seaunit.zhishiku.core.richtext.RichTextException;
 import site.seaunit.zhishiku.knowledge.RichTextConflictException;
 import site.seaunit.zhishiku.richtext.image.ImageInspectionException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+  @ExceptionHandler(CaptchaValidationException.class)
+  ResponseEntity<ErrorResponse> captcha(
+      CaptchaValidationException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.UNPROCESSABLE_ENTITY, "CAPTCHA_INVALID", error.getMessage(), request);
+  }
+
   @ExceptionHandler(RichTextException.class)
   ResponseEntity<ErrorResponse> richText(RichTextException error, HttpServletRequest request) {
     return response(HttpStatus.UNPROCESSABLE_ENTITY, error.getCode(), error.getMessage(), request);

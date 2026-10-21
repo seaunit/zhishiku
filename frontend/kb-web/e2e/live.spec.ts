@@ -8,9 +8,25 @@ test('logs in, saves rich text with an image, and renders the detail', async ({ 
     'base64',
   )
 
-  await page.goto('/kb/login')
+  const [captchaResponse] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/kb/api/v1/auth/captcha') &&
+        response.request().method() === 'GET',
+    ),
+    page.goto('/kb/login'),
+  ])
+  expect(captchaResponse.ok()).toBeTruthy()
+  const captcha = (await captchaResponse.json()) as {
+    captchaId: string
+    image: string
+    debugAnswer: string
+  }
+  expect(captcha.image).toMatch(/^data:image\/png;base64,/)
+  expect(captcha.debugAnswer).toHaveLength(5)
   await page.getByLabel('邮箱').fill('owner@zhishiku.local')
   await page.getByLabel('密码').fill('local-dev-password-change-me')
+  await page.getByLabel('验证码', { exact: true }).fill(captcha.debugAnswer)
   await page.getByRole('button', { name: '登录' }).click()
   await page.waitForURL('**/kb/')
 

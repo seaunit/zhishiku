@@ -12,6 +12,10 @@ app:
     auto-bootstrap: ${KB_AUTO_BOOTSTRAP:true}
   storage:
     root: ${KB_STORAGE_ROOT:.data/uploads}
+  captcha:
+    ttl-seconds: 120
+    max-entries: 1000
+    expose-answer: true
 
 logging:
   level:

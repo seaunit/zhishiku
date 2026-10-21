@@ -1,6 +1,7 @@
 import { createIdempotencyKey } from '@/lib/id'
 import type {
   ApiErrorPayload,
+  CaptchaResponse,
   CreateKnowledgeItemRequest,
   CsrfResponse,
   KnowledgeItem,
@@ -132,10 +133,19 @@ async function request<T>(path: string, init: RequestOptions = {}): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function login(email: string, password: string): Promise<SessionResponse> {
+export function getCaptcha(): Promise<CaptchaResponse> {
+  return request<CaptchaResponse>('/auth/captcha')
+}
+
+export async function login(
+  email: string,
+  password: string,
+  captchaId: string,
+  captchaCode: string,
+): Promise<SessionResponse> {
   const session = await request<SessionResponse>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, captchaId, captchaCode }),
     skipAuthRedirect: true,
   })
   setCsrfToken(session.csrfToken)

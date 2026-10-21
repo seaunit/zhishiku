@@ -46,6 +46,10 @@ app:
   security:
     cookie-name: zhishiku_session
     cookie-path: /kb
+  captcha:
+    ttl-seconds: ${KB_CAPTCHA_TTL_SECONDS:120}
+    max-entries: ${KB_CAPTCHA_MAX_ENTRIES:10000}
+    expose-answer: ${KB_CAPTCHA_EXPOSE_ANSWER:false}
 
 management:
   endpoints:

@@ -60,6 +60,9 @@ DATABASE_USERNAME=zhishiku
 DATABASE_PASSWORD=replace-me
 SESSION_COOKIE_SECURE=false
 KB_STORAGE_ROOT=.data/uploads
+KB_CAPTCHA_TTL_SECONDS=120
+KB_CAPTCHA_MAX_ENTRIES=10000
+KB_CAPTCHA_EXPOSE_ANSWER=false
 KB_AUTO_BOOTSTRAP=true
 KB_OWNER_EMAIL=owner@zhishiku.local
 KB_OWNER_PASSWORD=local-dev-password-change-me
@@ -84,12 +87,14 @@ KB_OWNER_PASSWORD=local-dev-password-change-me
 
 ### 1. 引导、会话与访问控制
 
-1. 本地使用占位账号，或生产使用 `/root/zhishiku-initial-password` 中的一次性凭据登录。
-2. 确认 Spring Security 会话写入 PostgreSQL，首次初始化后不能再次创建所有者。
-3. 确认匿名访问 `/kb/` 会跳转到 `/kb/login`。
-4. 检查 Cookie 名为 `zhishiku_session`、路径 `/kb`、具备 HttpOnly/SameSite/安全属性。
-5. 获取 `/kb/api/v1/auth/csrf`，确认缺少或错误 `X-XSRF-TOKEN` 的写请求返回 403。
-6. 退出登录并确认会话撤销。
+1. 打开 `/kb/login`，确认加载一次性图形验证码，并可点击验证码换图。
+2. 使用错误验证码登录，确认返回验证码错误、自动换图，且密码认证没有被调用。
+3. 使用正确验证码和本地占位账号或生产一次性凭据登录；确认同一验证码不能再次使用。
+4. 确认 Spring Security 会话写入 PostgreSQL，首次初始化后不能再次创建所有者。
+5. 确认匿名访问 `/kb/` 会跳转到 `/kb/login`。
+6. 检查 Cookie 名为 `zhishiku_session`、路径 `/kb`、具备 HttpOnly/SameSite/安全属性。
+7. 获取 `/kb/api/v1/auth/csrf`，确认缺少或错误 `X-XSRF-TOKEN` 的写请求返回 403。
+8. 退出登录并确认会话撤销。
 
 ### 2. 手动保存与 PostgreSQL 搜索
 

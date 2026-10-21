@@ -51,6 +51,41 @@
           />
         </div>
 
+        <div class="field">
+          <label for="login-captcha">{{ t('login.captcha') }}</label>
+          <div class="captcha-control">
+            <input
+              id="login-captcha"
+              v-model.trim="captchaCode"
+              class="input"
+              type="text"
+              name="captchaCode"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              maxlength="8"
+              :placeholder="t('login.captchaPlaceholder')"
+              required
+              @input="captchaCode = captchaCode.toUpperCase(); clearError()"
+            />
+            <button
+              class="captcha-image-button"
+              type="button"
+              :aria-label="t('login.captchaRefresh')"
+              :title="t('login.captchaRefresh')"
+              :disabled="captchaLoading"
+              @click="loadCaptcha()"
+            >
+              <img
+                v-if="captchaImage"
+                :src="captchaImage"
+                :alt="t('login.captchaAlt')"
+              />
+              <LoaderCircle v-else class="spin" :size="20" />
+            </button>
+          </div>
+        </div>
+
         <p v-if="formError" class="form-error" role="alert">{{ formError }}</p>
 
         <button class="button primary login-submit" type="submit" :disabled="submitting">
@@ -64,9 +99,10 @@
 
 <script setup lang="ts">
 import { LoaderCircle } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { ApiError, getCaptcha } from '@/api/client'
 import BrandMark from '@/components/BrandMark.vue'
 import LocaleSwitch from '@/components/LocaleSwitch.vue'
 import { useSessionStore } from '@/stores/session'
@@ -77,6 +113,10 @@ const router = useRouter()
 const session = useSessionStore()
 const email = ref('')
 const password = ref('')
+const captchaId = ref('')
+const captchaCode = ref('')
+const captchaImage = ref('')
+const captchaLoading = ref(false)
 const formError = ref('')
 const submitting = computed(() => session.submitting)
 
@@ -92,6 +132,25 @@ function nextPath() {
   return '/'
 }
 
+async function loadCaptcha(preserveError = false) {
+  captchaLoading.value = true
+  captchaCode.value = ''
+  try {
+    const challenge = await getCaptcha()
+    captchaId.value = challenge.captchaId
+    captchaImage.value = challenge.image
+    if (!preserveError) {
+      clearError()
+    }
+  } catch {
+    captchaId.value = ''
+    captchaImage.value = ''
+    formError.value = t('login.captchaLoadFailed')
+  } finally {
+    captchaLoading.value = false
+  }
+}
+
 async function submit() {
   clearError()
   if (!email.value || !password.value) {
@@ -102,13 +161,25 @@ async function submit() {
     formError.value = t('login.passwordLength')
     return
   }
+  if (!captchaId.value || !captchaCode.value) {
+    formError.value = t('login.captchaRequired')
+    return
+  }
 
   try {
-    await session.login(email.value, password.value)
+    await session.login(email.value, password.value, captchaId.value, captchaCode.value)
     await router.replace(nextPath())
   } catch (caught) {
-    formError.value = caught instanceof Error ? caught.message : t('errors.generic')
+    formError.value =
+      caught instanceof ApiError && caught.code === 'CAPTCHA_INVALID'
+        ? t('login.captchaInvalid')
+        : caught instanceof Error
+          ? caught.message
+          : t('errors.generic')
+    await loadCaptcha(true)
   }
 }
+
+onMounted(() => loadCaptcha())
 </script>
 

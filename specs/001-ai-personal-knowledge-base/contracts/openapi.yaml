@@ -39,6 +39,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CsrfResponse"
+  /api/v1/auth/captcha:
+    get:
+      tags: [认证]
+      security: []
+      operationId: getLoginCaptcha
+      summary: 获取一次性登录图形验证码。
+      description: >
+        验证码答案只保存在服务端有界内存缓存中，默认 2 分钟过期，登录尝试后立即失效。
+        生产响应绝不包含答案；仅本地开发配置可返回 debugAnswer 供自动化测试使用。
+      responses:
+        "200":
+          description: 验证码 ID、PNG data URL 和有效期。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaptchaResponse"
   /api/v1/auth/login:
     post:
       tags: [认证]
@@ -70,6 +86,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          description: 验证码错误、过期、已使用或请求字段无效。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "429":
           $ref: "#/components/responses/RateLimited"
   /api/v1/auth/logout:
@@ -815,7 +837,7 @@ components:
           format: date-time
     LoginRequest:
       type: object
-      required: [email, password]
+      required: [email, password, captchaId, captchaCode]
       properties:
         email:
           type: string
@@ -824,6 +846,29 @@ components:
           type: string
           minLength: 12
           maxLength: 256
+        captchaId:
+          type: string
+          format: uuid
+        captchaCode:
+          type: string
+          minLength: 4
+          maxLength: 8
+    CaptchaResponse:
+      type: object
+      required: [captchaId, image, expiresInSeconds]
+      properties:
+        captchaId:
+          type: string
+          format: uuid
+        image:
+          type: string
+          pattern: "^data:image/png;base64,"
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+        debugAnswer:
+          type: string
+          description: 仅本地开发 profile 返回，生产环境必须省略。
     BootstrapOwnerRequest:
       type: object
       required: [bootstrapToken, email, password, locale]
