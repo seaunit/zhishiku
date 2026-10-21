@@ -316,6 +316,7 @@ const translations = {
     viewAll: "查看全部",
     internetSearch: "继续搜索互联网",
     internetSearchHint: "只发送搜索词，不会携带知识正文",
+    internetSearchHintPending: "先完成一次本地检索，再继续搜索互联网",
     depthHint: "自动分类在深度中的分布",
     processingQueue: "待处理",
     processingHint: "AI 正在识别与归类",
@@ -491,6 +492,7 @@ const translations = {
     viewAll: "View all",
     internetSearch: "Continue to internet search",
     internetSearchHint: "Only the query is sent. Your notes are never included.",
+    internetSearchHintPending: "Complete a local search before continuing to the internet.",
     depthHint: "Automatic categories by depth",
     processingQueue: "In progress",
     processingHint: "AI is reading and organizing",
@@ -803,7 +805,11 @@ function renderHomeResults() {
     ? localResults.map((item) => renderResultRow(item, query)).join("")
     : `<div class="empty-state">${t("noResults")}</div>`;
   $("#resultSummary").textContent = query ? t("resultSummary", { count: localResults.length }) : t("recentSummary");
-  $("#internetTrigger").hidden = !query;
+  $("#internetTrigger").hidden = false;
+  $("#internetTrigger").disabled = !query;
+  $("#internetSearchHint").textContent = t(
+    query ? "internetSearchHint" : "internetSearchHintPending",
+  );
   $("#externalResults").hidden = !state.externalVisible;
   if (state.externalVisible) renderExternalResults();
 }

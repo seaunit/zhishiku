@@ -944,6 +944,15 @@
   border-color: var(--accent);
 }
 
+.internet-trigger:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.internet-trigger:disabled:hover {
+  border-color: var(--border);
+}
+
 .internet-trigger > span,
 .internet-trigger strong,
 .internet-trigger small {

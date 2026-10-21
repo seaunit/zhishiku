@@ -126,16 +126,23 @@
           </RouterLink>
         </div>
 
-        <div v-if="searchedQuery" class="internet-search">
+        <div class="internet-search">
           <button
             v-if="!externalVisible"
             type="button"
             class="internet-trigger"
+            :disabled="!searchedQuery || loading"
             @click="searchExternalInternet"
           >
             <span>
               <strong><Globe2 :size="16" />{{ t('home.internetSearch') }}</strong>
-              <small>{{ t('home.internetHint') }}</small>
+              <small>
+                {{
+                  searchedQuery
+                    ? t('home.internetHint')
+                    : t('home.internetHintPending')
+                }}
+              </small>
             </span>
             <ArrowRight :size="17" />
           </button>

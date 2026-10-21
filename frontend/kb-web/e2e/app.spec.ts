@@ -521,12 +521,16 @@ test('continues to internet search only after explicit consent and saves a candi
   )
 
   await page.goto('/kb/')
+  const internetButton = page.getByRole('button', { name: '继续搜索互联网' })
+  await expect(internetButton).toBeVisible()
+  await expect(internetButton).toBeDisabled()
   await page.getByRole('searchbox', { name: '搜索全部知识' }).fill('DeepSeek')
   await page.getByRole('button', { name: '潜入检索' }).click()
   await expect(page.getByText('找到 1 条知识')).toBeVisible()
   expect(externalRequests).toBe(0)
 
-  await page.getByRole('button', { name: '继续搜索互联网' }).click()
+  await expect(internetButton).toBeEnabled()
+  await internetButton.click()
   await expect(page.getByText('DeepSeek Search result')).toBeVisible()
   expect(consentPayload).toMatchObject({
     query: 'DeepSeek',
