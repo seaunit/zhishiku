@@ -375,7 +375,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 日期：2026-10-22
 - 状态：已完成
 - 执行子智能体：产品、开发、测试
-- Git commit：未提交
+- Git commit：`b7177aa`
 - 摘要：注册改为只输入邮箱验证码，不再要求图形验证码，并强制 60 秒发码冷却。
 - 详情：注册发码请求体由邮箱、图形验证码 ID 和答案改为只包含邮箱；注册页删除图形验证码
   输入框、图片和加载逻辑；登录图形验证码保持不变。服务端 `EmailVerificationService.Config`
