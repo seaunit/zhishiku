@@ -26,6 +26,7 @@ erDiagram
   OWNER_ACCOUNT ||--o{ KNOWLEDGE_ITEM : 拥有
   OWNER_ACCOUNT ||--o{ AI_PROCESSING_AUTHORIZATION : 授予
   KNOWLEDGE_ITEM ||--|| SOURCE : 具有
+  KNOWLEDGE_ITEM ||--|| SEARCH_DOCUMENT : 投影
   KNOWLEDGE_ITEM ||--o{ ATTACHMENT : 包含
   KNOWLEDGE_ITEM ||--o{ CAPTURE_JOB : 发起
   KNOWLEDGE_ITEM ||--o{ PROCESSING_JOB : 处理
@@ -51,14 +52,16 @@ erDiagram
 
 **用途**：表示唯一的私有所有者。
 
-**实现说明**：使用 Better Auth 的 Drizzle 模式，并通过 `instance_key`、`locale` 和应用配置
-字段扩展其用户记录。会话表和凭据表仍由 Better Auth 管理，但必须使用哈希令牌和数据库会话。
+**实现说明**：使用 Spring Security 凭据模型、一次性 bootstrap token 和 Spring Session JDBC。
+`owner_account` 保存唯一所有者和密码哈希；会话表由 Spring Session 管理。密码使用
+BCrypt 或 Argon2 强哈希，公开注册在初始化后关闭。
 
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
 | `id` | uuid | 主键 |
 | `instance_key` | smallint | 固定值 `1`；唯一 |
 | `email_normalized` | citext | 唯一、必填、已规范化 |
+| `password_hash` | text | BCrypt 或 Argon2 强哈希；不得保存明文 |
 | `locale` | text | `zh-CN` 或 `en`；默认 `zh-CN` |
 | `created_at` | timestamptz | 必填 |
 | `updated_at` | timestamptz | 必填 |
@@ -70,24 +73,28 @@ erDiagram
 - `UNIQUE(email_normalized)` 防止出现重复身份。
 - 引导初始化完成后禁用公开注册。
 
-## 实体：认证会话
+## 实体：认证会话（Spring Session JDBC）
 
-**用途**：表示已认证的浏览器会话。
+**用途**：表示已认证的浏览器会话。会话主表、属性和过期索引由 Spring Session JDBC 管理，
+应用只保存 owner principal 和必要的安全元数据。
 
 | 字段 | 类型 | 规则 |
 |-------|------|-------|
-| `id` | uuid | 主键 |
+| `primary_id` | char(36) | Spring Session 主键 |
+| `session_id` | char(36) | 唯一会话标识 |
 | `owner_id` | uuid | 指向所有者的外键，`ON DELETE CASCADE` |
-| `token_hash` | text | 唯一；绝不存储原始会话令牌 |
-| `created_at` | timestamptz | 必填 |
-| `last_seen_at` | timestamptz | 限流更新 |
-| `expires_at` | timestamptz | 必填 |
-| `revoked_at` | timestamptz | 可为空 |
+| `creation_time` | bigint | Spring Session 时间 |
+| `last_access_time` | bigint | 最后访问时间 |
+| `max_inactive_interval` | integer | 最大空闲秒数 |
+| `expiry_time` | bigint | 绝对过期时间 |
+| `principal_name` | text | 所有者 principal |
+| `attributes_json` | text | Spring Session 序列化属性，不得保存密码或密钥 |
 
 **索引**：
 
-- `UNIQUE(token_hash)`
-- `(owner_id, expires_at) WHERE revoked_at IS NULL`
+- `UNIQUE(session_id)`。
+- `(owner_id, expiry_time)`。
+- `(expiry_time)` 用于过期清理。
 
 ## 实体：知识条目
 
@@ -110,7 +117,7 @@ erDiagram
 | `deleted_at` | timestamptz | 处于 recycled 或 purging 时必填 |
 | `purge_after` | timestamptz | 处于 recycled 或 purging 时必填 |
 | `search_revision` | integer | 可搜索字段变更时递增 |
-| `indexed_revision` | integer | 最近一次确认的 Meilisearch 修订版本 |
+| `indexed_revision` | integer | 最近一次确认的 PostgreSQL 搜索投影修订版本 |
 | `created_at` | timestamptz | 必填 |
 | `updated_at` | timestamptz | 必填 |
 | `version` | integer | 乐观并发控制 |
@@ -590,9 +597,37 @@ active -> revoked
 
 撤销仅对后续任务生效。
 
+## 实体：搜索投影
+
+**用途**：在 PostgreSQL 内保存可重建、已脱敏的单框搜索文本和排名元数据。
+
+| 字段 | 类型 | 规则 |
+|------|------|------|
+| `item_id` | uuid | 主键，指向 `knowledge_item`，`ON DELETE CASCADE` |
+| `owner_id` | uuid | 指向所有者 |
+| `title_text` | text | 已脱敏标题 |
+| `body_text` | text | 正文纯文本投影 |
+| `note_text` | text | 已脱敏备注 |
+| `category_text` | text | 当前分类显示名称 |
+| `tag_text` | text | 当前标签显示名称拼接 |
+| `image_text` | text | 图片说明和替代文本 |
+| `search_text` | text | 上述字段的规范化合并文本 |
+| `search_vector` | tsvector | 由 `simple` 配置生成 |
+| `search_revision` | integer | 与知识条目修订一致 |
+| `updated_at` | timestamptz | 必填 |
+
+**索引**：
+
+- `GIN(search_vector)`。
+- `GIN(search_text gin_trgm_ops)`。
+- `GIN(title_text gin_trgm_ops)`。
+- `(owner_id, search_revision)` 用于增量重建。
+
+不得保存脚本、内部 JSON、附件键、隐藏样式或未脱敏文本。
+
 ## 搜索索引投影
 
-每个 Meilisearch 文档包含：
+主搜索投影使用 PostgreSQL `search_document`，可包含：
 
 ```json
 {
@@ -610,7 +645,8 @@ active -> revoked
 }
 ```
 
-索引绝不包含附件字节、带敏感查询数据的原始 URL、提供商凭据、授权记录或已删除条目的内容。
+投影绝不包含附件字节、带敏感查询数据的原始 URL、提供商凭据、授权记录或已删除条目的内容。
+Meilisearch 仅在 PostgreSQL 搜索基准失败后作为可重建派生索引启用，字段必须与上述投影一致。
 
 ## 必需索引
 
@@ -644,7 +680,7 @@ active -> revoked
 
 1. 停止或取消相关任务。
 2. 将条目标记为 `purging`。
-3. 移除 Meilisearch 文档。
+3. 移除 PostgreSQL 搜索投影；如启用可选 Meilisearch，再移除其文档。
 4. 删除 S3 对象并验证删除完成。
 5. 硬删除知识条目及级联业务行。
 6. 记录安全审计事件。

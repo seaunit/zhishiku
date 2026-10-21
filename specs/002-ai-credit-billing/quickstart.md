@@ -7,15 +7,16 @@
 
 ## 前置条件
 
-- Node.js 24 LTS、pnpm 和 Docker Compose v2。
-- PostgreSQL、pg-boss 和 Web/Worker 本地运行。
+- Java 21 LTS、Maven Wrapper、Node.js 20/22 LTS、pnpm 和 Docker Compose v2。
+- PostgreSQL、Spring Boot API/Worker 和 Node Waffo 桥接本地运行。
 - Waffo 测试环境已配置独立识海商品和测试凭据。
-- 浏览器可通过 `http://localhost:3000/kb` 访问。
+- Vue 可通过 `http://localhost:5173/kb/` 访问，Spring API 位于
+  `http://127.0.0.1:8082/kb/api`。
 - 测试支付凭据由 Waffo 测试环境提供，不写入仓库或本文。
 
 ## 环境变量名称
 
-`.env.example` 只能包含安全占位值。Web/Worker 与 Waffo 桥接使用不同环境文件。
+`.env.example` 只能包含安全占位值。Spring API/Worker 与 Waffo 桥接使用不同环境文件。
 
 ```dotenv
 APP_ENV=test
@@ -39,10 +40,10 @@ WAFFO_PRIVATE_KEY_BASE64=replace-me
 WAFFO_PRODUCT_MAP=kb_pack_9=replace-me,kb_pack_29=replace-me,kb_pack_99=replace-me
 WAFFO_CURRENCY=CNY
 WAFFO_DRY_RUN=false
-INTERNAL_EVENT_URL=http://127.0.0.1:3000/kb/api/internal/billing/waffo-events
+INTERNAL_EVENT_URL=http://127.0.0.1:8082/kb/api/internal/billing/waffo-events
 ```
 
-Web/Worker 与桥接两端必须持有相同值的内部服务密钥，但 Web/Worker 不读取 Waffo 私钥：
+Spring API/Worker 与桥接两端必须持有相同值的内部服务密钥，但 Spring 不读取 Waffo 私钥：
 
 ```dotenv
 APP_TO_BRIDGE_SECRET=replace-me
@@ -56,15 +57,20 @@ BRIDGE_TO_APP_SECRET=replace-me
 ## 启动计划中的技术栈
 
 ```powershell
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local,worker
+cd ../frontend/kb-web
 pnpm install
-docker compose -f infra/compose.yml up -d
-pnpm db:migrate
+pnpm dev
+cd ../../bridges/waffo
+pnpm install
 pnpm dev
 ```
 
 预期端点：
 
-- Web：`http://localhost:3000/kb`
+- Vue：`http://localhost:5173/kb/`
+- Spring API：`http://127.0.0.1:8082/kb/api`
 - Waffo 桥接：`http://127.0.0.1:8091`
 - PostgreSQL：仅内部网络
 - Worker：无公开端口
@@ -158,7 +164,8 @@ pnpm dev
 
 1. 确认首次访问默认中文并完整切换英文。
 2. 核对价格、点数、点率、订单状态、余额不足、扣费和退款事实一致。
-3. 在 1440、768 和 390 px 使用 `design-taste-frontend` 检查价格、余额、确认、异常和退款页面。
+3. 在 1440/768/430/390/360/320 px、手机横屏、安全区和 200% 字体下使用
+   `design-taste-frontend` 检查价格、余额、确认、异常和退款页面。
 4. 确认文字不溢出、按钮尺寸稳定、金额表单单行可读、状态不只依赖颜色。
 5. 保存截图和浏览器检查证据。
 
@@ -175,14 +182,23 @@ pnpm dev
 实现工作区和脚本后，以下命令构成发布门禁：
 
 ```powershell
+cd backend
+./mvnw spotless:check
+./mvnw test
+./mvnw verify -Pintegration
+./mvnw verify -Pcontract
+./mvnw verify -Psecurity
+cd ../frontend/kb-web
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm test:integration
-pnpm test:contract
 pnpm test:e2e:billing
-pnpm test:security
-pnpm test:load:billing
+pnpm build
+cd ../../bridges/waffo
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm typecheck
+pnpm test
 pnpm build
 ```
 

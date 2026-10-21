@@ -42,14 +42,16 @@
 
 ## 决策 2：独立 Waffo 桥接，不复用拾题支付侧车
 
-**决策**：新增 `apps/billing-bridge`，仅负责 Waffo SDK、原始通知验签、受控订单查询和
-安全化事件转发。桥接不拥有 PostgreSQL、不读取知识正文，也不处理点数结算。
+**决策**：新增 `bridges/waffo` Node.js 桥接，仅负责 Waffo SDK、原始通知验签、受控订单
+查询和安全化事件转发。Spring Boot 计费核心拥有订单与账本；桥接不拥有 PostgreSQL、
+不读取知识正文，也不处理点数结算。
 
 桥接收银台以本地 UUID `orderId` 作为稳定幂等键；创建成功但响应丢失时，先按
 `orderMerchantExternalId=orderId` 查询并恢复已有会话，再决定是否新建。
 
-**理由**：Waffo 私钥、签名和原始交易载荷与知识内容分离后，Web/Worker 不需要直接暴露
-支付 SDK；桥接故障不会破坏知识库免费功能。独立进程也便于按固定版本重新部署和回滚。
+**理由**：Waffo 私钥、签名和原始交易载荷与知识内容分离后，Spring Boot API/Worker 不需要
+直接暴露 Pancake SDK；桥接故障不会破坏知识库免费功能。保留 Node 是因为现有 SDK 和
+参考实现属于 TypeScript，避免无依据重写验签语义；独立进程也便于固定版本部署和回滚。
 
 **考虑过的替代方案**：
 
@@ -204,9 +206,10 @@ Worker 主动查询未决订单，并将查询结果转换为同一套内部支�
 
 **决策**：
 
-- Vitest 与 fast-check：状态机、批次优先级、报价取整、退款边界和属性测试。
-- Testcontainers：PostgreSQL 事务、并发预留、通知幂等、退款与预留竞态。
-- Schemathesis：计费 OpenAPI 契约和错误码。
+- JUnit 5、AssertJ 与属性测试：状态机、批次优先级、报价取整、退款边界。
+- Testcontainers：Spring 事务、并发预留、通知幂等、退款与预留竞态。
+- RestAssured、JSON Schema 和 WireMock：Spring 计费 OpenAPI、Node 桥接契约和错误码。
+- Vitest：Vue 价格、余额、确认、异常和退款状态。
 - Playwright：测试支付到账、余额不足、自动扣点、退款和双语。
 - k6：100 组并发扣费、订单峰值和对账积压。
 - Semgrep、Gitleaks、Trivy：密钥、日志、依赖和容器/制品安全。
@@ -228,7 +231,8 @@ Worker 主动查询未决订单，并将查询结果转换为同一套内部支�
 ## 已解决的未知项
 
 - 支付商品：三个独立识海 SKU，一次性 CNY。
-- 支付集成：独立 Waffo 桥接，不复用拾题 sidecar。
+- 计费核心：Java 21 + Spring Boot 3.x。
+- 支付集成：独立 Node Waffo 桥接，不复用拾题 sidecar；Spring Boot 是账本权威。
 - 账本：PostgreSQL 只追加明细加可重算投影。
 - 到账依据：签名通知与主动查询，共享幂等状态机。
 - 扣费：原子报价、任务级预留、按成功步骤结算。

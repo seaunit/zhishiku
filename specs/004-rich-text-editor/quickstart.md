@@ -7,7 +7,7 @@
 
 ## 前置条件
 
-- 001、002、003 的本地 Web、Worker、PostgreSQL、Meilisearch 和对象存储已运行。
+- 001、002、003 的本地 Vue、Spring Boot API/Worker、PostgreSQL 和对象存储已运行。
 - 已应用富文本文档、修订和图片引用迁移。
 - 浏览器支持 ClipboardEvent、文件选择和响应式布局。
 - 测试图片、文档和恶意 HTML fixture 位于 `tests/fixtures/rich-text/`。
@@ -15,13 +15,14 @@
 ## 启动
 
 ```powershell
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local,worker
+cd ../frontend/kb-web
 pnpm install
-docker compose -f infra/compose.yml up -d
-pnpm db:migrate
 pnpm dev
 ```
 
-打开 `http://localhost:3000/kb`。
+打开 `http://localhost:5173/kb/`。
 
 ## 验证场景
 
@@ -114,13 +115,17 @@ pnpm dev
 ## 自动化命令
 
 ```powershell
+cd backend
+./mvnw spotless:check
+./mvnw test
+./mvnw verify -Pintegration
+./mvnw verify -Pcontract
+./mvnw verify -Psecurity
+cd ../frontend/kb-web
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm test:integration
-pnpm test:contract
 pnpm test:e2e:rich-text
-pnpm test:security
 pnpm test:a11y
 pnpm build
 ```

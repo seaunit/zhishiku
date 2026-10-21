@@ -7,11 +7,16 @@ info:
     权威数据存储为私有资源；互联网搜索和 AI 调用需要用户显式操作并提供匹配的授权。
     付费 AI 还必须引用 002 计费契约中的有效报价/计费任务；余额不足返回 402 且不启动 AI。
 servers:
-  - url: http://localhost:3000/kb
+  - url: http://127.0.0.1:8082/kb
     description: 使用与生产环境兼容的 /kb 基础路径的本地实现
 security:
   - sessionCookie: []
+x-csrf:
+  requiredFor: [POST, PATCH, DELETE]
+  header: X-XSRF-TOKEN
+  description: Spring Security 对所有不安全方法要求会话绑定 CSRF；缺失或无效返回 403。
 tags:
+  - name: 认证
   - name: 搜索
   - name: 知识
   - name: 导入
@@ -21,6 +26,93 @@ tags:
   - name: 回收站
   - name: 健康检查
 paths:
+  /api/v1/auth/csrf:
+    get:
+      tags: [认证]
+      security: []
+      operationId: getCsrfToken
+      summary: 获取匿名或已登录会话的 CSRF token。
+      responses:
+        "200":
+          description: CSRF token 和请求头名称。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfResponse"
+  /api/v1/auth/login:
+    post:
+      tags: [认证]
+      security: []
+      operationId: loginOwner
+      summary: 使用唯一所有者凭据创建数据库会话。
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: 已登录并返回安全会话摘要。
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/auth/logout:
+    post:
+      tags: [认证]
+      operationId: logoutOwner
+      summary: 撤销当前数据库会话。
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: 会话已撤销。
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/auth/setup:
+    post:
+      tags: [认证]
+      security: []
+      operationId: bootstrapOwner
+      summary: 使用一次性 bootstrap token 创建唯一所有者并关闭公开初始化。
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BootstrapOwnerRequest"
+      responses:
+        "201":
+          description: 唯一所有者已创建。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /health:
     get:
       tags: [健康检查]
@@ -613,8 +705,15 @@ components:
     sessionCookie:
       type: apiKey
       in: cookie
-      name: better-auth.session_token
+      name: zhishiku_session
   parameters:
+    CsrfToken:
+      name: X-XSRF-TOKEN
+      in: header
+      required: true
+      schema:
+        type: string
+      description: 由 `/api/v1/auth/csrf` 获取并与当前会话绑定。
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -700,6 +799,64 @@ components:
           schema:
             $ref: "#/components/schemas/InsufficientPointsError"
   schemas:
+    CsrfResponse:
+      type: object
+      required: [token, headerName]
+      properties:
+        token:
+          type: string
+        headerName:
+          type: string
+          const: X-XSRF-TOKEN
+        expiresAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+    BootstrapOwnerRequest:
+      type: object
+      required: [bootstrapToken, email, password, locale]
+      properties:
+        bootstrapToken:
+          type: string
+          minLength: 32
+          maxLength: 512
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+          maxLength: 256
+        locale:
+          type: string
+          enum: [zh-CN, en]
+    SessionResponse:
+      type: object
+      required: [ownerId, email, locale, csrfToken]
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        locale:
+          type: string
+          enum: [zh-CN, en]
+        csrfToken:
+          type: string
     ProcessingStatus:
       type: string
       enum:

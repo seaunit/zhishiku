@@ -8,6 +8,10 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 功能 002 定义 AI 点数计费与 Waffo 支付，功能 003 定义手机和平板网页访问；真实收费在
 P0/P1 门禁通过前保持关闭。
 
+已批准的实现技术栈为 Vue 3 + TypeScript、Java 21 + Spring Boot 3.x、PostgreSQL 18
+和 S3 兼容对象存储。搜索优先使用 PostgreSQL 派生索引；Waffo 继续使用隔离的 Node 桥接，
+单页截图使用 Playwright Java worker。
+
 ## 核心文档
 
 - [项目协作约定](AGENTS.md)
@@ -27,6 +31,9 @@ P0/P1 门禁通过前保持关闭。
 - [付费验收指南](specs/002-ai-credit-billing/quickstart.md)
 - [付费任务表](specs/002-ai-credit-billing/tasks.md)
 - [移动端网页规格](specs/003-mobile-web-access/spec.md)
+- [移动端实施计划](specs/003-mobile-web-access/plan.md)
+- [移动端任务表](specs/003-mobile-web-access/tasks.md)
+- [移动端快速验证](specs/003-mobile-web-access/quickstart.md)
 - [富文本编辑规格](specs/004-rich-text-editor/spec.md)
 - [富文本实施计划](specs/004-rich-text-editor/plan.md)
 - [富文本数据模型](specs/004-rich-text-editor/data-model.md)

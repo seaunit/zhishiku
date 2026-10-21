@@ -6,10 +6,13 @@ info:
     为手动采集和已有知识编辑提供所有者级安全图片暂存。上传返回的 uploadId 作为编辑器
     assetId；保存知识时由服务端解析为正式附件并写入图片引用。
 servers:
-  - url: http://localhost:3000/kb
+  - url: http://127.0.0.1:8082/kb
     description: 使用 /kb 基础路径的本地接口
 security:
   - sessionCookie: []
+x-csrf:
+  requiredFor: [POST, PATCH, DELETE]
+  header: X-XSRF-TOKEN
 tags:
   - name: 富文本图片
 paths:
@@ -89,7 +92,7 @@ components:
     sessionCookie:
       type: apiKey
       in: cookie
-      name: zhishiku.session_token
+      name: zhishiku_session
   parameters:
     IdempotencyKey:
       name: Idempotency-Key

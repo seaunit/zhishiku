@@ -1,6 +1,8 @@
 # 实施计划：识海 AI 点数计费与 Waffo 支付
 
-**分支**：`002-ai-credit-billing` | **日期**：2026-10-21 | **状态**：草案
+**功能**：`002-ai-credit-billing`
+
+**日期**：2026-10-21
 
 **规格**：[spec.md](spec.md)
 
@@ -8,262 +10,178 @@
 
 ## 摘要
 
-为识海增加一次性点数包购买、Waffo 个人支付、点数批次账本、AI 任务原子报价、预留与
-结算、自动扣点授权、退款复核和支付对账。支付只改变订单与点数事实，AI 任务只依据已
-预留点数执行；任何前端跳转、重复通知或并发重试都不得造成重复到账、透支或重复扣费。
+为识海增加一次性点数包、Waffo 个人支付、点数批次账本、原子报价、预留与结算、自动扣点
+授权、退款复核和对账。支付只改变订单与点数事实；AI 任务只有取得有效计费任务后才能执行。
 
-技术路线继续采用 Node.js 24 + TypeScript 模块化单体，并为 Waffo 增加独立的
-`apps/billing-bridge` 运行时。桥接进程只持有 Waffo 凭据、验签和查询能力，不接触用户
-知识内容；识海 Web/Worker 持有订单、点数批次、任务报价与退款业务逻辑。PostgreSQL 18
-是订单、点数、预留、退款和对账的权威数据源，pg-boss 负责超时释放与主动对账任务。
+计费核心使用 Java 21 + Spring Boot 3.x 和 PostgreSQL 18；所有账务更新在 Spring 事务、
+行锁、唯一约束和条件更新下完成。Waffo 继续由独立 Node.js 桥接持有 SDK 和私钥，只负责
+商品映射、收银台、原始体验签、受控查询和安全事件转发。桥接不拥有业务数据库，不读取知识
+正文，也不处理本地点数结算。
 
 ## 技术背景
 
-**语言/版本**：Node.js 24 LTS；TypeScript 最新稳定 5.x
+**前端**：Vue 3、TypeScript、Vite、Vue Router、Pinia、TanStack Vue Query、vue-i18n
 
-**主要依赖**：Next.js 16 App Router、React 19、Better Auth、Drizzle ORM、
-pg-boss、PostgreSQL 18、`@waffo/pancake-ts`、Zod、Pino、OpenTelemetry、
-next-intl、Radix UI primitives、Lucide icons
+**计费后端**：Java 21、Spring Boot 3.x、Spring Data JPA、`JdbcClient`、Flyway、
+Spring Security、Springdoc OpenAPI
 
-**存储**：PostgreSQL 18 保存订单、点数批次、预留、明细、退款、自动扣点授权和幂等记录；
-不引入新的 Redis、消息总线或独立账务数据库
+**Waffo 桥接**：Node.js 20/22 LTS、TypeScript、现有 Pancake SDK；没有数据库
 
-**测试**：Vitest、fast-check、Testcontainers、Playwright、axe-core、Schemathesis、
-k6、Semgrep、Gitleaks、Trivy
+**数据库**：PostgreSQL 18，保存订单、事件、点数批次、账本、预留、报价、退款和幂等记录
 
-**目标平台**：Ubuntu 24.04 x86_64；Web 绑定 `127.0.0.1:3000`，Waffo 桥接绑定
-`127.0.0.1:8091`，外部只经 Nginx 的 `/kb` 路径访问
+**任务**：PostgreSQL 任务表、事务租约和 `FOR UPDATE SKIP LOCKED`；Spring Scheduler
+执行通知对账、预留过期和退款检查
 
-**项目类型**：Web 应用，包含 Web/API、后台 Worker、浏览器 Worker 和隔离的支付桥接
-
-**性能目标**：可靠支付结果到达后 95% 的订单在 30 秒内到账；100 组并发扣费无负余额；
-通知缺失时 95% 的可查询订单在 10 分钟内完成主动对账
-
-**约束**：单所有者、默认中文并支持英文、一次性 CNY 点数包、Waffo 测试/生产严格隔离、
-所有凭据仅来自环境变量、不得接触银行卡数据、不得影响拾题现有支付和 `/pay` 路由
-
-**规模/范围**：1 个所有者、3 个在售点数包、6 类 AI 计费能力、最多 3 个并发浏览器会话、
-100,000 条知识规模下的计费旁路不阻塞本地检索
+**测试**：JUnit 5、AssertJ、Testcontainers、RestAssured、WireMock、Vitest、
+Playwright、k6、Gitleaks、Trivy
 
 ## 宪法检查
 
-*门禁：阶段 0 研究前通过，阶段 1 设计完成后重新检查。*
-
-| 门禁 | 研究前 | 设计后 | 证据 |
+| 门禁 | 设计前 | 设计后 | 证据 |
 |------|--------|--------|------|
-| SDD 与中文文档 | 通过 | 通过 | 002 规格、计划、研究、数据、接口、快速验证和任务均使用中文 |
-| 产品、开发、测试分离 | 通过 | 通过 | 产品批准商业参数；开发实现账务；测试独立验收支付与退款 |
-| 默认中文、完整英文 | 通过 | 通过 | 价格、余额、扣费、退款、异常和订单状态纳入双语验收 |
-| 关键事实与可追溯性 | 通过 | 通过 | 订单、事件、点数批次、任务步骤、退款和人工复核均记录安全事实 |
-| Taste 视觉验证 | 通过 | 通过 | 价格、余额、扣点确认和退款页面实施时必须完成 1440/768/390 检查 |
-| 禁止爬虫与密钥安全 | 通过 | 通过 | 支付桥接不读取知识内容；凭据仅环境变量；日志不记录签名或交易载荷 |
-| GitHub 一键部署 | 通过 | 通过 | 新桥接、systemd、Nginx、环境变量与回滚纳入固定 ref 部署 |
-| 拾题零影响 | 通过 | 通过 | 独立端口 8091、独立数据库表、Cookie、环境文件和 `/kb` 支付通知 |
-| 任务完成可追溯 | 通过 | 通过 | 002 任务逐项记录摘要、详情、验证证据和提交 SHA |
-| 支付与点数完整性 | 通过 | 通过 | 签名通知/主动查询双源、批次账本、原子报价、幂等、退款复核和环境隔离 |
+| SDD 与中文文档 | 通过 | 通过 | 规格、计划、研究、契约、数据和任务均中文 |
+| 产品/开发/测试分离 | 通过 | 通过 | 产品冻结价格，开发实现账务，测试独立验收 |
+| 默认中文、完整英文 | 通过 | 通过 | Vue/Spring 消息覆盖价格、余额、扣费和退款 |
+| 事实与可追溯 | 通过 | 通过 | 订单、事件、批次、报价步骤、退款和复核可审计 |
+| Taste 视觉验证 | 通过 | 通过 | 价格、余额、确认和退款页面 1440/768/390/360 |
+| 禁止爬虫与密钥安全 | 通过 | 通过 | 桥接不访问知识内容；Waffo 私钥只进桥接环境 |
+| GitHub 一键部署 | 通过 | 通过 | Maven、Vite、Node 桥接、Flyway、systemd 和回滚 |
+| 拾题零影响 | 通过 | 通过 | 独立端口 8091、进程、数据库、Cookie 和 `/kb` 路由 |
+| 任务可追溯 | 通过 | 通过 | 每项任务记录证据和提交 SHA |
+| 点数完整性 | 通过 | 通过 | PostgreSQL 账本、事务锁、报价和预留门禁 |
 
-本设计无需违反任何宪法约束。
+无需违反章程。
 
 ## 架构决策
 
-1. **支付桥接与计费领域分离。**
-   `apps/billing-bridge` 只负责 Waffo SDK、原始请求体验签、受控查询和规范化事件转发，
-   不拥有数据库、不读取知识正文。`packages/billing` 负责订单、点数批次、任务报价、
-   预留、结算、退款和审计。桥接受限、可重启，主应用不可用时不会伪造点数。
+1. **Spring Boot 拥有计费领域。**
+   订单、点数批次、账本、报价、预留、结算、释放、退款和对账均由 Java 领域服务实现。
+   Node 桥接不能直接增加余额或写账本。
 
-2. **PostgreSQL 账本为唯一权威。**
-   点数变更使用只追加明细；账户余额、批次余额和冻结额均为可核对投影。所有结算在数据库
-   事务内完成，使用行锁、唯一约束和条件更新防止透支与重复结算。
+2. **Node Waffo 桥接保留。**
+   桥接只持有 Pancake SDK、商户配置和私钥，处理收银台、签名通知和受控查询；通过内部
+   OpenAPI 与 Spring Boot 通信。桥接故障不会破坏知识库免费功能。
 
-3. **订单首次可靠支付事实不可回滚。**
-   签名通知和主动查询都转为统一支付事件。首个通过环境、商品、金额、币种和会话核验的
-   已支付事实使订单进入 `PAID`；后续相反状态不自动撤回，而是进入人工复核。
+3. **PostgreSQL 是唯一账务权威。**
+   点数变更使用只追加账本和可重算投影。金额、点数、任务和批次均使用整数；禁止浮点财务。
 
 4. **原子报价与任务级结算。**
-   AI 任务在开始时生成带版本的报价与费用上限，一次性预留总额。每个成功步骤产生结算项，
-   失败步骤释放对应预留；用户确认后实际扣费不得超过上限。用户选择图片 OCR/vision 时，
-   服务端先解析请求中的安全资产，再按规范化内容哈希去重；报价响应只返回唯一图片资源，
-   正文中的重复引用不会重复计费。
+   组合任务生成版本化分项报价，一次性预留总额；成功步骤结算，失败步骤释放。最终扣费不得
+   超过用户确认上限。
 
-5. **点数按来源批次消费。**
-   体验点、各订单购买点分别成为批次。消费顺序为体验点优先、购买点最早批次优先；退款只
-   回收原订单批次剩余点数，不误解其他订单或人工调整。
+5. **图片唯一资源计费。**
+   Spring 解析 `imageAssetIds` 的所有权和扫描状态，按规范化 `content_hash` 去重；Node
+   桥接和前端都不能决定实际计费数量。
 
-6. **通知与主动对账双通道。**
-   Waffo 回调使用原始请求体验签并快速持久化事件。Worker 对未决订单执行受控查询，
-   处理通知缺失、延迟和冲突。所有事件以环境和供应商事件标识去重。
+6. **通知与主动查询共享状态机。**
+   Waffo 通知和主动查询转为同一安全事件；Spring 事务执行订单锁、环境校验、金额/币种/
+   商品核验和幂等入账。
 
-7. **自动整理需要独立扣费授权。**
-   外部 AI 隐私授权与扣点授权分离。自动扣点默认关闭；用户设置单次和每日上限；保存前显示
-   预计扣点。余额不足或超限时，知识仍保存为待整理，不调用付费 AI。
+7. **环境硬隔离。**
+   测试/生产使用独立物理 PostgreSQL 数据库、商户、商品、密钥、通知、返回地址、订单和
+   账本。启动时 `BILLING_DB_ENV` 不一致立即失败。
 
-8. **退款采用保守自动化。**
-   MVP 自动处理全额退款及原批次未使用点数回收。部分退款、已消费点退款和状态冲突进入
-   人工复核；复核有负责人、期限和用户可见终态，不产生负余额。
+8. **任务不依赖 Redis。**
+   对账、过期释放、退款和重试存储在 PostgreSQL 任务表中。Worker 使用租约和
+   `SKIP LOCKED`，进程重启后恢复。
 
-9. **支付环境硬隔离。**
-   测试和生产使用独立商户/店铺、商品映射、密钥、返回地址、通知地址、物理 PostgreSQL
-   数据库、订单和账本。启动时用不可变 `BILLING_DB_ENV` 校验数据库身份；生产环境发现
-   测试标识或连接到测试数据库时直接失败，不进行跨环境回退。
+9. **Vue 只展示服务端事实。**
+   余额、报价、订单、扣费和退款状态来自 API。前端缓存不能作为余额权威，也不得在支付返回
+   页自行加点。
 
 10. **与拾题零共享。**
-    识海不读取或写入拾题 MySQL、Redis、Cookie、`/pay`、`shuati-payments.service`、
-    `/etc/shuati/payments.env`、商品映射或订单。识海支付通知只位于 `/kb` 边界。
+    不读取或写入拾题 MySQL、Redis、Cookie、支付 sidecar、`/pay`、订单或密钥。识海回调固定
+    为 `/kb/pay/webhooks/waffo`。
 
 ## 项目结构
 
-### 文档
-
 ```text
-specs/002-ai-credit-billing/
-├── spec.md
-├── plan.md
-├── research.md
-├── data-model.md
-├── quickstart.md
-├── deployment.md
-├── contracts/
-│   └── openapi.yaml
-├── checklists/
-│   ├── requirements.md
-│   └── acceptance.md
-└── tasks.md
+backend/kb-core/src/main/java/site/seaunit/zhishiku/core/billing/
+backend/kb-app/src/main/java/site/seaunit/zhishiku/billing/
+backend/kb-app/src/main/resources/db/migration/V0002__billing.sql
+frontend/kb-web/src/features/billing/
+bridges/waffo/src/
+contracts/billing-openapi.yaml
+contracts/waffo-bridge.yaml
+deploy/systemd/zhishiku-waffo-bridge.service
 ```
 
-### 源代码
+## 数据与接口
 
-```text
-apps/
-├── web/
-│   └── src/
-│       ├── app/
-│       │   ├── pricing/
-│       │   ├── billing/
-│       │   └── settings/billing/
-│       └── server/billing/
-├── worker/
-│   └── src/jobs/billing/
-└── billing-bridge/
-    ├── src/
-    └── package.json
+- 实体和状态机见 [data-model.md](data-model.md)。
+- 计费 API 见 [contracts/openapi.yaml](contracts/openapi.yaml)。
+- 桥接 API 见 [contracts/waffo-bridge.yaml](contracts/waffo-bridge.yaml)。
+- 订单状态：`PENDING -> CONFIRMING -> PAID -> REFUNDING -> REFUNDED`；
+  异常进入 `EXCEPTION`。
+- 计费任务：`QUOTED -> CONFIRMED -> RESERVED -> RUNNING -> SETTLED`；
+  未完成终态可进入 `RELEASED` 或 `EXPIRED`。
+- 所有写请求使用幂等键；同键不同请求哈希返回 `409`。
+- Spring 内部事件端点不出现在 Nginx 公共代理中；桥接与 Spring 使用双向独立密钥。
 
-packages/
-├── billing/
-│   └── src/
-├── db/
-│   ├── migrations/
-│   └── src/schema/billing.ts
-├── contracts/
-│   └── src/billing.ts
-└── providers/
-    └── src/waffo/
-
-tests/
-├── contract/billing/
-├── e2e/billing/
-├── integration/billing/
-├── security/billing/
-└── load/billing/
-
-infra/
-├── nginx/
-├── systemd/zhishiku-billing-bridge.service
-└── env/
-```
-
-**结构决策**：计费领域集中在 `packages/billing`，Web 和 Worker 共享同一状态机与事务
-仓库；Waffo 位于独立桥接进程。支付页面归属 Web，不新增公开端口。
-
-## 数据与接口设计
-
-- 完整实体、字段、约束、索引和状态机见 [data-model.md](data-model.md)。
-- HTTP 契约见 [contracts/openapi.yaml](contracts/openapi.yaml)。
-- 订单状态：`PENDING -> CONFIRMING -> PAID`；未支付可进入 `CLOSED`；已支付可进入
-  `REFUNDING -> REFUNDED`；无法自动处理的冲突进入 `EXCEPTION`。
-- 同一所有者的同一 SKU 快照最多一笔 `PENDING` 订单；关闭订单的迟到支付确认时，必须
-  在到账事务中原子关闭同 SKU 的新待支付订单，避免两张收银台同时可付款。
-- AI 计费任务状态：`QUOTED -> CONFIRMED -> RESERVED -> RUNNING ->
-  SETTLED`；任何未完成终态可进入 `RELEASED` 或 `EXPIRED`。
-- 点数批次状态：`ACTIVE -> FROZEN -> DEPLETED/CLOSED`；退款冻结批次，防止新预留。
-- 所有写操作使用幂等键；同一键不同请求哈希返回冲突。
-- 支付通知使用原始请求体验签，事件唯一键为
-  `(environment, provider_event_id, delivery_id)`。
-- 查询与通知共享订单唯一终态；余额不得由客户端提交值直接更新。
-
-### 购买流程
+## 购买与扣费流程
 
 ```text
 用户选择点数包
-  -> 创建本地待支付订单并保存套餐快照
-  -> 请求桥接创建/恢复 Waffo 收银台
-  -> 用户完成或关闭支付
-  -> 验签通知或主动查询确认
-  -> 事务内订单 PAID + 生成点数批次 + 追加入账明细
-  -> 页面显示最终状态
-```
+  -> Spring 创建待支付订单和套餐快照
+  -> Node 桥接创建/恢复 Waffo 收银台
+  -> Waffo 通知或受控查询
+  -> 桥接验签并发送安全事件
+  -> Spring 事务核验并一次性入账
 
-### AI 扣费流程
-
-```text
-生成任务与分步骤报价
-  -> 用户确认或匹配有效自动扣点授权
-  -> 事务内按批次优先级预留下单
-  -> 执行 AI 步骤
+AI 任务
+  -> Spring 生成分项报价
+  -> 用户确认或匹配自动扣点授权
+  -> 事务预留
+  -> 执行 AI
   -> 成功步骤结算，失败步骤释放
-  -> 任务终态、余额与明细可追溯
 ```
 
 ## 部署共存
 
-- 保留拾题 `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`、证书和认证边界。
-- 识海 Web 继续使用 `/kb` 和 `127.0.0.1:3000`。
-- Waffo 桥接使用 `127.0.0.1:8091` 和 `zhishiku-billing-bridge.service`，不得占用
-  拾题支付侧车的 `8090`。
-- 对外支付通知使用 `/kb/pay/webhooks/waffo`；桥接验签后通过内部密钥转发到
-  `/kb/api/internal/billing/waffo-events`。
-- 识海订单、点数、退款和环境文件位于独立数据库 schema、`/etc/zhishiku/billing.env`、
-  `/var/lib/zhishiku` 和独立日志边界。
-- Nginx 变更必须备份、执行 `nginx -t`，失败时不 reload；部署失败不得遗留半配置。
+- Spring Boot API 建议绑定 `127.0.0.1:8082`；Vue 静态文件由 Nginx 提供。
+- Waffo Node 桥接绑定 `127.0.0.1:8091`，继续独立 systemd unit。
+- 识海回调 `/kb/pay/webhooks/waffo` 原样转发到桥接，关闭缓存和敏感访问日志。
+- Spring 与桥接使用独立环境文件和内部密钥；Spring API/Worker 不读取 Waffo 私钥。
+- 不占用拾题 `8080`、支付 sidecar `8090`、`/pay`、MySQL、Redis 或 Cookie。
+- 当前主机内存有限，完整栈仍需独立主机或扩容。
 
-完整方案见 [deployment.md](deployment.md)。
+详细方案见 [deployment.md](deployment.md)。
 
 ## 实施顺序
 
-1. **支付 PoC 与契约门禁：** 在 Waffo 测试环境验证店铺/商品、收银台、签名样本、
-   主动查询、退款事件和重复通知；固定脱敏事件夹具。
-2. **计费领域基础：** 订单、点数批次、明细、预留、幂等、状态机和事务仓库。
-3. **购买闭环：** 套餐目录、价格页、订单创建、收银台复用、可靠入账和订单历史。
-4. **AI 报价闭环：** 六类点率、原子报价、预留、结算、释放、超时和自动扣点授权。
-5. **异常与退款：** 主动对账、事件冲突、批次冻结、全额退款回收、部分退款复核。
-6. **UI 与双语：** 价格、余额、明细、扣点确认、退款状态和错误路径，使用 Taste 验证。
-7. **部署与加固：** 独立桥接、Nginx 路由、systemd、GitHub 一键部署、回滚和零影响回归。
-8. **验收：** 契约、并发、退款、对账、安全、双语、单位经济性和最终成功标准证据。
+1. Waffo 测试 PoC、Java/Node 内部契约和脱敏事件夹具。
+2. Spring 计费领域、Flyway 迁移、订单/批次/账本/幂等和任务租约。
+3. Vue 价格、购买、订单和余额页面。
+4. Node 桥接收银台、验签、查询和事件转发。
+5. Spring 报价、确认、预留、结算、释放和自动扣点授权。
+6. 对账、退款、批次冻结和人工复核。
+7. 零影响部署、性能、安全、双语和 Taste 门禁。
 
 ## 验证策略
 
-- 单元测试：订单状态机、点数批次优先级、报价取整、预留/结算/释放、退款比例边界。
-- 集成测试：PostgreSQL 事务、并发扣费、通知与查询冲突、退款与预留竞态、超时释放。
-- 契约测试：全部计费 OpenAPI、Waffo 事件夹具、错误码和幂等响应。
-- 端到端测试：测试环境购买、返回页确认中、重复通知、余额不足、自动扣点、退款及双语。
-- 安全测试：签名伪造、金额/环境不符、密钥金丝雀、管理员越权、日志和截图泄漏。
-- 部署测试：固定 ref 一键部署、配置缺失失败关闭、Nginx 回滚、拾题健康基线零回归。
-- 性能测试：100 组并发扣费、订单峰值、主动对账吞吐和 30 分钟预留清理。
+- JUnit：订单状态机、批次顺序、报价取整、预留、退款和错误映射。
+- Testcontainers：PostgreSQL 并发事务、通知/查询竞态和任务租约。
+- RestAssured：Spring 计费 OpenAPI 和桥接内部契约。
+- WireMock/桥接 mock：Waffo 超时、重复、乱序、签名和环境错误。
+- Vue Vitest：价格、余额、确认、错误和退款状态。
+- Playwright：测试购买、返回页、余额不足、自动扣点和退款。
+- k6：100 组并发扣费、对账积压和预留过期。
+- 安全：密钥金丝雀、跨环境事件、签名伪造、日志和截图泄漏。
 
 ## 风险与缓解
 
-| 风险 | 缓解措施 |
-|------|----------|
-| 支付通知重复或乱序导致重复到账 | 事件唯一键、订单行锁、终态不可回滚、主动对账冲突复核 |
-| 并发 AI 任务透支点数 | 报价时锁定批次、原子预留、条件更新和 100 组并发门禁 |
-| 退款回收错订单点数 | 按订单来源批次和体验点优先/最早购买点优先消费 |
-| 自动整理静默扣费 | 独立扣点授权、默认关闭、单次/每日上限和保存前可见报价 |
-| 测试支付进入生产 | 独立商户/店铺/商品/密钥/地址/订单标识，生产硬拒绝测试配置 |
-| 桥接进程泄露知识内容 | 桥接只处理支付字段和事件，不拥有数据库或内容访问权限 |
-| 文档实际字符数超报价 | 免费预检或基于页数/文件大小的上限报价，超限前暂停确认 |
-| 支付故障影响知识库 | 支付模块失败关闭；手动录入、本地检索和已有知识保持可用 |
+| 风险 | 缓解 |
+|------|------|
+| Java/Node 契约漂移 | OpenAPI、双向鉴权、同版本部署和 WireMock 契约 |
+| 重复到账或扣费 | 唯一事件键、行锁、终态不可回滚和幂等键 |
+| 并发透支 | 原子预留、条件更新和 100 组并发门禁 |
+| 退款误扣其他批次 | 原订单批次冻结和体验点/购买点消费顺序 |
+| 测试支付进入生产 | 环境标识、物理数据库和商品/地址硬校验 |
+| 桥接泄漏知识 | 桥接不接数据库、不接收正文，只处理安全支付字段 |
+| 支付故障影响内容 | 手动录入、本地搜索和待整理状态独立运行 |
+| 主机资源不足 | 独立主机、扩容、进程上限和监控 |
 
 ## 复杂度跟踪
 
-独立的 Waffo 桥接增加一个轻量进程，但将支付私钥和高风险通知解析与知识内容隔离，并直接
-复用现有应用的成熟安全边界。继续将计费放在 Web 进程内会减少一个服务，但扩大私钥、
-原始交易载荷和知识数据同进程暴露面，因此不采用。
+Node 桥接保留一个小进程，但避免在 Java 中重复实现不稳定的 Waffo SDK 细节。Spring 是
+计费权威，桥接不能直接改账本。MVP 不引入 Redis、消息总线或独立账务数据库。

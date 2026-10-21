@@ -6,6 +6,9 @@
 
 **数据库**：PostgreSQL 18
 
+**实现方式**：Spring Boot 3.x + Java 21；JPA 保存普通实体，`JdbcClient` 执行账本、
+预留、批次分配和并发条件更新。Flyway 管理全部迁移。Node Waffo 桥接不连接本数据库。
+
 ## 约定
 
 - 主键为服务端生成的 UUID；账本流水 ID 使用 bigint 标识列。

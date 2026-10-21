@@ -6,10 +6,13 @@ info:
     单所有者识海应用的计费公开契约。服务端是套餐价格、AI 点率、报价、余额、订单和退款的
     唯一权威。客户端只能提交目录标识、数量和幂等键，不能提交权威金额或点数。
 servers:
-  - url: http://localhost:3000/kb
+  - url: http://127.0.0.1:8082/kb
     description: 使用生产兼容 /kb 基础路径的本地接口
 security:
   - sessionCookie: []
+x-csrf:
+  requiredFor: [POST, PATCH, DELETE]
+  header: X-XSRF-TOKEN
 tags:
   - name: 计费目录
   - name: 点数账户
@@ -489,37 +492,6 @@ paths:
           $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/ValidationError"
-  /pay/webhooks/waffo:
-    post:
-      tags: [内部事件]
-      operationId: receiveWaffoWebhook
-      summary: 接收 Waffo 原始通知；由桥接使用签名验证。
-      security: []
-      description: >
-        该路径由独立 Waffo 桥接处理，不依赖登录 Cookie。桥接不读取知识正文，只在验签后
-        转发安全化事件。
-      parameters:
-        - name: X-Waffo-Signature
-          in: header
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      responses:
-        "200":
-          description: 事件已安全接收、重复忽略或进入人工复核；已持久化后桥接向 Waffo 返回成功。
-        "400":
-          description: 无法解析事件。
-        "401":
-          description: 签名无效或缺失。
-        "500":
-          description: 临时持久化失败，允许供应商重试。
   /api/internal/billing/waffo-events:
     post:
       tags: [内部事件]
@@ -549,11 +521,11 @@ components:
     sessionCookie:
       type: apiKey
       in: cookie
-      name: zhishiku.session_token
+      name: zhishiku_session
     adminSessionCookie:
       type: apiKey
       in: cookie
-      name: zhishiku.session_token
+      name: zhishiku_session
       description: 必须同时具有受控管理员角色；普通会话返回 403。
     internalSecret:
       type: apiKey

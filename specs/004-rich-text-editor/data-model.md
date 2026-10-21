@@ -6,6 +6,10 @@
 
 **数据库**：PostgreSQL 18
 
+**实现方式**：Vue 3 + Tiptap 生成 ProseMirror JSON；Spring Boot 使用 Jackson、JSON Schema
+和 Java 领域验证器复验。普通实体由 JPA 保存，文档事务、引用解析和搜索修订使用
+`JdbcClient`。
+
 ## 约定
 
 - 沿用 001 的 `knowledge_item`、`attachment`、搜索修订和所有者模型。

@@ -14,8 +14,8 @@
 - AI 能力采用一次性点数制，通过 Waffo 个人支付购买；当前商业规格见
   `specs/002-ai-credit-billing/spec.md`。
 - 内容以 Markdown 为主，强调准确性、可检索性、可维护性和可追溯性。
-- 当前仓库尚未初始化技术栈、构建脚本或目录结构。不得虚构不存在的命令、框架或工程约定。
-- 引入代码或自动化工具后，应以实际配置文件为准，并及时回写本文件。
+- 仓库当前尚未初始化应用代码；以下技术栈是已批准的实施约束。实际脚手架、命令和版本以
+  后续提交的 `pom.xml`、`pnpm-lock.yaml` 和部署脚本为准，并及时回写本文件。
 
 ## 工作原则
 
@@ -51,7 +51,25 @@
 
 ## 代码与技术栈
 
-- 当前没有既定技术栈。新增实现时，先选择与知识库目标匹配的最小方案。
+- 前端采用 Vue 3、TypeScript、Vite、Vue Router、Pinia、TanStack Vue Query 和
+  `vue-i18n`；富文本使用 Tiptap Vue 3，交互原语使用 Reka UI，图标使用 Lucide Vue。
+- 后端采用 Java 21 LTS、Spring Boot 3.x 稳定版本和 Maven Wrapper；核心为模块化单体，
+  API 与后台任务共享领域代码，使用运行配置区分 Web 与 Worker 角色。
+- 数据库使用 PostgreSQL 18，Flyway 管理迁移，Spring Data JPA 负责普通实体 CRUD，
+  `JdbcClient` 负责搜索、任务租用、账本和复杂 SQL。
+- 认证使用 Spring Security、Spring Session JDBC、CSRF、一次性所有者初始化和独立
+  `/kb` Cookie，不使用公开注册。
+- 搜索优先使用 PostgreSQL `pg_trgm` 与受控全文检索；Meilisearch 仅在冻结的
+  100,000 条中文基准未达标时作为可选派生索引启用。
+- 后台任务使用 PostgreSQL 任务表和 `FOR UPDATE SKIP LOCKED`，不引入 Redis 或消息总线。
+- 附件使用 S3 兼容私有对象存储和 AWS SDK for Java v2；文档提取使用 Apache Tika/PDFBox，
+  OCR 使用受控 Tesseract 进程，HEIC/方向/缩放/元数据清理使用受控 libvips 进程。
+- 单页网页渲染使用 Playwright Java 独立 browser worker，只能处理用户明确提交的一个 URL，
+  不得发现链接、遍历页面或执行无限滚动。
+- Waffo 支付桥接继续使用独立 Node.js 进程和现有 Pancake SDK；桥接不读取知识正文、
+  不拥有业务数据库，不得把支付逻辑直接并入 Spring Boot Web 进程。
+- AI 调用使用 Spring `WebClient` 和显式超时、重试、限流及结构化输出校验；不得让 Provider
+  异常绕过 002 的报价、预留、结算和释放门禁。
 - 出现 `package.json`、`pyproject.toml`、`Cargo.toml` 等清单后，以清单中的脚本和版本约束为准。
 - 依赖安装必须使用仓库锁文件对应的包管理器，不得无故切换包管理器或重写锁文件。
 - 新增依赖前说明必要性，优先使用标准库和已有依赖。
@@ -66,6 +84,8 @@
 - 配置改动：解析配置并确认引用路径、环境变量和默认值有效。
 - 代码改动：依次执行仓库现有的 lint、类型检查、测试和构建命令。
 - 若仓库已初始化 Git，至少运行 `git diff --check` 检查空白错误。
+- Java 改动至少执行 Maven Wrapper 的单元、集成、契约和构建检查；Vue 改动至少执行
+  lint、TypeScript 检查、Vitest 和 Playwright 验收。
 - 若缺少测试或验证命令，明确说明未覆盖的风险，不得声称“已验证通过”。
 
 ## 付费与计费

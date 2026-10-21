@@ -18,16 +18,20 @@
 - 只保存 Markdown：适合技术文本，但图片、表格、Word 粘贴和富文本详情体验不足。
 - 同时维护 HTML 和 Markdown 双权威：同步和迁移复杂，不采用。
 
-## 决策 2：编辑器采用 Tiptap/ProseMirror
+## 决策 2：前端使用 Tiptap Vue 3，后端独立验证 ProseMirror 子集
 
-**决策**：Web 编辑器使用 Tiptap/ProseMirror；服务端复用 ProseMirror schema 校验。
+**决策**：Vue 3 编辑器使用 Tiptap/ProseMirror 生成受限 JSON。Spring Boot 不依赖
+JavaScript schema 运行时，而使用语言中立的 `rich-text.schema.json`、Jackson DTO 和
+Java 领域验证器独立复验节点、标记、属性、深度和配额。
 
 **理由**：其文档模型天然适合白名单、节点转换、撤销、粘贴和表格扩展；比
-`contenteditable + execCommand` 更可测试、可持续维护。
+`contenteditable + execCommand` 更可测试、可持续维护。前后端共享契约但不共享运行时，
+可避免 Vue 与 Java 部署耦合。
 
 **替代方案**：
 
 - 原生 `contenteditable`：原型可用，但生产环境跨浏览器和 schema 校验成本高。
+- 服务端调用 Node 校验器：增加额外运行时和调用边界，不采用。
 - iframe 中嵌入第三方 Word 编辑器：依赖重、样式和安全边界不可控，不采用。
 - Markdown 编辑器：不符合类似 Word 的富文本需求。
 
@@ -35,7 +39,8 @@
 
 **决策**：保存时的同一事务写入结构化正文、schema 版本、派生纯文本、图片引用和搜索修订号。
 
-**理由**：搜索和 AI 不得读到旧正文；正文与投影分离后，Meilisearch 仍可作为可重建派生索引。
+**理由**：搜索和 AI 不得读到旧正文；正文、来源和投影使用 Spring 事务一致提交。搜索投影
+默认进入 PostgreSQL `search_document`，必要时才同步可选 Meilisearch。
 
 **替代方案**：异步单独生成投影会产生一段时间的不一致，不作为默认。
 
@@ -101,7 +106,8 @@
 - 单个源文件不超过 25 MiB；处理后图片合计不超过 50 MiB。
 - 每边最大 8192 像素、总解码像素不超过 4000 万。
 - 支持 JPEG、PNG、WebP 和受支持 iOS 浏览器提供的 HEIC/HEIF。
-- 处理时修正方向、移除不必要 EXIF/XMP，并将动画图片静态化或拒绝。
+- Spring Boot 调度受控 libvips 进程修正方向、移除不必要 EXIF/XMP、处理 HEIC 和缩放；
+  动画图片静态化或拒绝。Tesseract 和密钥扫描完成后才提升正式附件。
 
 **理由**：控制数据库引用、对象存储、解码内存和移动上传体验。
 
@@ -147,8 +153,9 @@ HTTP/HTTPS URL、采集时间、转换时间、converter version、安全内容�
 
 ## 已解决的未知项
 
-- 正文格式：结构化 ProseMirror 子集。
-- 编辑器：Tiptap/ProseMirror。
+- 正文格式：结构化 ProseMirror JSON 子集。
+- 编辑器：Vue 3 + Tiptap Vue 3。
+- 服务端校验：Java 21 + Spring Boot + networknt JSON Schema + 领域验证器。
 - 图片：既有安全附件 ID 引用，无远程 URL/data URI。
 - 投影：保存事务内生成纯文本。
 - 粘贴：schema 转换 + 纯文本回退。

@@ -19,7 +19,8 @@ sidecar，不使用 Docker。识海不得复用或修改该支付 sidecar 的订
 | 拾题支付通知 | `/pay/webhooks/**` | 不占用、不转发、不重写 |
 | 拾题环境文件 | `/etc/shuati/env`、`/etc/shuati/payments.env` | 不读取、不追加 |
 | Nginx | 公共 `80/443` | 仅增量添加 `/kb` 精确规则 |
-| 识海 Web | 计划 `127.0.0.1:3000` | 只经 `/kb` 代理 |
+| 识海 Vue | Nginx 静态文件 | 不运行 Node Web 服务 |
+| 识海 Spring Boot | 计划 `127.0.0.1:8082` | 只经 `/kb/api` 代理 |
 | 识海 Waffo 桥接 | 计划 `127.0.0.1:8091` | 只经精确通知路由访问 |
 
 服务器上的私钥、商户 ID、店铺 ID、商品 ID 和支付环境值不得写入仓库或本文件。
@@ -41,8 +42,8 @@ https://seaunit.site/api/**、/bank/**、/apk/**     -> 拾题，原样保留
 
 ```text
 /opt/zhishiku/                            release
-/etc/zhishiku/kb.env                     Web/Worker 环境，mode 600
-/etc/zhishiku/billing.env                Waffo 桥接环境，mode 600
+/etc/zhishiku/kb.env                     Spring API/Worker 环境，mode 600
+/etc/zhishiku/waffo.env                  Waffo 桥接环境，mode 600
 /var/lib/zhishiku/                       持久数据（如本地存储启用）
 /var/log/zhishiku/                       可选日志目录；优先 journald
 ```
@@ -50,24 +51,25 @@ https://seaunit.site/api/**、/bank/**、/apk/**     -> 拾题，原样保留
 建议 unit：
 
 ```text
-zhishiku-web.service
+zhishiku-api.service
 zhishiku-worker.service
 zhishiku-browser-worker.service
-zhishiku-billing-bridge.service
+zhishiku-waffo-bridge.service
 ```
 
 门禁：
 
-- Web 只绑定 `127.0.0.1:3000`。
+- Vue 静态文件由 Nginx 提供。
+- Spring Boot API 只绑定 `127.0.0.1:8082`。
 - Waffo 桥接只绑定 `127.0.0.1:8091`，不得使用 8090。
 - Worker 不开放公共端口。
 - 所有服务使用独立系统用户、日志标识和环境文件。
 - 桥接不拥有数据库连接或知识存储凭据。
-- Web/Worker 不读取 Waffo 私钥。
+- Spring Boot API/Worker 不读取 Waffo 私钥。
 
 ## 环境变量边界
 
-Web/Worker 的 `kb.env` 只包含应用配置与桥接调用密钥名称，不包含 Waffo 私钥：
+Spring Boot API/Worker 的 `kb.env` 只包含应用配置与桥接调用密钥名称，不包含 Waffo 私钥：
 
 ```text
 APP_ENV
@@ -83,7 +85,7 @@ REFUND_SUPPORT_URL
 REFUND_RESPONSE_TARGET
 ```
 
-桥接的 `billing.env` 只包含 Waffo 和事件转发配置：
+桥接的 `waffo.env` 只包含 Waffo 和事件转发配置：
 
 ```text
 WAFFO_ENV
@@ -139,7 +141,7 @@ location ^~ /kb/api/internal/ {
 - 不将桥接 `/health`、`/checkout` 或 `/orders/status` 暴露到公网。
 - 内部事件路径 `/kb/api/internal/` 必须在 Nginx 直接返回 404；应用层内部密钥认证保留为
   第二道防线，不能替代网络边界。
-- 通用 `/kb/` 继续代理 Web 3000；精确回调规则优先。
+- Vue 静态文件由 Nginx 提供；`/kb/api/` 代理到 Spring Boot 8082，精确回调规则优先。
 - 变更前备份活动配置与仓库模板，执行 `nginx -t` 后才 reload。
 
 ## 支付流与内部认证
@@ -147,12 +149,12 @@ location ^~ /kb/api/internal/ {
 ### 收银台
 
 ```text
-Web 3000  -> POST 127.0.0.1:8091/checkout
-          -> Waffo 收银台
-          -> 用户支付
+Spring Boot 8082 -> POST 127.0.0.1:8091/checkout
+                 -> Waffo 收银台
+                 -> 用户支付
 ```
 
-Web 到桥接使用 `APP_TO_BRIDGE_SECRET`。桥接不保存本地余额或知识。
+Spring Boot 到桥接使用 `APP_TO_BRIDGE_SECRET`。桥接不保存本地余额或知识。
 
 ### 通知
 
@@ -160,13 +162,13 @@ Web 到桥接使用 `APP_TO_BRIDGE_SECRET`。桥接不保存本地余额或知�
 Waffo
   -> https://seaunit.site/kb/pay/webhooks/waffo
   -> Nginx 精确转发到 127.0.0.1:8091/webhooks/waffo
-  -> 桥接验签并向 Web 发送安全化事件
-  -> POST http://127.0.0.1:3000/kb/api/internal/billing/waffo-events
-  -> Web 事务处理订单、批次与账本
+  -> 桥接验签并向 Spring Boot 发送安全化事件
+  -> POST http://127.0.0.1:8082/kb/api/internal/billing/waffo-events
+  -> Spring 事务处理订单、批次与账本
 ```
 
-桥接到 Web 使用 `BRIDGE_TO_APP_SECRET`。内部事件接口不得对外开放或依赖用户 Cookie。
-Web 将事件持久化并返回 `409` 进入人工复核时，桥接必须向 Waffo 返回成功确认 `200`；
+桥接到 Spring Boot 使用 `BRIDGE_TO_APP_SECRET`。内部事件接口不得对外开放或依赖用户 Cookie。
+Spring 将事件持久化并返回 `409` 进入人工复核时，桥接必须向 Waffo 返回成功确认 `200`；
 只有未持久化或临时故障才返回可重试错误。
 
 ### 主动对账
@@ -180,8 +182,8 @@ Worker 定期扫描未决订单，通过桥接的 `/orders/status` 获取规范�
    基线。
 2. 备份 PostgreSQL、当前 Nginx 配置、systemd unit 和环境文件清单。
 3. 部署数据库迁移，但保持 `BILLING_ENABLED=false`。
-4. 部署并启动 `zhishiku-billing-bridge.service`，验证健康仅从本机可访问。
-5. 部署 Web/Worker，验证内部通知转发和主动对账。
+4. 部署并启动 `zhishiku-waffo-bridge.service`，验证健康仅从本机可访问。
+5. 部署 Spring Boot API/Worker 和 Vue 静态文件，验证内部通知转发和主动对账。
 6. 使用 Waffo 测试商品执行购买、重复通知、通知丢失、退款和回滚演练。
 7. 增加 Nginx 精确回调与 `/kb` 路由，执行 `nginx -t`。
 8. 部署双应用门户。
@@ -192,9 +194,10 @@ Worker 定期扫描未决订单，通过桥接的 `/orders/status` 获取规范�
 
 必须验证：
 
-- 识海 Web `/kb/health`。
+- 识海 Spring Boot `/kb/api/actuator/health`。
+- Vue `/kb/`。
 - 桥接本机 `/health`，只报告 `configured`、环境和 dry-run 状态。
-- 数据库迁移版本、队列连接和计费 worker 活跃度。
+- 数据库迁移版本、PostgreSQL 任务租约和计费 worker 活跃度。
 - 数据库身份与 `BILLING_DB_ENV`、`APP_ENV`、`WAFFO_ENV` 一致。
 - 支付目录版本、商品映射完整性和环境一致性。
 - 订单事件处理延迟、对账积压、过期预留和退款复核期限。
@@ -214,8 +217,8 @@ Worker 定期扫描未决订单，通过桥接的 `/orders/status` 获取规范�
 
 1. 将 `BILLING_ENABLED=false`，停止新订单和新付费 AI 预留。
 2. 恢复变更前 Nginx 配置并执行 `nginx -t` 后 reload。
-3. 停止并禁用 `zhishiku-billing-bridge.service`。
-4. 保留 Web/Worker、订单、账本、退款和对账数据，不回滚删除财务事实。
+3. 停止并禁用 `zhishiku-waffo-bridge.service`。
+4. 保留 Spring API/Worker、订单、账本、退款和对账数据，不回滚删除财务事实。
 5. 如必须回退应用版本，使用固定 Git ref 和数据库向前兼容迁移。
 6. 对回滚窗口内的可靠支付事件执行主动对账，避免用户已付款但未到账。
 7. 重新检查拾题 `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`、认证和支付侧车。
@@ -223,7 +226,7 @@ Worker 定期扫描未决订单，通过桥接的 `/orders/status` 获取规范�
 ## 容量与发布门禁
 
 - 当前主机内存余量有限；新增桥接和完整知识库栈必须通过容量报告。
-- 浏览器 worker、Meilisearch、PostgreSQL、Web、Worker 和桥接必须设置明确资源上限。
+- 浏览器 worker、PostgreSQL、Spring Boot API/Worker 和 Node 桥接必须设置明确资源上限。
 - P0 计费测试未通过不得开放真实收费。
 - P1 退款、对账、双语和零影响测试未通过不得公开销售。
 - 单位经济性未达到每套餐可变成本不超过收入 50%、整体目标毛利不低于 60% 时不得发布。
