@@ -16,8 +16,9 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 `zhishiku` 用户、数据库、环境文件、systemd 服务、`/kb` Nginx 片段和双应用门户。初始登录信息
 写入 `/root/zhishiku-initial-password`，登录后应删除。
 
-新部署也可以不预置所有者，在 `/kb/register` 通过 SMTP 邮箱验证完成唯一所有者初始化；已有
-所有者后注册自动关闭。默认 SMTP 主机为 `smtpdm.aliyun.com:465`，发件与登录账号为
+新部署也可以不预置账号。任何用户都能在 `/kb/register` 通过图形验证码和 SMTP 邮箱验证创建
+独立账号；已有账号不会关闭其他邮箱的注册。每个账号独立隔离知识、附件、搜索、会话、点数、
+订单和账本。默认 SMTP 主机为 `smtpdm.aliyun.com:465`，发件与登录账号为
 `no-reply@mail.seaunit.site`，可通过 `SMTP_HOST`、`SMTP_PORT`、`SMTP_USERNAME`、
 `SMTP_FROM`、`SMTP_FROM_NAME` 和 `SMTP_SSL` 覆盖。生产必须以 TLS 投递。
 

@@ -324,7 +324,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 日期：2026-10-22
 - 状态：已完成（仅文档）
 - 执行子智能体：产品、开发
-- Git commit：未提交
+- Git commit：`4cf6be7`
 - 摘要：将项目治理和 001/002 SDD 文档从单所有者模型改为多账号隔离模型。
 - 详情：宪法升级为 2.0.0，新增公开注册、邮箱验证码、图形验证码、频控、临时邮箱拒绝、
   邮箱全局唯一和按账号隔离要求；统一 `owner_id` 为账号 ID 的兼容字段语义；明确每个账号
@@ -346,7 +346,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 日期：2026-10-22
 - 状态：已完成
 - 执行子智能体：开发、测试
-- Git commit：未提交
+- Git commit：`4cf6be7`
 - 摘要：将运行代码和前端从实例单所有者改为多账号公开注册和按账号隔离。
 - 详情：新增 V0006 迁移，移除 `owner_account.instance_key` 唯一约束和列，保留邮箱唯一约束并
   回填 `email_verified_at`；注册状态由 `REGISTRATION_ENABLED` 控制，默认开启，已有账号不再
