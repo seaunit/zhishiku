@@ -102,6 +102,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [x] T088 [P1] [US3] 在采集页恢复手动录入、网页链接、文档和截图四个入口；实现单页 URL 收藏、TXT/Markdown 与图片文件入库、仅剪贴板截图上传，并对未接入的 PDF/Word 解析明确拒绝
 - [x] T089 [P0] [US4] 在首页恢复“继续搜索互联网”，接入 DeepSeek Search/Fetch Provider、显式同意、短期候选、来源打开与收入知识库，并保持本地结果优先
 - [x] T090 [P0] [US1] 统一首页、知识库、待处理和详情页的分类占位与处理状态映射；无分类显示“未分类”，`not_requested` 显示“未整理”，未知状态不再默认显示“已整理”
+- [x] T091 [P0] [US4] 保持首页“继续搜索互联网”入口初始可见；未完成本地检索时禁用并提示，本地检索完成后启用，点击后才发送查询
 
 ## 阶段 6：用户故事 4 — 互联网搜索与候选保存
 
@@ -484,3 +485,21 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   `b3e6a89993d2-20261021225015`；生产条目“测试知识库”状态为 `not_requested`。
 - 覆盖：FR-013、FR-023、FR-049。
 - 风险与回滚：仅前端展示和 i18n 变化，不改数据库或 API；回滚 release 即可恢复旧映射。
+
+### 完成记录：T091
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：产品、开发、测试
+- Git commit：`0a7ff59`
+- 摘要：恢复首页联网搜索入口的可发现性。
+- 详情：入口不再依赖 `searchedQuery` 才渲染；初始状态显示“继续搜索互联网”并禁用，提示先完成
+  本地检索。本地搜索完成后按钮启用，仍需再次点击才调用 DeepSeek Search；原型同步更新。
+- 验证：Playwright 验证初始按钮可见且禁用、本地检索后启用、点击前外部请求为 0；Vitest 44 项、
+  Playwright 32 项、lint、typecheck、build 和 Taste lint 通过。
+- 证据：`frontend/kb-web/src/views/HomeView.vue`、`frontend/kb-web/e2e/app.spec.ts`、
+  `prototype/index.html`、`.taste-skill/internet-entry-production.png`。
+- 生产部署：commit `0a7ff59`，tag `v0.1.23-mvp`，release
+  `0a7ff592520f-20261021225621`；生产浏览器检查 `visible=true`、`disabled=true`。
+- 覆盖：FR-047 至 FR-049；入口可发现性通过 E2E 与生产浏览器证据验证。
+- 风险与回滚：仅前端展示条件变化；回滚 release 会恢复为搜索后才显示入口。

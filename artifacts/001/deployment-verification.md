@@ -2,13 +2,13 @@
 
 **日期**：2026-10-22
 
-**部署提交**：`b3e6a89993d291ee351229483e681c6d8e1f9d26`
+**部署提交**：`0a7ff592520f19709ca8d76c205111548b0ea5a7`
 
-**发布 tag**：`v0.1.22-mvp`
+**发布 tag**：`v0.1.23-mvp`
 
-**运行 release**：`/opt/zhishiku/releases/b3e6a89993d2-20261021225015`
+**运行 release**：`/opt/zhishiku/releases/0a7ff592520f-20261021225621`
 
-**门户 release**：`/opt/seaunit-portal/releases/b3e6a89993d2-20261021225015`
+**门户 release**：`/opt/seaunit-portal/releases/0a7ff592520f-20261021225621`
 
 ## 部署结果
 
@@ -59,6 +59,7 @@
 | 退出后会话 | `/kb/api/v1/auth/me` 返回 HTTP 401 |
 | 临时验证码调试配置 | 测试后已恢复，配置数量 0 |
 | 状态语义生产构建 | 包含“未分类”“未整理”“状态未知”；生产条目“测试知识库”为 `not_requested` |
+| 联网入口初始可发现性 | 生产浏览器初始 `visible=true`、`disabled=true`，本地检索后启用 |
 | DeepSeek Search | HTTP 200，返回 3 条结果，首条标题为“首次调用 API \| DeepSeek API Docs” |
 | DeepSeek Fetch | HTTP 200，标题为“首次调用 API \| DeepSeek API Docs”，正文 2866 字符 |
 | `/kb/login` 生产 Taste 检查 | 1440/768/390 全部 `0 FAIL` |
