@@ -194,7 +194,7 @@ Worker 定期扫描未决订单，通过桥接的 `/orders/status` 获取规范�
 
 必须验证：
 
-- 识海 Spring Boot `/kb/actuator/health`。
+- 识海 Spring Boot `/kb/api/actuator/health`。
 - Vue `/kb/`。
 - 桥接本机 `/health`，只报告 `configured`、环境和 dry-run 状态。
 - 数据库迁移版本、PostgreSQL 任务租约和计费 worker 活跃度。
