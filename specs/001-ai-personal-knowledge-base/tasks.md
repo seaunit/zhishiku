@@ -421,7 +421,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 日期：2026-10-22
 - 状态：已完成
 - 执行子智能体：产品、开发、测试
-- Git commit：未提交
+- Git commit：`e1badd0`
 - 摘要：恢复原型中的四种采集方式，并接通现有安全能力支持的真实保存路径。
 - 详情：采集页新增手动录入、网页链接、文档和截图标签；网页入口只保存用户提交的单个公开
   URL 及其来源时间，不使用爬虫；文档入口支持 JPG、PNG、WebP、HEIC、TXT 和 Markdown，
