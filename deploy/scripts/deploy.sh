@@ -92,7 +92,7 @@ trap cleanup EXIT
 wait_for_health() {
   local attempt
   for attempt in $(seq 1 40); do
-    if curl -fsS --max-time 3 "http://127.0.0.1:$PORT/kb/api/actuator/health" \
+    if curl -fsS --max-time 3 "http://127.0.0.1:$PORT/kb/actuator/health" \
       | grep -q '"status":"UP"'; then
       return 0
     fi

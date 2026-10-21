@@ -187,7 +187,7 @@ Waffo 私钥只进入 `/etc/zhishiku/waffo.env`。日志不得输出变量值、
 7. Flyway 迁移。
 8. 原子切换 release symlink。
 9. 启动/重启识海 unit。
-10. 健康检查 `/kb/api/actuator/health`、`/kb/`、桥接本地健康和数据库。
+10. 健康检查 `/kb/actuator/health`、`/kb/`、桥接本地健康和数据库。
 11. 运行原有应用零影响检查。
 12. 任一步失败则恢复上一 release、Nginx 和数据库备份。
 
