@@ -444,7 +444,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 日期：2026-10-22
 - 状态：已完成
 - 执行子智能体：产品、开发、测试
-- Git commit：未提交
+- Git commit：`bd9972e`
 - 摘要：恢复本地优先的联网搜索，并接入 DeepSeek Search 与单 URL Fetch。
 - 详情：首页在本地搜索完成后显示“继续搜索互联网”；用户再次点击且显式同意后，后端使用
   `DEEPSEEK_SEARCH_API_KEY` 调用官方 Search API，只发送搜索词。候选绑定当前账号并短期缓存；
