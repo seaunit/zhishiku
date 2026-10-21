@@ -7,7 +7,7 @@
 
 ## 前置条件
 
-- Java 21 LTS、Maven Wrapper、Node.js 20/22 LTS、pnpm 和 Docker Compose v2。
+- Java 17 LTS、Maven Wrapper、Node.js 20/22 LTS、pnpm 和 Docker Compose v2。
 - PostgreSQL、Spring Boot API/Worker 和 Node Waffo 桥接本地运行。
 - Waffo 测试环境已配置独立识海商品和测试凭据。
 - Vue 可通过 `http://localhost:5173/kb/` 访问，Spring API 位于

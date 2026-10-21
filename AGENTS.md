@@ -53,7 +53,7 @@
 
 - 前端采用 Vue 3、TypeScript、Vite、Vue Router、Pinia、TanStack Vue Query 和
   `vue-i18n`；富文本使用 Tiptap Vue 3，交互原语使用 Reka UI，图标使用 Lucide Vue。
-- 后端采用 Java 21 LTS、Spring Boot 3.x 稳定版本和 Maven Wrapper；核心为模块化单体，
+- 后端采用 Java 17 LTS、Spring Boot 3.x 稳定版本和 Maven Wrapper；核心为模块化单体，
   API 与后台任务共享领域代码，使用运行配置区分 Web 与 Worker 角色。
 - 数据库使用 PostgreSQL 18，Flyway 管理迁移，Spring Data JPA 负责普通实体 CRUD，
   `JdbcClient` 负责搜索、任务租用、账本和复杂 SQL。

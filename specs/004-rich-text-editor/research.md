@@ -155,7 +155,7 @@ HTTP/HTTPS URL、采集时间、转换时间、converter version、安全内容�
 
 - 正文格式：结构化 ProseMirror JSON 子集。
 - 编辑器：Vue 3 + Tiptap Vue 3。
-- 服务端校验：Java 21 + Spring Boot + networknt JSON Schema + 领域验证器。
+- 服务端校验：Java 17 + Spring Boot + networknt JSON Schema + 领域验证器。
 - 图片：既有安全附件 ID 引用，无远程 URL/data URI。
 - 投影：保存事务内生成纯文本。
 - 粘贴：schema 转换 + 纯文本回退。

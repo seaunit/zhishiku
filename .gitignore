@@ -13,6 +13,11 @@ node_modules/
 .next/
 dist/
 build/
+target/
+*.class
+.runtime/
+.data/
+local-pg/
 coverage/
 .turbo/
 *.tsbuildinfo

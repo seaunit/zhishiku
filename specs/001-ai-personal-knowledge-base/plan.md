@@ -17,7 +17,7 @@
 用户明确提交的单页网页；系统自动生成摘要、分类和标签，用户纠正后锁定。首页只有一个
 搜索框，个人知识优先，互联网搜索必须由用户再次确认。
 
-实现采用 Vue 3 静态前端、Java 21 + Spring Boot 3.x 模块化后端、PostgreSQL 18 权威存储
+实现采用 Vue 3 静态前端、Java 17 + Spring Boot 3.x 模块化后端、PostgreSQL 18 权威存储
 和 S3 兼容私有对象存储。Web/API 与短后台任务共享领域代码但使用独立运行配置；Playwright
 Java browser worker 独立隔离；Waffo 桥接继续使用小范围 Node.js 进程，只处理支付 SDK、
 验签和查询，不接触知识数据。
@@ -30,7 +30,7 @@ AI 与互联网搜索通过 DeepSeek Provider 适配器接入。所有付费调�
 **前端**：Vue 3、TypeScript、Vite、Vue Router、Pinia、TanStack Vue Query、vue-i18n、
 Tiptap Vue 3、Reka UI、Lucide Vue
 
-**后端**：Java 21 LTS、Spring Boot 3.x 稳定版本、Maven Wrapper、Spring Security、
+**后端**：Java 17 LTS、Spring Boot 3.x 稳定版本、Maven Wrapper、Spring Security、
 Spring Session JDBC、Spring Data JPA、Spring `JdbcClient`、Springdoc OpenAPI、
 Spring Actuator、Micrometer
 

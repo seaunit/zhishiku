@@ -1,0 +1,63 @@
+server:
+  port: ${SERVER_PORT:8082}
+  servlet:
+    context-path: /kb
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: zhishiku
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:55432/zhishiku}
+    username: ${DATABASE_USERNAME:zhishiku}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  session:
+    jdbc:
+      initialize-schema: never
+  servlet:
+    session:
+      cookie:
+        name: zhishiku_session
+        path: /kb
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 26MB
+
+app:
+  owner:
+    email: ${KB_OWNER_EMAIL:}
+    password: ${KB_OWNER_PASSWORD:}
+    bootstrap-token: ${KB_BOOTSTRAP_TOKEN:}
+    auto-bootstrap: ${KB_AUTO_BOOTSTRAP:false}
+  storage:
+    root: ${KB_STORAGE_ROOT:.data/uploads}
+  security:
+    cookie-name: zhishiku_session
+    cookie-path: /kb
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    site.seaunit.zhishiku: INFO

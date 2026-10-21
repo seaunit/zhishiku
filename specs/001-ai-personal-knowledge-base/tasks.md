@@ -25,25 +25,25 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 
 ## 阶段 1：工程与本地环境
 
-- [ ] T006 [P0] 在 `backend/pom.xml`、各模块 `pom.xml`、`mvnw`/`mvnw.cmd` 和 `.mvn/` 中创建 Java 21 + Spring Boot Maven Wrapper 多模块，并启用 Java 21 Enforcer
-- [ ] T007 [P0] [P] 在 `frontend/kb-web/package.json`、`vite.config.ts` 和 `pnpm-lock.yaml` 中创建 Vue 3 + TypeScript + Vite 工程
-- [ ] T008 [P0] [P] 在 `infra/compose.yml` 中配置 PostgreSQL 18、MinIO 和本地浏览器依赖；不引入 Redis 或 Meilisearch
-- [ ] T009 [P0] [P] 在 `.env.example`、`backend/kb-app/src/main/resources/application.yml` 和配置类中定义 Java、Spring、PostgreSQL、S3、DeepSeek、桥接和上传变量
+- [x] T006 [P0] 在 `backend/pom.xml`、各模块 `pom.xml`、`mvnw`/`mvnw.cmd` 和 `.mvn/` 中创建 Java 17 + Spring Boot Maven Wrapper 多模块，并启用 Java 17 Enforcer
+- [x] T007 [P0] [P] 在 `frontend/kb-web/package.json`、`vite.config.ts` 和 `pnpm-lock.yaml` 中创建 Vue 3 + TypeScript + Vite 工程
+- [x] T008 [P0] [P] 在 `infra/compose.yml` 中配置 PostgreSQL 18、MinIO 和本地浏览器依赖；不引入 Redis 或 Meilisearch
+- [x] T009 [P0] [P] 在 `.env.example`、`backend/kb-app/src/main/resources/application.yml` 和配置类中定义 Java、Spring、PostgreSQL、S3、DeepSeek、桥接和上传变量
 - [ ] T010 [P0] [P] 在 `.github/workflows/kb-ci.yml` 和 `backend/kb-app/src/test/java/site/seaunit/zhishiku/migration/` 中先建立 Maven、pnpm、Flyway 全新安装/重复迁移测试骨架、契约、安全、Playwright 和零影响门禁
-- [ ] T011 [P0] 在 `backend/kb-app/src/main/resources/db/migration/V0001__foundation.sql` 中启用 `pg_trgm` 并建立基础 schema、任务和搜索投影迁移
+- [x] T011 [P0] 在 `backend/kb-app/src/main/resources/db/migration/V0001__foundation.sql` 中启用 `pg_trgm` 并建立基础 schema、任务和搜索投影迁移
 - [ ] T012 [P0] [P] 在 `frontend/kb-web/src/main.ts`、`router/index.ts`、`stores/` 和 `locales/` 中建立 Vue Router、Pinia、TanStack Vue Query 和 vue-i18n
-- [ ] T013 [P0] [P] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/` 中建立与 OpenAPI 一致的 `ErrorResponse`、请求 ID、JSON 日志和异常映射
+- [x] T013 [P0] [P] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/` 中建立与 OpenAPI 一致的 `ErrorResponse`、请求 ID、JSON 日志和异常映射
 
 ## 阶段 2：安全、认证与共享基础
 
 - [ ] T014 [P0] [P] [US1] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/auth/` 中先验证 bootstrap、密码、会话、CSRF、Cookie 路径和撤销
 - [ ] T015 [P0] [P] [US1] 在 `backend/kb-core/src/test/java/site/seaunit/zhishiku/domain/` 和 `backend/kb-app/src/test/java/site/seaunit/zhishiku/jobs/` 中为乐观锁、保留期、双 Worker `SKIP LOCKED`、租约过期、fencing token 和旧结果拒绝编写失败测试
-- [ ] T016 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/` 中实现 Spring Security、BCrypt/Argon2、Session JDBC、一次性所有者初始化及 CSRF/login/logout/setup 端点
-- [ ] T017 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/persistence/` 中实现 BaseEntity、UUID、时间戳和 `@Version`
+- [x] T016 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/auth/` 中实现 Spring Security、BCrypt/Argon2、Session JDBC、一次性所有者初始化及 CSRF/login/logout/setup 端点
+- [x] T017 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/persistence/` 中实现 BaseEntity、UUID、时间戳和 `@Version`
 - [ ] T018 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/jobs/` 中实现 PostgreSQL 任务表、租约、指数退避和 `SKIP LOCKED`
 - [ ] T019 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/storage/` 中实现 S3 暂存、内容哈希、MIME 检测、正式附件提升和对象清理
-- [ ] T020 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/search/` 中实现 `search_document` 更新、修订和 PostgreSQL 查询
-- [ ] T021 [P0] [US1] 在 `frontend/kb-web/src/layouts/` 和 `components/` 中建立受保护工作区、导航、语言切换和错误边界
+- [x] T020 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/knowledge/KnowledgeService.java` 中实现 `search_document` 更新、修订和 PostgreSQL 查询
+- [x] T021 [P0] [US1] 在 `frontend/kb-web/src/components/AppShell.vue`、`views/` 和 `stores/` 中建立受保护工作区、导航、语言切换和错误边界
 - [ ] T022 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/health/` 中实现 Actuator 健康、数据库迁移、对象存储和任务 worker 状态，并加入 Springdoc 运行时契约与冻结 OpenAPI 差异检查
 
 ## 阶段 3：用户故事 1 — 手动保存与单框搜索
@@ -55,11 +55,11 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T023 [P0] [P] [US1] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/knowledge/` 中为创建、编辑、版本冲突、列表 DTO 和即时搜索编写测试
 - [ ] T024 [P0] [P] [US1] 在 `frontend/kb-web/src/features/knowledge/__tests__/` 中为表单、列表、详情、空状态和双语编写 Vitest
 - [ ] T025 [P0] [US1] 在 `backend/kb-core/src/main/java/site/seaunit/zhishiku/core/knowledge/` 中创建知识、来源、分类和标签领域模型
-- [ ] T026 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/knowledge/` 中实现 JPA 仓库、`JdbcClient` 搜索和事务服务
+- [x] T026 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/knowledge/KnowledgeService.java` 中实现 JPA 仓库、`JdbcClient` 搜索和事务服务
 - [ ] T027 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/api/knowledge/` 中实现 CRUD、搜索、回收站和冲突 API
 - [ ] T028 [P0] [US1] 在 `frontend/kb-web/src/features/knowledge/` 中实现首页单搜索框、结果摘要、匹配原因和分页
-- [ ] T029 [P0] [US1] 在 `frontend/kb-web/src/features/library/` 和 `detail/` 中实现知识库和详情页面
-- [ ] T030 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/search/` 中实现中文/英文排序、短查询回退和高亮
+- [x] T029 [P0] [US1] 在 `frontend/kb-web/src/views/HomeView.vue` 和 `DetailView.vue` 中实现知识库和详情页面
+- [x] T030 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/knowledge/KnowledgeService.java` 中实现中文/英文排序、短查询回退和高亮
 - [ ] T031 [P0] [US1] 在 `tests/e2e/us1-knowledge.spec.ts` 中验证保存、刷新、搜索、详情、冲突和回收站
 
 ## 阶段 4：用户故事 2 — 自动分类、标签与授权

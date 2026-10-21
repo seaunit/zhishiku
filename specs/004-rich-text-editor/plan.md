@@ -23,7 +23,7 @@ Spring Boot、Jackson 和 JSON Schema/领域验证器执行同一白名单。图
 **前端**：Vue 3、TypeScript、Vite、Tiptap Vue 3、ProseMirror、Reka UI、Lucide Vue、
 vue-i18n
 
-**后端**：Java 21、Spring Boot 3.x、Jackson、Spring Data JPA、`JdbcClient`、
+**后端**：Java 17、Spring Boot 3.x、Jackson、Spring Data JPA、`JdbcClient`、
 networknt JSON Schema Validator、Springdoc OpenAPI
 
 **存储**：PostgreSQL 18 保存结构化 JSONB、纯文本投影、修订、来源、转换报告和图片引用；

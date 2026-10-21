@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:55432/zhishiku}
+    username: ${DATABASE_USERNAME:zhishiku}
+    password: ${DATABASE_PASSWORD:}
+
+app:
+  owner:
+    email: ${KB_OWNER_EMAIL:owner@zhishiku.local}
+    password: ${KB_OWNER_PASSWORD:local-dev-password-change-me}
+    bootstrap-token: ${KB_BOOTSTRAP_TOKEN:local-bootstrap-token-change-me}
+    auto-bootstrap: ${KB_AUTO_BOOTSTRAP:true}
+  storage:
+    root: ${KB_STORAGE_ROOT:.data/uploads}
+
+logging:
+  level:
+    site.seaunit.zhishiku: DEBUG

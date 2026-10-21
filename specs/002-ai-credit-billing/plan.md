@@ -13,7 +13,7 @@
 为识海增加一次性点数包、Waffo 个人支付、点数批次账本、原子报价、预留与结算、自动扣点
 授权、退款复核和对账。支付只改变订单与点数事实；AI 任务只有取得有效计费任务后才能执行。
 
-计费核心使用 Java 21 + Spring Boot 3.x 和 PostgreSQL 18；所有账务更新在 Spring 事务、
+计费核心使用 Java 17 + Spring Boot 3.x 和 PostgreSQL 18；所有账务更新在 Spring 事务、
 行锁、唯一约束和条件更新下完成。Waffo 继续由独立 Node.js 桥接持有 SDK 和私钥，只负责
 商品映射、收银台、原始体验签、受控查询和安全事件转发。桥接不拥有业务数据库，不读取知识
 正文，也不处理本地点数结算。
@@ -22,7 +22,7 @@
 
 **前端**：Vue 3、TypeScript、Vite、Vue Router、Pinia、TanStack Vue Query、vue-i18n
 
-**计费后端**：Java 21、Spring Boot 3.x、Spring Data JPA、`JdbcClient`、Flyway、
+**计费后端**：Java 17、Spring Boot 3.x、Spring Data JPA、`JdbcClient`、Flyway、
 Spring Security、Springdoc OpenAPI
 
 **Waffo 桥接**：Node.js 20/22 LTS、TypeScript、现有 Pancake SDK；没有数据库

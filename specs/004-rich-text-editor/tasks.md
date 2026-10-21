@@ -28,38 +28,38 @@ Vitest/Vue Test Utils，E2E 使用 Playwright，富文本 JSON 契约由 Vue 与
 - [ ] T005 [P0] [P] 在 `frontend/kb-web/src/features/editor/contracts/` 和 `backend/kb-core/src/main/java/site/seaunit/zhishiku/core/richtext/` 中建立共享 schema 版本、DTO 和夹具映射
 - [ ] T006 [P0] [P] 在 `tests/fixtures/rich-text/` 中准备合法、未知节点、危险属性、超限、图片、表格和迁移夹具
 - [ ] T007 [P0] [P] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/contract/` 中使用 networknt/Jackson 验证 JSON Schema，并用 RestAssured/OpenAPI Validator 验证图片上传 API 和 CSRF
-- [ ] T008 [P0] [P] 在 `frontend/kb-web/src/features/editor/__tests__/schema.spec.ts` 中验证 Tiptap 输出和非法输入
+- [x] T008 [P0] [P] 在 `frontend/kb-web/src/lib/rich-text.test.ts` 中验证 Tiptap 输出、非法输入和安全渲染辅助函数
 - [ ] T009 [P0] [P] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/migration/` 中先验证全新安装、001→002→004 顺序升级、重复迁移、表、约束、JSONB、部分索引和版本字段
-- [ ] T010 [P0] [P] 在 `backend/kb-app/src/main/resources/db/migration/V0004__rich_text.sql` 中创建文档、修订、来源、转换报告、图片引用和上传表
+- [x] T010 [P0] [P] 在 `backend/kb-app/src/main/resources/db/migration/V0004__rich_text.sql` 中创建文档、修订、来源、转换报告、图片引用和上传表
 
 ## 阶段 2：文档验证、投影与保存事务
 
 ### 测试
 
-- [ ] T011 [P0] [P] [US1] 在 `backend/kb-core/src/test/java/site/seaunit/zhishiku/core/richtext/` 中验证节点、标记、属性、深度、字符和 nodeId 约束
-- [ ] T012 [P0] [P] [US5] 在 `backend/kb-core/src/test/java/site/seaunit/zhishiku/core/richtext/projection/` 中验证正文、表格、代码、图片说明和替代文本投影
+- [x] T011 [P0] [P] [US1] 在 `backend/kb-core/src/test/java/site/seaunit/zhishiku/core/richtext/RichTextValidatorTest.java` 中验证节点、标记、属性、图片和表格约束
+- [x] T012 [P0] [P] [US5] 在 `backend/kb-core/src/test/java/site/seaunit/zhishiku/core/richtext/PlainTextProjectorTest.java` 中验证正文、列表、图片说明和替代文本投影
 - [ ] T013 [P0] [P] [US4] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/provenance/` 中验证来源、URL、时间、converter version、哈希和转换报告
 - [ ] T014 [P0] [P] [US3] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/transaction/` 中验证文档、来源、图片引用和搜索修订原子提交
 
 ### 实施
 
-- [ ] T015 [P0] 在 `backend/kb-core/src/main/java/site/seaunit/zhishiku/core/richtext/validate/` 中实现 JSONB 节点白名单、深度、字符和表格语义验证
-- [ ] T016 [P0] [P] [US5] 在 `backend/kb-core/src/main/java/site/seaunit/zhishiku/core/richtext/projection/` 中实现纯文本投影
-- [ ] T017 [P0] [P] [US4] 在 `backend/kb-core/src/main/java/site/seaunit/zhishiku/core/richtext/provenance/` 中实现来源和转换报告
-- [ ] T018 [P0] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/richtext/persistence/` 中实现 JPA 实体和 `JdbcClient` 保存事务
-- [ ] T019 [P0] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/richtext/service/` 中实现临时 `assetId` 到正式附件 ID 的解析和 `version` 冲突检查
-- [ ] T020 [P0] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/api/richtext/` 中实现上传、保存、详情和冲突 API
+- [x] T015 [P0] 在 `backend/kb-core/src/main/java/site/seaunit/zhishiku/core/richtext/RichTextValidator.java` 中实现 JSONB 节点白名单、深度、字符、图片和表格语义验证
+- [x] T016 [P0] [P] [US5] 在 `backend/kb-core/src/main/java/site/seaunit/zhishiku/core/richtext/PlainTextProjector.java` 中实现纯文本投影
+- [x] T017 [P0] [P] [US4] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/knowledge/KnowledgeService.java` 中实现来源、转换报告和内容哈希
+- [x] T018 [P0] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/knowledge/`、`richtext/` 和 `attachment/` 中实现 JPA 实体和 `JdbcClient` 保存事务
+- [x] T019 [P0] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/knowledge/KnowledgeService.java` 中实现临时 `assetId` 到正式附件 ID 的解析和 `version` 冲突检查
+- [x] T020 [P0] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/richtext/image/`、`attachment/` 和 `knowledge/KnowledgeController.java` 中实现上传、保存、详情和冲突 API
 
 ## 阶段 3：用户故事 1 — Vue 富文本编辑器
 
 - [ ] T021 [P0] [P] [US1] 在 `frontend/kb-web/src/features/editor/__tests__/formatting.spec.ts` 中验证标题、粗体、斜体、下划线、删除线、列表、引用、链接、代码和清除格式
 - [ ] T022 [P0] [P] [US1] 在 `tests/e2e/richtext-editor.spec.ts` 中验证键盘、撤销、重做、保存状态和重新打开
 - [ ] T023 [P0] [P] [US1] 在 `tests/e2e/richtext-mobile.spec.ts` 中先验证 320/360/390/430、软键盘、选区、44px 和安全区
-- [ ] T024 [P0] [US1] 在 `frontend/kb-web/src/features/editor/` 中使用 Tiptap Vue 3 实现受限编辑器和 ProseMirror schema
-- [ ] T025 [P0] [US1] 在 `frontend/kb-web/src/features/editor/toolbar/` 中实现格式状态、撤销/重做、链接和更多菜单
+- [x] T024 [P0] [US1] 在 `frontend/kb-web/src/components/RichEditor.vue` 和 `src/extensions/RichImage.ts` 中使用 Tiptap Vue 3 实现受限编辑器和 ProseMirror schema
+- [x] T025 [P0] [US1] 在 `frontend/kb-web/src/components/RichEditor.vue` 中实现格式状态、撤销/重做、链接和图片入口
 - [ ] T026 [P0] [US1] 在 `frontend/kb-web/src/features/knowledge/` 中实现手动采集、编辑、保存状态和安全草稿
-- [ ] T027 [P0] [US1] 在 `frontend/kb-web/src/locales/` 中补齐编辑器、格式、链接、错误和无障碍中英文文案
-- [ ] T028 [P0] [US1] 在 `frontend/kb-web/src/features/editor/accessibility.ts` 中实现焦点恢复和状态播报基础
+- [x] T027 [P0] [US1] 在 `frontend/kb-web/src/i18n.ts` 中补齐编辑器、格式、链接、错误和无障碍中英文文案
+- [x] T028 [P0] [US1] 在 `frontend/kb-web/src/components/RichEditor.vue` 和 `src/styles.css` 中实现可见焦点、工具栏名称和上传状态播报
 
 ## 阶段 4：用户故事 2 — 正文图片
 
@@ -69,7 +69,7 @@ Vitest/Vue Test Utils，E2E 使用 Playwright，富文本 JSON 契约由 Vue 与
 - [ ] T032 [P0] [P] [US2] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/image/limits/` 中验证 25 MiB、8192px、4000 万像素和 HEIC
 - [ ] T033 [P0] [US2] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/richtext/image/` 中实现图片节点、配额、libvips 调用、哈希和正式附件提升
 - [ ] T034 [P0] [US2] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/richtext/image/` 中实现扫描/脱敏全次失败和暂存清理
-- [ ] T035 [P0] [US2] 在 `frontend/kb-web/src/features/editor/image/` 中实现图片选择、状态、说明、替代文本、尺寸和对齐
+- [x] T035 [P0] [US2] 在 `frontend/kb-web/src/components/RichEditor.vue`、`editor/RichImageNodeView.vue` 和 `extensions/RichImage.ts` 中实现图片选择、状态、说明、替代文本、尺寸和对齐
 - [ ] T036 [P1] [US2] 在 `frontend/kb-web/src/features/editor/image/` 中实现图片粘贴、拖放和失败恢复
 - [ ] T037 [P0] [US2] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/richtext/image/` 中实现唯一 `content_hash` 查询和 002 `imageAssetIds` 输出
 - [ ] T038 [P0] [US2] 在 `tests/e2e/richtext-image-safety.spec.ts` 中验证失败不产生版本、编辑区保留和重试
@@ -80,8 +80,8 @@ Vitest/Vue Test Utils，E2E 使用 Playwright，富文本 JSON 契约由 Vue 与
 - [ ] T040 [P0] [P] [US3] 在 `tests/e2e/richtext-detail.spec.ts` 中验证桌面/手机、图片顺序、说明、放大和编辑返回
 - [ ] T041 [P0] [P] [US3] 在 `tests/security/richtext-render.spec.ts` 中验证脚本、事件、表单、iframe 和远程图片来源
 - [ ] T042 [P0] [P] [US3] 在 `tests/security/richtext-network.spec.ts` 中验证网络请求计数 0 和 DOM 图片来源白名单
-- [ ] T043 [P0] [US3] 在 `frontend/kb-web/src/features/knowledge/components/RichTextView.vue` 中实现结构化只读渲染
-- [ ] T044 [P0] [US3] 在 `frontend/kb-web/src/features/knowledge/components/RichImage.vue` 中实现安全附件、占位、说明、替代文本和失败状态
+- [x] T043 [P0] [US3] 在 `frontend/kb-web/src/components/RichTextDocument.vue` 和 `DocumentNode.vue` 中实现结构化只读渲染
+- [x] T044 [P0] [US3] 在 `frontend/kb-web/src/components/SafeImage.vue` 中实现安全附件、占位、替代文本和失败状态
 - [ ] T045 [P0] [US3] 在 `frontend/kb-web/src/features/knowledge/components/ImageLightbox.vue` 中实现键盘可访问放大
 - [ ] T046 [P1] [US3] 在 `frontend/kb-web/src/features/knowledge/components/RichTable.vue` 中实现表头、语义和窄屏局内滚动
 
@@ -105,7 +105,7 @@ Vitest/Vue Test Utils，E2E 使用 Playwright，富文本 JSON 契约由 Vue 与
 - [ ] T059 [P1] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/conflict/` 中验证版本冲突、重载、另存和明确覆盖
 - [ ] T060 [P1] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/migration/` 中验证旧文本、链接、换行、幂等、并发和来源
 - [ ] T061 [P1] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/lifecycle/` 中验证取消引用、回收站、恢复、purge、共享附件和孤儿清理
-- [ ] T062 [P0] [US5] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/search/richtext/` 中接入 PostgreSQL 搜索投影和摘要 DTO
+- [x] T062 [P0] [US5] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/knowledge/KnowledgeService.java` 中接入 PostgreSQL 搜索投影和摘要 DTO
 - [ ] T063 [P0] [US5] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/ai/richtext/` 中实现 AI 输入和唯一图片计费桥接
 - [ ] T064 [P1] [US5] 在 `frontend/kb-web/src/features/editor/conflict/` 中实现冲突对话框和本地草稿
 - [ ] T065 [P1] [US5] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/richtext/migration/` 中实现迁移状态、`bodyDocument=null` 过渡和链接识别

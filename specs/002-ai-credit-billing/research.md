@@ -231,7 +231,7 @@ Worker 主动查询未决订单，并将查询结果转换为同一套内部支�
 ## 已解决的未知项
 
 - 支付商品：三个独立识海 SKU，一次性 CNY。
-- 计费核心：Java 21 + Spring Boot 3.x。
+- 计费核心：Java 17 + Spring Boot 3.x。
 - 支付集成：独立 Node Waffo 桥接，不复用拾题 sidecar；Spring Boot 是账本权威。
 - 账本：PostgreSQL 只追加明细加可重算投影。
 - 到账依据：签名通知与主动查询，共享幂等状态机。

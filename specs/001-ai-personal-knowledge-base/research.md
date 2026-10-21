@@ -8,7 +8,7 @@
 
 ## 决策 1：Vue 3 静态前端与 Spring Boot 模块化核心
 
-**决策**：前端使用 Vue 3、TypeScript 和 Vite；后端使用 Java 21 + Spring Boot 3.x。
+**决策**：前端使用 Vue 3、TypeScript 和 Vite；后端使用 Java 17 + Spring Boot 3.x。
 Spring Boot API 与短后台任务共享领域代码，通过运行配置区分 Web 与 Worker 角色。
 Playwright Java browser worker 独立进程。
 
@@ -211,7 +211,7 @@ Node Waffo 桥接均使用独立目录、systemd、环境文件、端口、日�
 ## 已解决未知项
 
 - 前端：Vue 3 + TypeScript + Vite。
-- 后端：Java 21 + Spring Boot 3.x。
+- 后端：Java 17 + Spring Boot 3.x。
 - 数据库：PostgreSQL 18。
 - 搜索：PostgreSQL-first，Meilisearch 可选。
 - 任务：PostgreSQL 任务表 + Spring Scheduler。

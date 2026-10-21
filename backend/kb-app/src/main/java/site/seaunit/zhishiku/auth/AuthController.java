@@ -1,0 +1,99 @@
+package site.seaunit.zhishiku.auth;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import site.seaunit.zhishiku.owner.OwnerAccountEntity;
+import site.seaunit.zhishiku.owner.OwnerService;
+
+@RestController
+@RequestMapping("/api/v1/auth")
+public class AuthController {
+  private static final HttpSessionSecurityContextRepository CONTEXT_REPOSITORY =
+      new HttpSessionSecurityContextRepository();
+
+  private final AuthenticationManager authenticationManager;
+  private final OwnerService ownerService;
+
+  public AuthController(AuthenticationManager authenticationManager, OwnerService ownerService) {
+    this.authenticationManager = authenticationManager;
+    this.ownerService = ownerService;
+  }
+
+  @GetMapping("/csrf")
+  CsrfResponse csrf(CsrfToken token) {
+    return new CsrfResponse(token.getToken(), token.getHeaderName());
+  }
+
+  @PostMapping("/login")
+  SessionResponse login(
+      @Valid @RequestBody LoginRequest request,
+      HttpServletRequest servletRequest,
+      HttpServletResponse servletResponse,
+      CsrfToken csrfToken) {
+    Authentication authentication =
+        authenticationManager.authenticate(
+            UsernamePasswordAuthenticationToken.unauthenticated(
+                request.email().strip().toLowerCase(), request.password()));
+    persist(authentication, servletRequest, servletResponse);
+    return response(csrfToken);
+  }
+
+  @PostMapping("/setup")
+  @ResponseStatus(HttpStatus.CREATED)
+  SessionResponse setup(
+      @Valid @RequestBody SetupRequest request,
+      HttpServletRequest servletRequest,
+      HttpServletResponse servletResponse,
+      CsrfToken csrfToken) {
+    ownerService.setup(
+        request.bootstrapToken(), request.email(), request.password(), request.locale());
+    Authentication authentication =
+        authenticationManager.authenticate(
+            UsernamePasswordAuthenticationToken.unauthenticated(
+                request.email().strip().toLowerCase(), request.password()));
+    persist(authentication, servletRequest, servletResponse);
+    return response(csrfToken);
+  }
+
+  @GetMapping("/me")
+  SessionResponse me(CsrfToken csrfToken) {
+    return response(csrfToken);
+  }
+
+  @PostMapping("/logout")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  void logout(HttpServletRequest request, HttpServletResponse response) {
+    new SecurityContextLogoutHandler()
+        .logout(request, response, SecurityContextHolder.getContext().getAuthentication());
+  }
+
+  private static void persist(
+      Authentication authentication, HttpServletRequest request, HttpServletResponse response) {
+    SecurityContext context = SecurityContextHolder.createEmptyContext();
+    context.setAuthentication(authentication);
+    SecurityContextHolder.setContext(context);
+    CONTEXT_REPOSITORY.saveContext(context, request, response);
+  }
+
+  private SessionResponse response(CsrfToken token) {
+    OwnerAccountEntity owner = ownerService.requireOwner();
+    return new SessionResponse(
+        owner.getId(), owner.getEmailNormalized(), owner.getLocale(), token.getToken());
+  }
+}

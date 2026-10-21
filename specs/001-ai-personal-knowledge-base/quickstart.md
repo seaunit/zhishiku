@@ -7,7 +7,7 @@
 
 ## 前置条件
 
-- Java 21 LTS 和 Maven Wrapper。
+- Java 17 LTS 和 Maven Wrapper。
 - Vue 3 构建所需的 Node.js 20/22 LTS 和 pnpm；生产不运行 Node 前端服务器。
 - PostgreSQL 18，启用 `pg_trgm`。
 - S3 兼容对象存储，本地可使用 MinIO。
