@@ -408,6 +408,9 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   测试和 Taste 检查通过。
 - 证据：`OwnerServiceTest`、`AuthControllerRegistrationTest`、`frontend/kb-web/e2e/app.spec.ts`、
   `artifacts/001/password-minimum-eight.md`、`.taste-skill/password-minimum-eight/`。
+- 生产部署：`v0.1.17-mvp` 已部署，release 为
+  `e153900ac05f-20261021213349`；注册与登录输入框均为 8 位下限，8 位密码通过服务端
+  DTO 校验，7 位密码被拒绝，原应用和健康检查全部通过。
 - 覆盖：FR-073 及登录/注册密码校验。
 - 风险与回滚：降低下限会削弱密码强度，但用户已明确批准；已有账号和密码哈希不受影响。
   回滚需前后端和 OpenAPI 同时恢复为 12 位下限，避免契约漂移。

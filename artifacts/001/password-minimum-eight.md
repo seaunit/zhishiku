@@ -27,3 +27,16 @@
 - 登录 E2E：8 位密码可提交。
 - 注册 E2E：密码输入框下限为 8，8 位密码完成注册流程。
 - 前端 lint、typecheck、Vitest、生产构建和全量 E2E 通过。
+
+## 生产部署
+
+2026-10-22 已发布 `v0.1.17-mvp`，Git commit 为
+`e153900ac05faaabab60c3e506fc0e9e42fc490d`，运行 release 为
+`/opt/zhishiku/releases/e153900ac05f-20261021213349`。
+
+- 生产注册页：`minlength=8`、`maxlength=256`，8 位密码原生校验通过。
+- 生产登录页：`minlength=8`。
+- 8 位密码注册请求返回 `422 EMAIL_CODE_INVALID`，证明已通过请求长度校验。
+- 7 位密码注册请求返回 `422 VALIDATION_FAILED`。
+- `/`、`/app`、`/login`、`/bank/1`、`/kb/`、`/kb/register` 和健康检查均返回 HTTP 200。
+- 拾题服务、支付侧车和识海服务均保持 active。
