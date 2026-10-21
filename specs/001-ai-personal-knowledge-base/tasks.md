@@ -45,6 +45,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [x] T084 [P0] [US1] 更新项目宪法、协作约定、README 和 001/002 SDD 文档，将识海从单所有者模型改为多账号公开注册、按账号隔离知识、附件、搜索、会话、点数、订单和账本；保留 `owner_id` 兼容字段但语义为账号 ID，不扩展团队共享
 - [x] T085 [P0] [US1] 在数据库迁移、账号服务、注册 API、登录响应和前端注册页中落实多账号模型；移除实例唯一键，允许已初始化实例继续注册新邮箱，并验证两个账号之间的知识、搜索和详情访问隔离
 - [x] T086 [P0] [US1] 移除注册图形验证码和发码接口的验证码字段，只保留邮箱验证码；注册页同步删除图形验证码控件，并在服务端强制同一邮箱发码冷却不得短于 60 秒
+- [x] T087 [P0] [US1] 将注册、登录和初始化账号的密码最小长度统一为 8 位，最大长度保持 256 位，并同步前端校验、提示、OpenAPI、SDD 文档和边界测试
 - [x] T017 [P0] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/common/persistence/` 中实现 BaseEntity、UUID、时间戳和 `@Version`
 - [ ] T018 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/jobs/` 中实现 PostgreSQL 任务表、租约、指数退避和 `SKIP LOCKED`
 - [ ] T019 [P0] [P] [US1] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/storage/` 中实现 S3 暂存、内容哈希、MIME 检测、正式附件提升和对象清理
@@ -393,3 +394,20 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-068 至 FR-073；登录验证码、注册邮箱验证码、60 秒频控和邮箱唯一性。
 - 风险与回滚：回滚会重新要求注册图形验证码并使旧前端请求失败，必须前后端与契约同版本回滚；
   已签发邮箱验证码和账号数据不受影响。
+
+### 完成记录：T087
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：产品、开发、测试
+- Git commit：未提交
+- 摘要：账号密码最小长度由 12 位调整为 8 位，最大长度保持 256 位。
+- 详情：注册请求、登录请求、一次性初始化请求和账号创建服务统一使用 8 位下限；注册页与
+  登录页同步 `minlength=8`、256 位上限和中文/英文提示；OpenAPI、AGENTS 和 001 规格同步。
+- 验证：8 位账号创建与登录测试通过，7 位创建被拒绝；注册页浏览器校验下限为 8；完整前后端
+  测试和 Taste 检查通过。
+- 证据：`OwnerServiceTest`、`AuthControllerRegistrationTest`、`frontend/kb-web/e2e/app.spec.ts`、
+  `artifacts/001/password-minimum-eight.md`、`.taste-skill/password-minimum-eight/`。
+- 覆盖：FR-073 及登录/注册密码校验。
+- 风险与回滚：降低下限会削弱密码强度，但用户已明确批准；已有账号和密码哈希不受影响。
+  回滚需前后端和 OpenAPI 同时恢复为 12 位下限，避免契约漂移。

@@ -33,7 +33,7 @@ public class OwnerService implements ApplicationRunner {
         && properties.owner().email() != null
         && !properties.owner().email().isBlank()
         && properties.owner().password() != null
-        && properties.owner().password().length() >= 12
+        && properties.owner().password().length() >= 8
         && repository.count() == 0) {
       createOwner(properties.owner().email(), properties.owner().password(), "zh-CN");
     }
@@ -51,8 +51,8 @@ public class OwnerService implements ApplicationRunner {
 
   @Transactional
   public OwnerAccountEntity createOwner(String email, String password, String locale) {
-    if (password == null || password.length() < 12 || password.length() > 256) {
-      throw new IllegalArgumentException("Password must be between 12 and 256 characters.");
+    if (password == null || password.length() < 8 || password.length() > 256) {
+      throw new IllegalArgumentException("Password must be between 8 and 256 characters.");
     }
     String normalizedEmail = email.strip().toLowerCase();
     if (repository.existsByEmailNormalized(normalizedEmail)) {

@@ -111,6 +111,7 @@ test('logs in after fetching a CSRF token', async ({ page }) => {
     expect(route.request().postDataJSON()).toMatchObject({
       captchaId: 'captcha-login',
       captchaCode: 'A1B2C',
+      password: 'password',
     })
     await route.fulfill({
       status: 200,
@@ -126,7 +127,7 @@ test('logs in after fetching a CSRF token', async ({ page }) => {
 
   await page.goto('/kb/login')
   await page.getByLabel('邮箱').fill('owner@seaunit.site')
-  await page.getByLabel('密码').fill('correct-horse-battery')
+  await page.getByLabel('密码').fill('password')
   await page.getByLabel('验证码', { exact: true }).fill('A1B2C')
   await page.getByRole('button', { name: '登录' }).click()
   await expect(page).toHaveURL(/\/kb\/$/)
@@ -239,11 +240,15 @@ test('registers an account with email verification and password confirmation', a
     page.getByRole('heading', { level: 2, name: '创建我的知识库账户' }),
   ).toBeVisible()
   await expect(page.getByLabel('图形验证码', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('密码', { exact: true })).toHaveAttribute(
+    'minlength',
+    '8',
+  )
   await page.getByLabel('邮箱', { exact: true }).fill('owner@example.com')
   await page.getByRole('button', { name: '发送邮箱验证码' }).click()
   await page.getByLabel('邮箱验证码', { exact: true }).fill('123456')
-  await page.getByLabel('密码', { exact: true }).fill('correct-horse-battery')
-  await page.getByLabel('确认密码', { exact: true }).fill('correct-horse-battery')
+  await page.getByLabel('密码', { exact: true }).fill('password')
+  await page.getByLabel('确认密码', { exact: true }).fill('password')
   await page.getByRole('button', { name: '创建账户' }).click()
 
   await expect(page).toHaveURL(/\/kb\/login\?registered=1$/)
@@ -253,8 +258,8 @@ test('registers an account with email verification and password confirmation', a
   })
   expect(registrationRequest).toMatchObject({
     email: 'owner@example.com',
-    password: 'correct-horse-battery',
-    confirmPassword: 'correct-horse-battery',
+    password: 'password',
+    confirmPassword: 'password',
     emailCode: '123456',
     locale: 'zh-CN',
   })

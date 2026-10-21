@@ -52,7 +52,8 @@
             type="password"
             name="password"
             autocomplete="current-password"
-            minlength="12"
+            minlength="8"
+            maxlength="256"
             :placeholder="t('login.passwordPlaceholder')"
             required
             @input="clearError"
@@ -169,7 +170,7 @@ async function submit() {
     formError.value = t('login.required')
     return
   }
-  if (password.value.length < 12) {
+  if (password.value.length < 8) {
     formError.value = t('login.passwordLength')
     return
   }

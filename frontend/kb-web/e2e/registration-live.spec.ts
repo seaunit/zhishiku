@@ -22,10 +22,10 @@ test('registers an account through a real email verification code', async ({ pag
   const issued = (await emailCodeResponse.json()) as { debugCode: string }
 
   await page.getByLabel('邮箱验证码', { exact: true }).fill(issued.debugCode)
-  await page.getByLabel('密码', { exact: true }).fill('correct-horse-battery')
+  await page.getByLabel('密码', { exact: true }).fill('password')
   await page
     .getByLabel('确认密码', { exact: true })
-    .fill('correct-horse-battery')
+    .fill('password')
   await page.getByRole('button', { name: '创建账户' }).click()
 
   await expect(page).toHaveURL(/\/kb\/login\?registered=1$/)

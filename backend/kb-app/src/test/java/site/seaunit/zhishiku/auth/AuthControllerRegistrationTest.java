@@ -102,8 +102,8 @@ class AuthControllerRegistrationTest {
                     """
                     {
                       "email": "owner@example.com",
-                      "password": "correct-horse-battery",
-                      "confirmPassword": "different-password",
+                      "password": "password",
+                      "confirmPassword": "password9",
                       "emailCode": "123456",
                       "locale": "zh-CN"
                     }

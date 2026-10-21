@@ -73,7 +73,8 @@
             type="password"
             name="password"
             autocomplete="new-password"
-            minlength="12"
+            minlength="8"
+            maxlength="256"
             :placeholder="t('register.passwordPlaceholder')"
             required
             @input="clearError"
@@ -89,7 +90,8 @@
             type="password"
             name="confirmPassword"
             autocomplete="new-password"
-            minlength="12"
+            minlength="8"
+            maxlength="256"
             :placeholder="t('register.confirmPasswordPlaceholder')"
             required
             @input="clearError"
@@ -231,7 +233,7 @@ async function submit() {
     formError.value = t('register.required')
     return
   }
-  if (password.value.length < 12) {
+  if (password.value.length < 8) {
     formError.value = t('register.passwordLength')
     return
   }

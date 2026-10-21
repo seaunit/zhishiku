@@ -47,6 +47,18 @@ class OwnerServiceTest {
         .isInstanceOf(EmailAlreadyRegisteredException.class);
   }
 
+  @Test
+  void acceptsEightCharacterPasswordAndRejectsSevenCharacters() {
+    when(passwordEncoder.encode("password")).thenReturn("hash");
+    when(repository.save(any(OwnerAccountEntity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    assertThat(service.createOwner("eight@example.com", "password", "zh-CN").getEmailNormalized())
+        .isEqualTo("eight@example.com");
+    assertThatThrownBy(() -> service.createOwner("seven@example.com", "seven77", "zh-CN"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
   private static AppProperties properties(boolean registrationEnabled) {
     return new AppProperties(
         new AppProperties.Owner("", "", "", false),
