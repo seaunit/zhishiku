@@ -141,7 +141,7 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 
 首次执行部署脚本时会通过终端隐藏输入 DeepSeek AI、Search、Fetch API Key 和 SMTP
 密码/应用专用密钥。密钥只写入权限为 `600` 的 `/etc/zhishiku/kb.env`，不会进入 Git、
-命令行参数或部署日志。已有密钥默认保留；设置 `KB_ROTATE_SECRETS=1` 可交互轮换。
+命令行参数或部署日志。每次部署都会重新提示；直接回车保留现有值，输入新值才更新。
 
 首次部署生成的初始账号和密码保存在服务器的 `/root/zhishiku-initial-password`，权限为 `600`。
 登录成功后应立即删除该文件。详细的手工检查和回滚说明见

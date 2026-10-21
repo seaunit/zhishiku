@@ -12,7 +12,6 @@ NGINX_CONFIG="${KB_NGINX_CONFIG:-/etc/nginx/conf.d/shuati.conf}"
 NGINX_SNIPPET="/etc/nginx/snippets/zhishiku-kb.conf"
 SKIP_TESTS="${KB_SKIP_TESTS:-0}"
 PROMPT_SECRETS="${KB_PROMPT_SECRETS:-1}"
-ROTATE_SECRETS="${KB_ROTATE_SECRETS:-0}"
 PROMPT_TIMEOUT="${KB_PROMPT_TIMEOUT:-60}"
 
 read_env_value() {
@@ -44,11 +43,6 @@ prompt_secret() {
     printf '%s' "$current"
     return 0
   fi
-  if [[ -n "$current" && "$ROTATE_SECRETS" != "1" ]]; then
-    printf '%s' "$current"
-    return 0
-  fi
-
   if [[ -n "$current" ]]; then
     printf '\n[密钥] %s 已配置，当前长度 %s。\n' "$label" "${#current}" > /dev/tty
   else

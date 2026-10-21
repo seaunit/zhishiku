@@ -7,7 +7,6 @@ REF="${KB_REF:-main}"
 ENV_FILE="${KB_ENV_FILE:-/etc/zhishiku/kb.env}"
 SWAP_SIZE_MB="${KB_SWAP_SIZE_MB:-2048}"
 PROMPT_SECRETS="${KB_PROMPT_SECRETS:-1}"
-ROTATE_SECRETS="${KB_ROTATE_SECRETS:-0}"
 PROMPT_TIMEOUT="${KB_PROMPT_TIMEOUT:-60}"
 
 read_env_value() {
@@ -42,11 +41,6 @@ prompt_secret() {
     printf '%s' "$current"
     return 0
   fi
-  if [[ -n "$current" && "$ROTATE_SECRETS" != "1" ]]; then
-    printf '%s' "$current"
-    return 0
-  fi
-
   if [[ -n "$current" ]]; then
     printf '\n[密钥] %s 已配置，当前长度 %s。\n' "$label" "${#current}" > /dev/tty
   else
