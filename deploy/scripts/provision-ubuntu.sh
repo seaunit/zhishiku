@@ -274,7 +274,7 @@ echo "==> 8/8 从 GitHub 拉取 $REF 并部署"
 deploy_tmp="$(mktemp)"
 curl -fsSL "$RAW_BASE/$REF/deploy/scripts/deploy.sh" -o "$deploy_tmp"
 chmod 0700 "$deploy_tmp"
-bash "$deploy_tmp" --ref "$REF"
+KB_SECRETS_ALREADY_PROMPTED=1 bash "$deploy_tmp" --ref "$REF"
 rm -f "$deploy_tmp"
 
 printf '\n识海部署配置已完成。\n'

@@ -192,7 +192,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   数据库和受限环境文件；`deploy.sh` 从 GitHub fetch 指定分支、tag 或 commit，执行测试与构建，
   生成不可变 release，切换 `current`，安装 systemd 和 Nginx 片段，执行本地健康检查；
   健康或 Nginx 校验失败时回滚上一 release 和配置备份。每次部署都通过 `/dev/tty`
-  隐藏提示 AI API Key 和 SMTP 密码；直接回车保留已有值，输入新值才更新。
+  隐藏提示 AI API Key 和 SMTP 密码；直接回车保留已有值，输入新值才更新。首次安装和
+  其内部部署共享同一次提示状态，不会重复询问两轮。
 - 验证：`bash -n`、脚本帮助入口、后端 6 项测试、Spotless、前端 lint/typecheck、9 项 Vitest、
   Vite 生产构建和真实全栈 Playwright 通过。
 - 证据：`deploy/scripts/provision-ubuntu.sh`、`deploy/scripts/deploy.sh`、

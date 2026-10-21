@@ -32,12 +32,13 @@ Vite 构建期间触发 OOM；可通过 `KB_SWAP_SIZE_MB=0` 禁用。
 `/etc/zhishiku/kb.env`，权限为 `600`。每次部署都会重新提示；直接回车保留现有值，
 输入新值才更新。
 每项输入默认等待 60 秒，超时按回车处理；可通过 `KB_PROMPT_TIMEOUT=<秒数>` 调整。
+首次安装和其内部的部署步骤共享一次提示结果，因此同一轮部署只会输入一次。
 
 常规更新部署：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/deploy.sh \
-  | sudo bash -s -- --ref v0.1.4-mvp
+  | sudo bash -s -- --ref v0.1.5-mvp
 ```
 
 在完全非交互的 CI 中，可先由受管密钥系统写入环境文件，再设置

@@ -13,6 +13,7 @@ NGINX_SNIPPET="/etc/nginx/snippets/zhishiku-kb.conf"
 SKIP_TESTS="${KB_SKIP_TESTS:-0}"
 PROMPT_SECRETS="${KB_PROMPT_SECRETS:-1}"
 PROMPT_TIMEOUT="${KB_PROMPT_TIMEOUT:-60}"
+SECRETS_ALREADY_PROMPTED="${KB_SECRETS_ALREADY_PROMPTED:-0}"
 
 read_env_value() {
   local key="$1"
@@ -85,10 +86,12 @@ ensure_secrets() {
   fetch_key="${DEEPSEEK_FETCH_API_KEY:-$(read_env_value DEEPSEEK_FETCH_API_KEY)}"
   smtp_password="${SMTP_PASSWORD:-$(read_env_value SMTP_PASSWORD)}"
 
-  ai_key="$(prompt_secret "DeepSeek AI API Key" "$ai_key")"
-  search_key="$(prompt_secret "DeepSeek Search API Key（留空复用主 AI Key）" "$search_key")"
-  fetch_key="$(prompt_secret "DeepSeek Fetch API Key（留空复用主 AI Key）" "$fetch_key")"
-  smtp_password="$(prompt_secret "SMTP 密码/应用专用密钥" "$smtp_password")"
+  if [[ "$SECRETS_ALREADY_PROMPTED" != "1" ]]; then
+    ai_key="$(prompt_secret "DeepSeek AI API Key" "$ai_key")"
+    search_key="$(prompt_secret "DeepSeek Search API Key（留空复用主 AI Key）" "$search_key")"
+    fetch_key="$(prompt_secret "DeepSeek Fetch API Key（留空复用主 AI Key）" "$fetch_key")"
+    smtp_password="$(prompt_secret "SMTP 密码/应用专用密钥" "$smtp_password")"
+  fi
 
   ai_key="$(printf '%s' "$ai_key" | tr -d '[:space:]')"
   search_key="$(printf '%s' "$search_key" | tr -d '[:space:]')"
