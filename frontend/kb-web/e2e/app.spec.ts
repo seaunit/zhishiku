@@ -87,6 +87,164 @@ test('opens every prototype navigation destination', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: '设置' })).toBeVisible()
 })
 
+test('offers all four prototype capture modes', async ({ page }) => {
+  await page.goto('/kb/capture')
+
+  const tabs = page.getByRole('tab')
+  await expect(tabs).toHaveCount(4)
+  await expect(page.getByRole('tab', { name: '手动录入' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+
+  await page.getByRole('tab', { name: '网页链接' }).click()
+  await expect(page.getByLabel('网页链接', { exact: true })).toBeVisible()
+
+  await page.getByRole('tab', { name: '文档', exact: true }).click()
+  await expect(page.getByLabel('选择文档或图片')).toHaveAttribute(
+    'accept',
+    /\.pdf/,
+  )
+
+  await page.getByRole('tab', { name: '截图', exact: true }).click()
+  await expect(page.getByTestId('screenshot-paste-zone')).toBeVisible()
+  await expect(page.getByTestId('screenshot-paste-zone').locator('input[type=file]')).toHaveCount(0)
+})
+
+test('saves webpage and text document capture sources', async ({ page }) => {
+  const payloads: Array<Record<string, unknown>> = []
+  let nextId = 0
+  await page.route('**/kb/api/v1/auth/csrf', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token: 'csrf-capture', headerName: 'X-XSRF-TOKEN' }),
+    })
+  })
+  await page.route('**/kb/api/v1/knowledge-items', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback()
+      return
+    }
+    payloads.push(route.request().postDataJSON() as Record<string, unknown>)
+    nextId += 1
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...summary,
+        id: `123e4567-e89b-42d3-a456-42661417410${nextId}`,
+        body: '',
+        bodyDocument: (payloads.at(-1)?.bodyDocument as object) || null,
+        bodySchemaVersion: 1,
+        bodyMigrationState: 'completed',
+        note: '',
+        redactionApplied: false,
+      }),
+    })
+  })
+
+  await page.goto('/kb/capture')
+  await page.getByRole('tab', { name: '网页链接' }).click()
+  await page.getByLabel('网页链接', { exact: true }).fill('https://example.com/article')
+  await page.getByRole('button', { name: '保存链接' }).click()
+  await expect(page).toHaveURL(/\/kb\/library\/123e4567-e89b-42d3-a456-426614174101$/)
+  expect(payloads[0]?.bodySource).toMatchObject({
+    kind: 'webpage',
+    sourceUrl: 'https://example.com/article',
+  })
+
+  await page.goto('/kb/capture')
+  await page.getByRole('tab', { name: '文档', exact: true }).click()
+  await page.getByLabel('选择文档或图片').setInputFiles({
+    name: 'notes.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from('# Heading\n\nDocument body'),
+  })
+  await page.getByRole('button', { name: '保存文档' }).click()
+  await expect(page).toHaveURL(/\/kb\/library\/123e4567-e89b-42d3-a456-426614174102$/)
+  expect(payloads[1]?.bodySource).toMatchObject({ kind: 'document' })
+  expect(JSON.stringify(payloads[1]?.bodyDocument)).toContain('Document body')
+})
+
+test('saves a clipboard screenshot through the dedicated capture mode', async ({ page }) => {
+  const uploadId = '123e4567-e89b-42d3-a456-426614174099'
+  let capturedPayload: Record<string, unknown> | undefined
+  await page.route('**/kb/api/v1/auth/csrf', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token: 'csrf-screenshot', headerName: 'X-XSRF-TOKEN' }),
+    })
+  })
+  await page.route('**/kb/api/v1/rich-text/image-uploads', async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        uploadId,
+        status: 'ready',
+        scanState: 'clean',
+        redactionState: 'none',
+        mediaType: 'image/png',
+        sourceSizeBytes: 12,
+        sizeBytes: 12,
+        normalizedWidth: 1,
+        normalizedHeight: 1,
+        aspectRatio: 1,
+        expiresAt: '2026-10-23T00:00:00Z',
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/knowledge-items', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback()
+      return
+    }
+    capturedPayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ...summary,
+        id: '123e4567-e89b-42d3-a456-426614174103',
+        body: '',
+        bodyDocument: capturedPayload.bodyDocument,
+        bodySchemaVersion: 1,
+        bodyMigrationState: 'completed',
+        note: '',
+        redactionApplied: false,
+      }),
+    })
+  })
+
+  await page.goto('/kb/capture')
+  await page.getByRole('tab', { name: '截图', exact: true }).click()
+  await page.evaluate(() => {
+    const bytes = Uint8Array.from(
+      atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII='),
+      (char) => char.charCodeAt(0),
+    )
+    const file = new File([bytes], 'clipboard.png', { type: 'image/png' })
+    const transfer = new DataTransfer()
+    transfer.items.add(file)
+    document
+      .querySelector('[data-testid="screenshot-paste-zone"] textarea')
+      ?.dispatchEvent(
+        new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: transfer,
+        }),
+      )
+  })
+  await expect(page.getByText('剪贴板截图已就绪')).toBeVisible()
+  await page.getByRole('button', { name: '保存截图' }).click()
+  await expect(page).toHaveURL(/\/kb\/library\/123e4567-e89b-42d3-a456-426614174103$/)
+  expect(capturedPayload?.bodySource).toMatchObject({ kind: 'screenshot' })
+  expect(JSON.stringify(capturedPayload?.bodyDocument)).toContain(uploadId)
+})
+
 test('logs in after fetching a CSRF token', async ({ page }) => {
   await page.route('**/kb/api/v1/auth/captcha', async (route) => {
     await route.fulfill({

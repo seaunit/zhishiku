@@ -99,6 +99,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T050 [P1] [US3] 在 `frontend/kb-web/src/features/capture/` 中实现文档/图片入口、仅剪贴板截图入口、状态和回退
 - [ ] T051 [P1] [US3] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/contract/imports/` 中使用 RestAssured/OpenAPI Validator 验证上传组合、CSRF、415、413、422 和任务契约
 - [ ] T052 [P1] [US3] 在 `tests/e2e/us3-imports.spec.ts` 中验证文档、JPG/PNG/WebP/HEIC、剪贴板截图、拒绝和重试
+- [x] T088 [P1] [US3] 在采集页恢复手动录入、网页链接、文档和截图四个入口；实现单页 URL 收藏、TXT/Markdown 与图片文件入库、仅剪贴板截图上传，并对未接入的 PDF/Word 解析明确拒绝
 
 ## 阶段 6：用户故事 4 — 互联网搜索与候选保存
 
@@ -414,3 +415,22 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-073 及登录/注册密码校验。
 - 风险与回滚：降低下限会削弱密码强度，但用户已明确批准；已有账号和密码哈希不受影响。
   回滚需前后端和 OpenAPI 同时恢复为 12 位下限，避免契约漂移。
+
+### 完成记录：T088
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：产品、开发、测试
+- Git commit：未提交
+- 摘要：恢复原型中的四种采集方式，并接通现有安全能力支持的真实保存路径。
+- 详情：采集页新增手动录入、网页链接、文档和截图标签；网页入口只保存用户提交的单个公开
+  URL 及其来源时间，不使用爬虫；文档入口支持 JPG、PNG、WebP、HEIC、TXT 和 Markdown，
+  PDF/Word 明确提示解析服务未接入且不创建空条目；截图入口只接受剪贴板图片并复用安全图片
+  暂存、扫描和正文图片事务。
+- 验证：四个入口切换、网页链接保存、Markdown 文档保存和剪贴板截图保存 E2E 通过；桌面与
+  390px 四个入口截图已人工复核；Taste 采集页检查为 `0 FAIL`。
+- 证据：`frontend/kb-web/src/views/CaptureView.vue`、`frontend/kb-web/e2e/app.spec.ts`、
+  `artifacts/001/capture-modes.md`、`.taste-skill/capture-modes/`。
+- 覆盖：FR-017 至 FR-022、FR-031、FR-066、FR-067。
+- 风险与回滚：PDF/Word 内容解析、网页 AI 截图分析和 OCR 仍未接入，分别继续由 T048、
+  T049、T051-T052 承载。回滚前端可恢复单入口采集，不影响已保存知识、上传或来源记录。
