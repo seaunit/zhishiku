@@ -119,7 +119,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T066 [P0] 在 `artifacts/001/search-benchmark.md` 中记录 PostgreSQL 搜索结果并决定是否需要 Meilisearch
 - [x] T067 [P1] [P] 在 `deploy/scripts/preflight-existing-app.sh` 中检查端口、内存、磁盘、数据库、Nginx 和现有应用基线
 - [ ] T068 [P1] [P] 在 `deploy/systemd/zhishiku-api.service`、`worker` 和 `browser-worker` 中创建独立 unit
-- [ ] T069 [P1] [P] 在 `deploy/nginx/kb.conf` 和 `backend/kb-app/src/test/java/site/seaunit/zhishiku/deployment/nginx/` 中实现 Vue 构建产物、SPA fallback、`/kb/api`、Cookie 路径、CSRF 和增量 `/` 门户的 staging 冒烟
+- [x] T069 [P1] [P] 在 `deploy/nginx/kb.conf` 和 `backend/kb-app/src/test/java/site/seaunit/zhishiku/deployment/nginx/` 中实现 Vue 构建产物、SPA fallback、`/kb/api`、Cookie 路径、CSRF 和增量 `/` 门户的 staging 冒烟
 - [x] T070 [P1] 在 `deploy/scripts/provision-ubuntu.sh` 和 `deploy/scripts/deploy.sh` 中实现固定 ref 拉取、构建、Flyway、健康检查、备份和回滚
 - [ ] T071 [P1] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/deployment/` 中验证迁移失败回滚、配置缺失和健康失败关闭
 - [ ] T072 [P1] 在 `tests/e2e/zero-impact.spec.ts` 中验证 `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`、证书、Cookie 和支付 sidecar 零回归
@@ -224,6 +224,27 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：T075；命令、端口、环境变量和能力边界。
 - 风险与回滚：文档同步不改变运行行为；如实现范围变化，必须同时更新 README、AGENTS、
   quickstart 和任务完成记录。
+
+### 完成记录：T069
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：开发、测试
+- Git tag：`v0.1.11-mvp`
+- 部署提交：`8ba235907f7382a3b286cf34b1dd8a61fd3d5694`
+- 摘要：根路径改为 SEAUNIT 双应用门户，拾题与识海共用同一域名并提供独立入口。
+- 详情：门户安装到 `/opt/seaunit-portal/releases/`，`current` 指向当前 release；Nginx 只替换
+  精确的 `location = /`，新增独立的 `/seaunit-portal/` 样式、脚本和字体路径，再保留现有
+  `/kb` include。拾题的 `/app`、`/login`、`/bank/1`、`/api`、`/pay`、`/apk` 和支付侧车
+  未改动。
+- 验证：Taste lint 为 0 FAIL；生产 `https://seaunit.site/` 在 1440、768、390 像素真实浏览器
+  检查为 0 FAIL；`/`、`/app`、`/login`、`/bank/1`、`/kb/`、`/terms`、`/privacy` 和
+  `/kb/api/actuator/health` 均返回 HTTP 200；Nginx、`zhishiku-api`、`shuati` 和
+  `shuati-payments` 均为 active。
+- 证据：`deploy/portal/`、`deploy/scripts/deploy.sh`、`deploy/README.md`、
+  `artifacts/001/deployment-verification.md`。
+- 风险与回滚：门户资源与拾题资源使用不同 URL 前缀；Nginx 校验失败时脚本恢复配置与上一
+  release。门户是静态文件，不接触拾题数据库、Cookie 或支付数据。
 
 ### 完成记录：T081
 

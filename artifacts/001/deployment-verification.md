@@ -1,16 +1,19 @@
 # 生产部署验收记录
 
-**日期**：2026-10-21
+**日期**：2026-10-22
 
-**部署提交**：`3bda0d82a47d507a821d51e649a9e047ad7c1252`
+**部署提交**：`8ba235907f7382a3b286cf34b1dd8a61fd3d5694`
 
-**运行 release**：`/opt/zhishiku/releases/3bda0d82a47d-20261021012804`
+**运行 release**：`/opt/zhishiku/releases/8ba235907f73-20261021161329`
+
+**门户 release**：`/opt/seaunit-portal/releases/8ba235907f73-20261021161329`
 
 ## 部署结果
 
 - 仓库：`https://github.com/seaunit/zhishiku`，公开可见。
 - 首次部署入口：GitHub Raw 上的 `deploy/scripts/provision-ubuntu.sh`。
 - 应用入口：`https://seaunit.site/kb/`。
+- 双应用门户：`https://seaunit.site/`，提供拾题和识海入口。
 - API 前缀：`https://seaunit.site/kb/api/`。
 - 健康端点：`https://seaunit.site/kb/api/actuator/health`。
 - 数据库：独立 PostgreSQL 18.6 数据库 `zhishiku`。
@@ -25,7 +28,14 @@
 | `https://seaunit.site/kb/login` | HTTP 200 |
 | `https://seaunit.site/kb/api/actuator/health` | HTTP 200，`status=UP` |
 | `https://seaunit.site/app` | HTTP 200 |
-| `https://seaunit.site/` | HTTP 200 |
+| `https://seaunit.site/` | HTTP 200，显示“拾题与识海”和两个应用入口 |
+| `https://seaunit.site/login` | HTTP 200 |
+| `https://seaunit.site/bank/1` | HTTP 200 |
+| `https://seaunit.site/terms` | HTTP 200 |
+| `https://seaunit.site/privacy` | HTTP 200 |
+| `/seaunit-portal/styles.css` | HTTP 200，`text/css` |
+| `/seaunit-portal/app.js` | HTTP 200，`application/javascript` |
+| `/seaunit-portal/fonts/libre-franklin.woff2` | HTTP 200，`font/woff2` |
 | 登录接口 | HTTP 200，返回中文语言、CSRF 和当前所有者 |
 | `zhishiku-api.service` | active |
 | Nginx | active，`nginx -t` 通过 |
@@ -40,6 +50,8 @@
 - Vue 构建产物由 Nginx 提供，不运行生产 Node Web 服务器。
 - 现有拾题应用保持 `8080`、MySQL、Redis、`/app`、`/api`、`/bank`、`/pay` 和 `/apk`
   路由不变。
+- 门户只接管精确的 `/` 和独立的 `/seaunit-portal/` 静态资源前缀；`/app`、`/login`、
+  `/bank`、`/api`、`/pay` 和 `/apk` 继续由拾题处理。
 - 识海使用独立 cookie、数据库、系统用户、环境文件、release、日志标识和上传目录。
 - Waffo 支付、AI 分类、网页截图、OCR、外部搜索和完整生命周期尚未部署，当前入口不应
   对外宣称这些能力已经可用。
