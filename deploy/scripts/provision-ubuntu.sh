@@ -8,16 +8,21 @@ ENV_FILE="${KB_ENV_FILE:-/etc/zhishiku/kb.env}"
 SWAP_SIZE_MB="${KB_SWAP_SIZE_MB:-2048}"
 PROMPT_SECRETS="${KB_PROMPT_SECRETS:-1}"
 ROTATE_SECRETS="${KB_ROTATE_SECRETS:-0}"
+PROMPT_TIMEOUT="${KB_PROMPT_TIMEOUT:-60}"
 
 read_env_value() {
   local key="$1"
   if [[ ! -f "$ENV_FILE" ]]; then
     return 0
   fi
-  awk -v key="$key" '
+  awk -v key="$key" -v sq="'" '
     index($0, key "=") == 1 {
-      sub(/^[^=]*=/, "")
-      print
+      value = substr($0, length(key) + 2)
+      if ((substr(value, 1, 1) == sq && substr(value, length(value), 1) == sq) ||
+          (substr(value, 1, 1) == "\"" && substr(value, length(value), 1) == "\"")) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      print value
       exit
     }
   ' "$ENV_FILE"
@@ -28,7 +33,12 @@ prompt_secret() {
   local current="$2"
   local value=""
 
-  if [[ "$PROMPT_SECRETS" != "1" || ! -r /dev/tty ]]; then
+  if ! { : > /dev/tty; } 2>/dev/null; then
+    printf '[secrets] No interactive terminal; keeping %s unset/unchanged.\n' "$label" >&2
+    printf '%s' "$current"
+    return 0
+  fi
+  if [[ "$PROMPT_SECRETS" != "1" ]]; then
     printf '%s' "$current"
     return 0
   fi
@@ -38,13 +48,22 @@ prompt_secret() {
   fi
 
   if [[ -n "$current" ]]; then
-    printf '%s [configured, blank keeps current]: ' "$label" > /dev/tty
+    printf '\n[secrets] %s is configured (length %s).\n' "$label" "${#current}" > /dev/tty
   else
-    printf '%s [input hidden, blank leaves unset]: ' "$label" > /dev/tty
+    printf '\n[secrets] %s is not configured.\n' "$label" > /dev/tty
   fi
-  IFS= read -r -s value < /dev/tty || value=""
-  printf '\n' > /dev/tty
+  printf '[secrets] Input is hidden; blank keeps the current value or leaves it unset.\n' > /dev/tty
+  printf '[secrets] Waiting up to %s seconds: ' "$PROMPT_TIMEOUT" > /dev/tty
+  local rc=0
+  IFS= read -r -s -t "$PROMPT_TIMEOUT" value < /dev/tty || rc=$?
+  if ((rc > 128)); then
+    value=""
+    printf '\n[secrets] Timed out; treating as blank.\n' > /dev/tty
+  else
+    printf '\n' > /dev/tty
+  fi
   value="$(printf '%s' "$value" | tr -d '[:space:]')"
+  value="${value//\'/}"
   if [[ -z "$value" && -n "$current" ]]; then
     value="$current"
   fi
@@ -96,6 +115,7 @@ if [[ "${ID:-}" != "ubuntu" ]]; then
 fi
 
 export DEBIAN_FRONTEND=noninteractive
+echo "==> 1/8 安装系统依赖"
 apt-get update
 apt-get install -y \
   ca-certificates \
@@ -108,6 +128,7 @@ apt-get install -y \
   python3 \
   tar
 
+echo "==> 2/8 检查 Java 17、Node.js 20+ 和 pnpm"
 if ! command -v java >/dev/null 2>&1 || ! java -version 2>&1 | grep -q 'version "17\.'; then
   apt-get install -y openjdk-17-jdk-headless
   update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java
@@ -126,6 +147,7 @@ if ! command -v pnpm >/dev/null 2>&1; then
   npm install --global pnpm@10.33.0
 fi
 
+echo "==> 3/8 安装 PostgreSQL 18 并配置 swap"
 if ! dpkg -s postgresql-18 >/dev/null 2>&1; then
   apt-get install -y postgresql-common
   install -d -m 0755 /usr/share/postgresql-common/pgdg
@@ -156,6 +178,7 @@ if ! swapon --show=NAME --noheadings | grep -q . && ((SWAP_SIZE_MB > 0)); then
   fi
 fi
 
+echo "==> 4/8 创建运行用户和持久目录"
 if ! id zhishiku >/dev/null 2>&1; then
   useradd --system --home /opt/zhishiku --shell /usr/sbin/nologin zhishiku
 fi
@@ -167,6 +190,7 @@ install -d -m 0750 /etc/zhishiku
 DB_PORT="$(pg_lsclusters --no-header | awk '$1 == "18" && $4 == "online" {print $3; exit}')"
 DB_PORT="${DB_PORT:-5432}"
 
+echo "==> 5/8 初始化独立 PostgreSQL 数据库"
 DB_PASSWORD=""
 OWNER_PASSWORD=""
 if [[ -f "$ENV_FILE" ]]; then
@@ -209,6 +233,7 @@ DEEPSEEK_SEARCH_API_KEY="${DEEPSEEK_SEARCH_API_KEY:-$(read_env_value DEEPSEEK_SE
 DEEPSEEK_FETCH_API_KEY="${DEEPSEEK_FETCH_API_KEY:-$(read_env_value DEEPSEEK_FETCH_API_KEY)}"
 SMTP_PASSWORD="${SMTP_PASSWORD:-$(read_env_value SMTP_PASSWORD)}"
 
+echo "==> 6/8 交互配置 AI/SMTP 密钥并写入受限环境文件"
 DEEPSEEK_API_KEY="$(prompt_secret "DeepSeek AI API key" "$DEEPSEEK_API_KEY")"
 DEEPSEEK_SEARCH_API_KEY="$(prompt_secret "DeepSeek Search API key (blank reuses AI key)" "$DEEPSEEK_SEARCH_API_KEY")"
 DEEPSEEK_FETCH_API_KEY="$(prompt_secret "DeepSeek Fetch API key (blank reuses AI key)" "$DEEPSEEK_FETCH_API_KEY")"
@@ -225,31 +250,33 @@ env_tmp="$(mktemp)"
 cat > "$env_tmp" <<EOF
 APP_ENV=production
 SERVER_PORT=8082
-DATABASE_URL=jdbc:postgresql://127.0.0.1:${DB_PORT}/zhishiku
-DATABASE_USERNAME=zhishiku
-DATABASE_PASSWORD=${DB_PASSWORD}
+DATABASE_URL='jdbc:postgresql://127.0.0.1:${DB_PORT}/zhishiku'
+DATABASE_USERNAME='zhishiku'
+DATABASE_PASSWORD='${DB_PASSWORD}'
 SESSION_COOKIE_SECURE=true
-KB_STORAGE_ROOT=/var/lib/zhishiku/uploads
+KB_STORAGE_ROOT='/var/lib/zhishiku/uploads'
 KB_AUTO_BOOTSTRAP=${auto_bootstrap}
-KB_OWNER_EMAIL=${OWNER_EMAIL}
-KB_BOOTSTRAP_TOKEN=${BOOTSTRAP_TOKEN}
-DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-DEEPSEEK_SEARCH_API_KEY=${DEEPSEEK_SEARCH_API_KEY}
-DEEPSEEK_FETCH_API_KEY=${DEEPSEEK_FETCH_API_KEY}
-SMTP_PASSWORD=${SMTP_PASSWORD}
+KB_OWNER_EMAIL='${OWNER_EMAIL}'
+KB_BOOTSTRAP_TOKEN='${BOOTSTRAP_TOKEN}'
+DEEPSEEK_API_KEY='${DEEPSEEK_API_KEY}'
+DEEPSEEK_SEARCH_API_KEY='${DEEPSEEK_SEARCH_API_KEY}'
+DEEPSEEK_FETCH_API_KEY='${DEEPSEEK_FETCH_API_KEY}'
+SMTP_PASSWORD='${SMTP_PASSWORD}'
 EOF
 if [[ "$auto_bootstrap" == "true" ]]; then
-  printf 'KB_OWNER_PASSWORD=%s\n' "$OWNER_PASSWORD" >> "$env_tmp"
+  printf "KB_OWNER_PASSWORD='%s'\n" "$OWNER_PASSWORD" >> "$env_tmp"
 fi
 chmod 0600 "$env_tmp"
 chown root:root "$env_tmp"
 mv "$env_tmp" "$ENV_FILE"
 
+echo "==> 7/8 执行现有应用和 Nginx 预检"
 preflight_tmp="$(mktemp)"
 curl -fsSL "$RAW_BASE/$REF/deploy/scripts/preflight-existing-app.sh" -o "$preflight_tmp"
 bash "$preflight_tmp"
 rm -f "$preflight_tmp"
 
+echo "==> 8/8 从 GitHub 拉取 $REF 并部署"
 deploy_tmp="$(mktemp)"
 curl -fsSL "$RAW_BASE/$REF/deploy/scripts/deploy.sh" -o "$deploy_tmp"
 chmod 0700 "$deploy_tmp"

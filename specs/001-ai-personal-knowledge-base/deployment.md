@@ -177,6 +177,7 @@ Waffo 私钥只进入 `/etc/zhishiku/waffo.env`。日志不得输出变量值、
 首次执行部署脚本时，AI API Key 和 SMTP 密码必须通过 `/dev/tty` 隐藏交互输入；已有密钥
 默认保留，只有显式设置 `KB_ROTATE_SECRETS=1` 才进入轮换输入。密钥只写入权限为 `600`
 的 `/etc/zhishiku/kb.env`，不得放入命令行参数、Git、部署日志或文档示例。
+单次输入默认等待 60 秒，超时按回车处理；可用 `KB_PROMPT_TIMEOUT` 调整等待秒数。
 
 ## 一键部署
 

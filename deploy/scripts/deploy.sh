@@ -13,13 +13,18 @@ NGINX_SNIPPET="/etc/nginx/snippets/zhishiku-kb.conf"
 SKIP_TESTS="${KB_SKIP_TESTS:-0}"
 PROMPT_SECRETS="${KB_PROMPT_SECRETS:-1}"
 ROTATE_SECRETS="${KB_ROTATE_SECRETS:-0}"
+PROMPT_TIMEOUT="${KB_PROMPT_TIMEOUT:-60}"
 
 read_env_value() {
   local key="$1"
-  awk -v key="$key" '
+  awk -v key="$key" -v sq="'" '
     index($0, key "=") == 1 {
-      sub(/^[^=]*=/, "")
-      print
+      value = substr($0, length(key) + 2)
+      if ((substr(value, 1, 1) == sq && substr(value, length(value), 1) == sq) ||
+          (substr(value, 1, 1) == "\"" && substr(value, length(value), 1) == "\"")) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      print value
       exit
     }
   ' "$ENV_FILE"
@@ -30,7 +35,12 @@ prompt_secret() {
   local current="$2"
   local value=""
 
-  if [[ "$PROMPT_SECRETS" != "1" || ! -r /dev/tty ]]; then
+  if ! { : > /dev/tty; } 2>/dev/null; then
+    printf '[secrets] No interactive terminal; keeping %s unset/unchanged.\n' "$label" >&2
+    printf '%s' "$current"
+    return 0
+  fi
+  if [[ "$PROMPT_SECRETS" != "1" ]]; then
     printf '%s' "$current"
     return 0
   fi
@@ -40,13 +50,22 @@ prompt_secret() {
   fi
 
   if [[ -n "$current" ]]; then
-    printf '%s [configured, blank keeps current]: ' "$label" > /dev/tty
+    printf '\n[secrets] %s is configured (length %s).\n' "$label" "${#current}" > /dev/tty
   else
-    printf '%s [input hidden, blank leaves unset]: ' "$label" > /dev/tty
+    printf '\n[secrets] %s is not configured.\n' "$label" > /dev/tty
   fi
-  IFS= read -r -s value < /dev/tty || value=""
-  printf '\n' > /dev/tty
+  printf '[secrets] Input is hidden; blank keeps the current value or leaves it unset.\n' > /dev/tty
+  printf '[secrets] Waiting up to %s seconds: ' "$PROMPT_TIMEOUT" > /dev/tty
+  local rc=0
+  IFS= read -r -s -t "$PROMPT_TIMEOUT" value < /dev/tty || rc=$?
+  if ((rc > 128)); then
+    value=""
+    printf '\n[secrets] Timed out; treating as blank.\n' > /dev/tty
+  else
+    printf '\n' > /dev/tty
+  fi
   value="$(printf '%s' "$value" | tr -d '[:space:]')"
+  value="${value//\'/}"
   if [[ -z "$value" && -n "$current" ]]; then
     value="$current"
   fi
@@ -59,7 +78,7 @@ set_env_value() {
   local env_tmp
   env_tmp="$(mktemp "${ENV_FILE}.XXXXXX")"
   awk -v key="$key" 'index($0, key "=") != 1' "$ENV_FILE" > "$env_tmp"
-  printf '%s=%s\n' "$key" "$value" >> "$env_tmp"
+  printf "%s='%s'\n" "$key" "$value" >> "$env_tmp"
   chmod 0600 "$env_tmp"
   chown root:root "$env_tmp"
   mv "$env_tmp" "$ENV_FILE"
@@ -76,6 +95,15 @@ ensure_secrets() {
   search_key="$(prompt_secret "DeepSeek Search API key (blank reuses AI key)" "$search_key")"
   fetch_key="$(prompt_secret "DeepSeek Fetch API key (blank reuses AI key)" "$fetch_key")"
   smtp_password="$(prompt_secret "SMTP password/app key" "$smtp_password")"
+
+  ai_key="$(printf '%s' "$ai_key" | tr -d '[:space:]')"
+  search_key="$(printf '%s' "$search_key" | tr -d '[:space:]')"
+  fetch_key="$(printf '%s' "$fetch_key" | tr -d '[:space:]')"
+  smtp_password="$(printf '%s' "$smtp_password" | tr -d '[:space:]')"
+  ai_key="${ai_key//\'/}"
+  search_key="${search_key//\'/}"
+  fetch_key="${fetch_key//\'/}"
+  smtp_password="${smtp_password//\'/}"
 
   if [[ -z "$search_key" ]]; then
     search_key="$ai_key"

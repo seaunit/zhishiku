@@ -30,12 +30,13 @@ Vite 构建期间触发 OOM；可通过 `KB_SWAP_SIZE_MB=0` 禁用。
 
 输入内容不会回显，也不会写入 Git、命令行参数或部署日志。值保存在
 `/etc/zhishiku/kb.env`，权限为 `600`。已有值默认保留。
+每项输入默认等待 60 秒，超时按回车处理；可通过 `KB_PROMPT_TIMEOUT=<秒数>` 调整。
 
 需要轮换时执行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/deploy.sh \
-  | sudo env KB_ROTATE_SECRETS=1 bash -s -- --ref v0.1.1-mvp
+  | sudo env KB_ROTATE_SECRETS=1 bash -s -- --ref v0.1.2-mvp
 ```
 
 在完全非交互的 CI 中，可先由受管密钥系统写入环境文件，再设置
