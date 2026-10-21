@@ -1,0 +1,278 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000001",
+        "nodeId": "image-1",
+        "alt": "image 1",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000002",
+        "nodeId": "image-2",
+        "alt": "image 2",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000003",
+        "nodeId": "image-3",
+        "alt": "image 3",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000004",
+        "nodeId": "image-4",
+        "alt": "image 4",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000005",
+        "nodeId": "image-5",
+        "alt": "image 5",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000006",
+        "nodeId": "image-6",
+        "alt": "image 6",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000007",
+        "nodeId": "image-7",
+        "alt": "image 7",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000008",
+        "nodeId": "image-8",
+        "alt": "image 8",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000009",
+        "nodeId": "image-9",
+        "alt": "image 9",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000010",
+        "nodeId": "image-10",
+        "alt": "image 10",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000011",
+        "nodeId": "image-11",
+        "alt": "image 11",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000012",
+        "nodeId": "image-12",
+        "alt": "image 12",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000013",
+        "nodeId": "image-13",
+        "alt": "image 13",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000014",
+        "nodeId": "image-14",
+        "alt": "image 14",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000015",
+        "nodeId": "image-15",
+        "alt": "image 15",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000016",
+        "nodeId": "image-16",
+        "alt": "image 16",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000017",
+        "nodeId": "image-17",
+        "alt": "image 17",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000018",
+        "nodeId": "image-18",
+        "alt": "image 18",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000019",
+        "nodeId": "image-19",
+        "alt": "image 19",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000020",
+        "nodeId": "image-20",
+        "alt": "image 20",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-000000000021",
+        "nodeId": "image-21",
+        "alt": "image 21",
+        "caption": "",
+        "displayWidthPx": 720,
+        "aspectRatio": 1.5,
+        "alignment": "center",
+        "decorative": false
+      }
+    }
+  ]
+}

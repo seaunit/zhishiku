@@ -1,0 +1,18 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "123e4567-e89b-42d3-a456-426614174001",
+        "nodeId": "node-valid-image",
+        "alt": "一张已扫描的安全测试图",
+        "caption": "图片说明会进入可访问文本和纯文本投影",
+        "displayWidthPx": 640,
+        "aspectRatio": 1,
+        "alignment": "center",
+        "decorative": false
+      }
+    }
+  ]
+}

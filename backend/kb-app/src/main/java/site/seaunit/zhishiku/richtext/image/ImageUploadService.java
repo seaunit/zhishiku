@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -18,20 +19,24 @@ import site.seaunit.zhishiku.storage.ObjectStorage;
 
 @Service
 public class ImageUploadService {
-  private static final long MAX_SOURCE_BYTES = 25L * 1024 * 1024;
-
   private final CurrentOwnerService currentOwnerService;
+  private final RichTextItemAccess itemAccess;
   private final ImageInspector inspector;
+  private final ImageNormalizer normalizer;
   private final ObjectStorage storage;
   private final RichImageUploadRepository uploads;
 
   public ImageUploadService(
       CurrentOwnerService currentOwnerService,
+      RichTextItemAccess itemAccess,
       ImageInspector inspector,
+      ImageNormalizer normalizer,
       ObjectStorage storage,
       RichImageUploadRepository uploads) {
     this.currentOwnerService = currentOwnerService;
+    this.itemAccess = itemAccess;
     this.inspector = inspector;
+    this.normalizer = normalizer;
     this.storage = storage;
     this.uploads = uploads;
   }
@@ -43,33 +48,68 @@ public class ImageUploadService {
     if (file == null || file.isEmpty()) {
       throw new IllegalArgumentException("An image file is required.");
     }
-    if (file.getSize() > MAX_SOURCE_BYTES) {
+    if (file.getSize() > ImageInspector.MAX_SOURCE_BYTES) {
       throw new ImageInspectionException("UPLOAD_TOO_LARGE", "Image exceeds 25 MiB.");
     }
+    itemAccess.requireWritableItem(itemId, owner.getId());
+    final byte[] sourceBytes;
     try {
-      byte[] bytes = file.getBytes();
-      ImageInspection inspection = inspector.inspect(bytes);
-      String hash = sha256(bytes);
-      UUID uploadId = UUID.randomUUID();
-      String storageKey =
-          "rich-text/" + owner.getId() + "/" + uploadId + "." + inspection.extension();
-      storage.store(
-          storageKey, new ByteArrayInputStream(bytes), bytes.length, inspection.mediaType());
+      sourceBytes = file.getBytes();
+    } catch (IOException error) {
+      throw new IllegalStateException("Image could not be read.", error);
+    }
+    if (sourceBytes.length > ImageInspector.MAX_SOURCE_BYTES) {
+      throw new ImageInspectionException("UPLOAD_TOO_LARGE", "Image exceeds 25 MiB.");
+    }
+    byte[] safeBytes = normalizer.normalize(sourceBytes);
+    if (safeBytes == null || safeBytes.length == 0) {
+      throw new ImageInspectionException(
+          "IMAGE_NORMALIZED_EMPTY", "The image normalizer returned no safe image.");
+    }
+    ImageInspection inspection = inspector.inspect(safeBytes);
+    String hash = sha256(safeBytes);
+    Optional<RichImageUploadEntity> duplicate =
+        uploads.findFirstByOwnerIdAndContentHashAndStatusAndScanStateOrderByCreatedAtAsc(
+            owner.getId(), hash, "ready", "clean");
+    if (duplicate.isPresent()
+        && java.util.Objects.equals(duplicate.get().getItemId(), itemId)
+        && duplicate.get().getExpiresAt().isAfter(java.time.Instant.now())) {
+      return response(duplicate.get());
+    }
+    UUID uploadId = UUID.randomUUID();
+    String storageKey =
+        "rich-text/" + owner.getId() + "/" + uploadId + "." + inspection.extension();
+    final String storedKey;
+    try {
+      storedKey =
+          storage.store(
+              storageKey,
+              new ByteArrayInputStream(safeBytes),
+              safeBytes.length,
+              inspection.mediaType());
+    } catch (IOException error) {
+      storage.delete(storageKey);
+      throw new IllegalStateException("Image could not be stored.", error);
+    }
+    try {
       RichImageUploadEntity upload =
           RichImageUploadEntity.ready(
+              uploadId,
               owner.getId(),
-              storageKey,
+              storedKey,
               sanitizeFilename(file.getOriginalFilename(), inspection.extension()),
               inspection.mediaType(),
-              bytes.length,
-              bytes.length,
+              sourceBytes.length,
+              safeBytes.length,
               hash,
               inspection.width(),
               inspection.height());
+      upload.bindItem(itemId);
       upload = uploads.save(upload);
       return response(upload);
-    } catch (IOException error) {
-      throw new IllegalStateException("Image could not be stored.", error);
+    } catch (RuntimeException error) {
+      storage.delete(storedKey);
+      throw error;
     }
   }
 

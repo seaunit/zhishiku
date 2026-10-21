@@ -1,6 +1,11 @@
 <template>
   <template v-if="node.type === 'doc'">
-    <DocumentNode v-for="(child, index) in node.content" :key="index" :node="child" />
+    <DocumentNode
+      v-for="(child, index) in node.content"
+      :key="index"
+      :node="child"
+      @open-image="$emit('open-image', $event)"
+    />
   </template>
 
   <p
@@ -59,44 +64,15 @@
       :decorative="Boolean(node.attrs?.decorative)"
       :preview-url="media.getPreview(String(node.attrs?.assetId || ''))"
       :aspect-ratio="Number(node.attrs?.aspectRatio || 1.5)"
+      interactive
+      @open="$emit('open-image', node)"
     />
     <figcaption v-if="node.attrs?.caption">
       {{ node.attrs.caption }}
     </figcaption>
   </figure>
 
-  <table v-else-if="node.type === 'table'" class="document-table">
-    <thead v-if="node.content?.[0]">
-      <DocumentNode :node="node.content[0]" />
-    </thead>
-    <tbody>
-      <DocumentNode
-        v-for="(child, index) in node.content?.slice(1) || []"
-        :key="index"
-        :node="child"
-      />
-    </tbody>
-  </table>
-
-  <tr v-else-if="node.type === 'tableHeaderRow' || node.type === 'tableBodyRow'">
-    <DocumentNode v-for="(child, index) in node.content" :key="index" :node="child" />
-  </tr>
-
-  <th
-    v-else-if="node.type === 'tableHeader'"
-    :colspan="Number(node.attrs?.colspan || 1)"
-    :rowspan="Number(node.attrs?.rowspan || 1)"
-  >
-    <DocumentNode v-for="(child, index) in node.content" :key="index" :node="child" />
-  </th>
-
-  <td
-    v-else-if="node.type === 'tableCell'"
-    :colspan="Number(node.attrs?.colspan || 1)"
-    :rowspan="Number(node.attrs?.rowspan || 1)"
-  >
-    <DocumentNode v-for="(child, index) in node.content" :key="index" :node="child" />
-  </td>
+  <RichTable v-else-if="node.type === 'table'" :node="node" />
 </template>
 
 <script setup lang="ts">
@@ -105,8 +81,13 @@ import type { RichTextNode } from '@/types/rich-text'
 import { useMediaStore } from '@/stores/media'
 import InlineNode from './InlineNode.vue'
 import SafeImage from './SafeImage.vue'
+import RichTable from '@/features/knowledge/components/RichTable.vue'
 
 defineOptions({ name: 'DocumentNode' })
+
+defineEmits<{
+  'open-image': [node: RichTextNode]
+}>()
 
 const props = defineProps<{
   node: RichTextNode

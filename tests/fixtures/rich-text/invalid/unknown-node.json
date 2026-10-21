@@ -1,0 +1,11 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "iframe",
+      "attrs": {
+        "src": "https://example.invalid/tracking"
+      }
+    }
+  ]
+}

@@ -103,10 +103,17 @@ export interface CreateKnowledgeItemRequest {
   title: string
   bodyDocument: RichTextDocument
   note: string
+  bodySource?: BodySourceRequest | null
 }
 
 export interface UpdateKnowledgeItemRequest extends CreateKnowledgeItemRequest {
   expectedVersion: number
+}
+
+export interface BodySourceRequest {
+  kind: string
+  sourceUrl?: string
+  capturedAt?: string
 }
 
 export interface RichImageUpload {

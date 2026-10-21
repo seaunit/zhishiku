@@ -1,0 +1,26 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "危险属性不会被信任",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "javascript:window.__richTextXss = true"
+              }
+            }
+          ]
+        }
+      ],
+      "attrs": {
+        "onclick": "window.__richTextXss = true",
+        "style": "background:url(https://example.invalid/pixel)"
+      }
+    }
+  ]
+}

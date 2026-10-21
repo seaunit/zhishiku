@@ -78,8 +78,20 @@ public class AttachmentEntity extends AuditedEntity {
     return storageKey;
   }
 
+  public UUID getItemId() {
+    return itemId;
+  }
+
+  public String getSha256() {
+    return sha256;
+  }
+
   public String getMediaType() {
     return mediaType;
+  }
+
+  public long getSizeBytes() {
+    return sizeBytes;
   }
 
   public String getScanState() {

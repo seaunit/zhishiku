@@ -1,0 +1,20 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "image",
+      "attrs": {
+        "assetId": "https://example.invalid/remote.png",
+        "nodeId": "node-unsafe-remote-image",
+        "alt": "远程图片",
+        "caption": "远程地址不得自动加载",
+        "displayWidthPx": 640,
+        "aspectRatio": 1,
+        "alignment": "center",
+        "decorative": false,
+        "src": "https://example.invalid/remote.png",
+        "onerror": "window.__remoteImageXss = true"
+      }
+    }
+  ]
+}

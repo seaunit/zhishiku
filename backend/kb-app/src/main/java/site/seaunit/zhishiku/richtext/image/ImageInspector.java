@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 public class ImageInspector {
   private static final long MAX_PIXELS = 40_000_000L;
   private static final int MAX_EDGE = 8_192;
+  public static final long MAX_SOURCE_BYTES = 25L * 1024 * 1024;
   private static final List<Pattern> SECRET_PATTERNS =
       List.of(
           Pattern.compile("AKIA[0-9A-Z]{16}"),
@@ -50,7 +51,7 @@ public class ImageInspector {
     }
     if (isHeic(bytes)) {
       throw invalid(
-          "IMAGE_NORMALIZER_UNAVAILABLE",
+          "IMAGE_NORMALIZER_REQUIRED",
           "HEIC/HEIF requires the configured libvips normalizer and is unavailable in this MVP.");
     }
     throw invalid(
@@ -90,6 +91,9 @@ public class ImageInspector {
   private static int[] webpSize(byte[] b) {
     String chunk = new String(b, 12, 4, StandardCharsets.ISO_8859_1);
     if ("VP8X".equals(chunk)) {
+      if ((b[20] & 0x02) != 0) {
+        throw invalid("ANIMATED_IMAGE", "Animated WebP images are not accepted.");
+      }
       int width = 1 + read24(b, 24);
       int height = 1 + read24(b, 27);
       return new int[] {width, height};

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "contract": "specs/004-rich-text-editor/contracts/rich-text.schema.json",
+  "cases": [
+    {
+      "id": "valid-full-document",
+      "file": "valid/full-document.json",
+      "expected": { "valid": true },
+      "layers": ["schema", "domain", "vue"],
+      "fr": ["FR-001", "FR-002", "FR-003", "FR-004", "FR-022", "FR-053"],
+      "sc": ["SC-002", "SC-007"]
+    },
+    {
+      "id": "unknown-node",
+      "file": "invalid/unknown-node.json",
+      "expected": { "valid": false, "reason": "UNKNOWN_NODE" },
+      "layers": ["schema", "domain", "vue"],
+      "fr": ["FR-028", "FR-030"],
+      "sc": ["SC-003"]
+    },
+    {
+      "id": "dangerous-attributes",
+      "file": "invalid/dangerous-attributes.json",
+      "expected": { "valid": false, "reason": "UNSUPPORTED_ATTRIBUTE" },
+      "layers": ["schema", "domain", "vue"],
+      "fr": ["FR-028", "FR-052"],
+      "sc": ["SC-003", "SC-016"]
+    },
+    {
+      "id": "over-depth",
+      "file": "limits/over-depth.json",
+      "expected": { "valid": false, "reason": "MAX_DEPTH_EXCEEDED" },
+      "layers": ["domain", "vue"],
+      "fr": ["FR-028", "FR-033"],
+      "sc": ["SC-003"]
+    },
+    {
+      "id": "over-block-count",
+      "file": "limits/over-block-count.json",
+      "expected": { "valid": false, "reason": "MAX_BLOCKS_EXCEEDED" },
+      "layers": ["schema", "domain"],
+      "fr": ["FR-020", "FR-033"],
+      "sc": ["SC-005"]
+    },
+    {
+      "id": "over-text-length",
+      "file": "limits/over-text-length.json",
+      "expected": { "valid": false, "reason": "MAX_TEXT_EXCEEDED" },
+      "layers": ["schema", "domain"],
+      "fr": ["FR-020", "FR-033"],
+      "sc": ["SC-005"]
+    },
+    {
+      "id": "over-image-count",
+      "file": "limits/over-image-count.json",
+      "expected": { "valid": false, "reason": "MAX_IMAGES_EXCEEDED" },
+      "layers": ["domain"],
+      "fr": ["FR-020"],
+      "sc": ["SC-004"]
+    },
+    {
+      "id": "valid-image",
+      "file": "images/valid-image.json",
+      "expected": { "valid": true },
+      "layers": ["schema", "domain", "vue"],
+      "fr": ["FR-015", "FR-016", "FR-017"],
+      "sc": ["SC-007"]
+    },
+    {
+      "id": "unsafe-remote-image",
+      "file": "images/unsafe-remote-image.json",
+      "expected": { "valid": false, "reason": "REMOTE_IMAGE_FORBIDDEN" },
+      "layers": ["schema", "domain", "vue"],
+      "fr": ["FR-018", "FR-052"],
+      "sc": ["SC-006", "SC-016"]
+    },
+    {
+      "id": "valid-table",
+      "file": "table/valid-table.json",
+      "expected": { "valid": true },
+      "layers": ["schema", "domain", "vue"],
+      "fr": ["FR-004", "FR-053"],
+      "sc": ["SC-007"]
+    },
+    {
+      "id": "legacy-migration",
+      "file": "migration/legacy-cases.json",
+      "expected": { "valid": true, "kind": "migration-cases" },
+      "layers": ["domain", "java"],
+      "fr": ["FR-036", "FR-055", "FR-056"],
+      "sc": ["SC-012", "SC-018"]
+    }
+  ]
+}

@@ -16,6 +16,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { RichTextNode } from '@/types/rich-text'
+import { safeLinkHref } from '@/features/knowledge/rendering'
 
 defineOptions({ name: 'InlineNode' })
 
@@ -56,8 +57,8 @@ const attributes = computed<Record<string, string>>(() => {
   if (mark.value?.type !== 'link') {
     return {} as Record<string, string>
   }
-  const href = String(mark.value.attrs?.href || '')
-  if (!/^https?:\/\//i.test(href)) {
+  const href = safeLinkHref(mark.value)
+  if (!href) {
     return {} as Record<string, string>
   }
   return {

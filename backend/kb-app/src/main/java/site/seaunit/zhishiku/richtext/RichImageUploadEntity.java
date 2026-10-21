@@ -76,8 +76,32 @@ public class RichImageUploadEntity extends AuditedEntity {
       String hash,
       int width,
       int height) {
+    return ready(
+        UUID.randomUUID(),
+        ownerId,
+        storageKey,
+        filename,
+        mediaType,
+        sourceSize,
+        size,
+        hash,
+        width,
+        height);
+  }
+
+  public static RichImageUploadEntity ready(
+      UUID id,
+      UUID ownerId,
+      String storageKey,
+      String filename,
+      String mediaType,
+      long sourceSize,
+      long size,
+      String hash,
+      int width,
+      int height) {
     RichImageUploadEntity upload = new RichImageUploadEntity();
-    upload.id = UUID.randomUUID();
+    upload.id = id;
     upload.ownerId = ownerId;
     upload.storageKey = storageKey;
     upload.filenameDisplay = filename;
@@ -96,8 +120,40 @@ public class RichImageUploadEntity extends AuditedEntity {
   }
 
   public void attach(UUID itemId) {
+    if (this.itemId != null && !this.itemId.equals(itemId)) {
+      throw new IllegalStateException(
+          "Image upload is already attached to another knowledge item.");
+    }
     this.itemId = itemId;
     this.status = "attached";
+  }
+
+  public void bindItem(UUID itemId) {
+    if (itemId == null) {
+      return;
+    }
+    if (this.itemId != null && !this.itemId.equals(itemId)) {
+      throw new IllegalStateException("Image upload is already bound to another knowledge item.");
+    }
+    this.itemId = itemId;
+  }
+
+  public void beginScanning() {
+    this.status = "scanning";
+    this.scanState = "pending";
+    this.redactionState = "pending";
+  }
+
+  public void reject(String errorCode) {
+    this.status = "rejected";
+    this.scanState = "rejected";
+    this.redactionState = "rejected";
+    this.errorCode = errorCode;
+  }
+
+  public void expire() {
+    this.status = "expired";
+    this.expiresAt = Instant.now();
   }
 
   public UUID getId() {

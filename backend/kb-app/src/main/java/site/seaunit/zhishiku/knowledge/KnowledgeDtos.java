@@ -24,7 +24,13 @@ public final class KnowledgeDtos {
       long expectedVersion,
       @NotBlank @Size(max = 300) String title,
       @NotNull JsonNode bodyDocument,
-      @Size(max = 20_000) String note) {}
+      @Size(max = 20_000) String note,
+      BodySourceRequest bodySource,
+      String conflictResolution) {
+    public UpdateKnowledgeRequest {
+      conflictResolution = conflictResolution == null ? "reject" : conflictResolution;
+    }
+  }
 
   public record KnowledgeItemResponse(
       UUID id,
@@ -61,7 +67,11 @@ public final class KnowledgeDtos {
 
   public record KnowledgeItemPage(List<KnowledgeSummaryResponse> items, String nextCursor) {}
 
-  public record SourceSummary(String kind, String inputMethod, String url, Instant capturedAt) {}
+  public record SourceSummary(String kind, String inputMethod, String url, Instant capturedAt) {
+    public static SourceSummary manual() {
+      return new SourceSummary("manual", "manual", null, null);
+    }
+  }
 
   public record ClassificationSummary(
       UUID id, String name, String status, String origin, Double confidence, Instant lockedAt) {}
