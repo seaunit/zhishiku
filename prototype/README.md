@@ -36,16 +36,16 @@ Open `http://127.0.0.1:8088/`.
 
 - Search local knowledge first.
 - Continue to internet search only after a separate user action.
-- Save an internet candidate into the knowledge library.
+- Save an internet candidate only through an AI-organized Fetch result flow.
 - Open a knowledge item, edit its rich text, or trigger re-analysis.
 - Create a rich-text manual item with headings, emphasis, lists, quotes, links, code, and inline images.
 - Pasted HTML and images are converted into the supported formatting and local-image flow; an
   unsupported or oversized document/image file remains in the form with a visible error.
-- Switch among capture modes while preserving the current note and rich-text draft.
+- Switch among manual, AI text, web, document, and screenshot capture modes.
 - Paste a screenshot from the clipboard in the Screenshot tab; it uses a focusable paste field and
   intentionally has no file chooser, drag/drop target, album picker, or camera picker.
-- Drop or choose a document or JPG/PNG/WebP/HEIC image in the Document tab; the visible file button
-  is keyboard accessible and the input enforces the 25 MiB prototype limit.
+- Drop or choose a document or JPG/PNG/WebP image in the Document tab; documents and images proceed
+  through OCR/parsing and AI organization, and the visible file button is keyboard accessible.
 - Toggle Chinese and English interface copy.
 - Open the account menu from the avatar; choose Profile or a separately confirmed sign-out.
 - Edit the display name and see the avatar initial and account menu update immediately.

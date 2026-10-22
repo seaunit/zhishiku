@@ -5,14 +5,20 @@
         <ArrowLeft :size="17" />
         <span>{{ t('detail.backToLibrary') }}</span>
       </RouterLink>
-      <RouterLink
-        v-if="item?.bodyDocument"
-        class="button primary detail-edit-action"
-        :to="`/library/${item.id}/edit`"
-      >
-        <Pencil :size="17" />
-        <span>{{ t('detail.edit') }}</span>
-      </RouterLink>
+      <span v-if="item" class="detail-top-actions">
+        <button type="button" class="text-button danger-text" @click="deleteOpen = true">
+          <Trash2 :size="17" />
+          <span>{{ t('detail.delete') }}</span>
+        </button>
+        <RouterLink
+          v-if="item.bodyDocument"
+          class="button primary detail-edit-action"
+          :to="`/library/${item.id}/edit`"
+        >
+          <Pencil :size="17" />
+          <span>{{ t('detail.edit') }}</span>
+        </RouterLink>
+      </span>
     </div>
 
     <div v-if="loading" class="detail-skeleton" aria-busy="true" :aria-label="t('a11y.loading')">
@@ -72,24 +78,103 @@
 
         <aside class="detail-aside">
           <section class="aside-section">
-            <h2>{{ t('detail.classification') }}</h2>
-            <div class="aside-field">
-              <span>{{ t('detail.category') }}</span>
-              <strong>{{ item.category?.name || t('common.uncategorized') }}</strong>
+            <div class="aside-section-heading">
+              <h2>{{ t('detail.classification') }}</h2>
+              <span v-if="!classificationEditing" class="aside-heading-actions">
+                <button
+                  type="button"
+                  class="text-button"
+                  :disabled="reanalyzeBusy"
+                  @click="prepareReanalysis"
+                >
+                  <LoaderCircle v-if="reanalyzeBusy" class="spin" :size="14" />
+                  <span>{{ t('detail.reanalyze') }}</span>
+                </button>
+                <button type="button" class="text-button" @click="beginClassification">
+                  {{ t('detail.correctClassification') }}
+                </button>
+              </span>
             </div>
-            <div class="aside-field">
-              <span>{{ t('detail.tags') }}</span>
-              <div class="tag-list">
-                <span v-for="tag in item.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
-                <span v-if="item.tags.length === 0" class="muted">{{ t('detail.noTags') }}</span>
+            <form
+              v-if="classificationEditing"
+              class="classification-form"
+              @submit.prevent="saveClassification"
+            >
+              <label>
+                <span>{{ t('detail.category') }}</span>
+                <input v-model.trim="categoryDraft" maxlength="100" required />
+              </label>
+              <label>
+                <span>{{ t('detail.tags') }}</span>
+                <input
+                  v-model.trim="tagsDraft"
+                  maxlength="500"
+                  :placeholder="t('detail.tagsPlaceholder')"
+                  required
+                />
+              </label>
+              <p v-if="classificationError" class="field-error" role="alert">
+                {{ classificationError }}
+              </p>
+              <div class="classification-actions">
+                <button type="button" class="text-button" @click="cancelClassification">
+                  {{ t('common.cancel') }}
+                </button>
+                <button type="submit" class="button primary" :disabled="classificationSaving">
+                  <LoaderCircle v-if="classificationSaving" class="spin" :size="16" />
+                  <span>{{ t('common.save') }}</span>
+                </button>
               </div>
-            </div>
-            <div v-if="item.category?.confidence" class="confidence">
-              <span>{{ Math.round(item.category.confidence * 100) }}%</span>
-              <div class="meter">
-                <span :style="{ width: `${item.category.confidence * 100}%` }" />
+            </form>
+            <template v-else>
+              <div class="aside-field">
+                <span>{{ t('detail.category') }}</span>
+                <strong>{{ item.category?.name || t('common.uncategorized') }}</strong>
               </div>
+              <div class="aside-field">
+                <span>{{ t('detail.tags') }}</span>
+                <div class="tag-list">
+                  <span v-for="tag in item.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
+                  <span v-if="item.tags.length === 0" class="muted">
+                    {{ t('detail.noTags') }}
+                  </span>
+                </div>
+              </div>
+              <div v-if="item.category?.confidence" class="confidence">
+                <span>{{ Math.round(item.category.confidence * 100) }}%</span>
+                <div class="meter">
+                  <span :style="{ width: `${item.category.confidence * 100}%` }" />
+                </div>
+              </div>
+            </template>
+            <div v-if="reanalyzeQuote" class="reanalyze-quote">
+              <span>
+                {{ t('detail.reanalyzeQuote', { points: reanalyzeQuote.maxPoints }) }}
+                <small>
+                  {{ t('detail.reanalyzeBalance', {
+                    available: reanalyzeQuote.availablePoints,
+                    remaining: reanalyzeQuote.projectedRemainingPoints,
+                  }) }}
+                </small>
+              </span>
+              <span class="classification-actions">
+                <button type="button" class="text-button" @click="cancelReanalysis">
+                  {{ t('common.cancel') }}
+                </button>
+                <button
+                  type="button"
+                  class="button primary"
+                  :disabled="reanalyzeBusy"
+                  @click="confirmReanalysis"
+                >
+                  {{ t('detail.confirmReanalyze') }}
+                </button>
+              </span>
             </div>
+            <p v-if="reanalyzeNotice" class="success-message" role="status">
+              {{ reanalyzeNotice }}
+            </p>
+            <p v-if="reanalyzeError" class="field-error" role="alert">{{ reanalyzeError }}</p>
           </section>
 
           <section class="aside-section">
@@ -97,6 +182,17 @@
             <div class="aside-field">
               <span>{{ t('detail.sourceKind') }}</span>
               <strong>{{ sourceLabel(item.source.kind) }}</strong>
+            </div>
+            <div v-if="item.source.url" class="aside-field">
+              <span>{{ t('detail.sourceUrl') }}</span>
+              <a
+                class="source-link"
+                :href="item.source.url"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ item.source.url }}
+              </a>
             </div>
             <div class="aside-field">
               <span>{{ t('detail.capturedAt') }}</span>
@@ -118,27 +214,62 @@
         </aside>
       </div>
     </template>
+
+    <ConfirmDialog
+      v-if="deleteOpen && item"
+      :title="t('detail.deleteTitle')"
+      :body="t('detail.deleteBody', { title: item.title })"
+      :cancel-label="t('common.cancel')"
+      :confirm-label="t('detail.confirmDelete')"
+      :busy="deleting"
+      :error="deleteError"
+      @cancel="closeDelete"
+      @confirm="confirmDelete"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, CircleAlert, Pencil } from 'lucide-vue-next'
+import { ArrowLeft, CircleAlert, LoaderCircle, Pencil, Trash2 } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
-import { getKnowledgeItem } from '@/api/client'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  confirmBillingQuote,
+  createBillingQuote,
+  getKnowledgeItem,
+  reanalyzeKnowledgeItem,
+  recycleKnowledgeItem,
+  updateKnowledgeClassification,
+} from '@/api/client'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
+import { createIdempotencyKey } from '@/lib/id'
 import { validateRichTextDocument } from '@/lib/rich-text'
 import RichTextDocument from '@/components/RichTextDocument.vue'
-import type { KnowledgeItem } from '@/types/api'
+import type { BillingQuote, KnowledgeItem } from '@/types/api'
 
 const { t, locale } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const item = ref<KnowledgeItem | null>(null)
 const loading = ref(true)
 const error = ref('')
 const notFound = ref(false)
 const documentError = ref('')
+const deleteOpen = ref(false)
+const deleting = ref(false)
+const deleteError = ref('')
+const classificationEditing = ref(false)
+const classificationSaving = ref(false)
+const classificationError = ref('')
+const categoryDraft = ref('')
+const tagsDraft = ref('')
+const reanalyzeQuote = ref<BillingQuote | null>(null)
+const reanalyzeBusy = ref(false)
+const reanalyzeNotice = ref('')
+const reanalyzeError = ref('')
+const reanalyzeKey = ref('')
 
 function statusClass(status: string) {
   return knowledgeStatusTone(status)
@@ -149,6 +280,8 @@ function statusLabel(status: string) {
 }
 
 function sourceLabel(kind: string) {
+  if (kind === 'text') return t('library.text')
+  if (kind === 'internet_result') return t('library.internetResult')
   if (kind === 'webpage') return t('library.webpage')
   if (kind === 'document') return t('library.document')
   if (kind === 'screenshot') return t('library.screenshot')
@@ -192,6 +325,117 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function confirmDelete() {
+  if (!item.value) return
+  deleting.value = true
+  deleteError.value = ''
+  try {
+    await recycleKnowledgeItem(item.value.id)
+    deleteOpen.value = false
+    await router.replace('/trash')
+  } catch (caught) {
+    deleteError.value = caught instanceof Error ? caught.message : t('errors.generic')
+  } finally {
+    deleting.value = false
+  }
+}
+
+function beginClassification() {
+  classificationError.value = ''
+  categoryDraft.value = item.value?.category?.name || ''
+  tagsDraft.value = item.value?.tags.map((tag) => tag.name).join('、') || ''
+  classificationEditing.value = true
+}
+
+function cancelClassification() {
+  classificationEditing.value = false
+  classificationError.value = ''
+}
+
+async function saveClassification() {
+  if (!item.value) return
+  const tags = tagsDraft.value
+    .split(/[、,，\n]/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+  if (!categoryDraft.value) {
+    classificationError.value = t('detail.categoryRequired')
+    return
+  }
+  if (tags.length === 0) {
+    classificationError.value = t('detail.tagsRequired')
+    return
+  }
+  classificationSaving.value = true
+  classificationError.value = ''
+  try {
+    item.value = await updateKnowledgeClassification(
+      item.value.id,
+      categoryDraft.value,
+      tags,
+    )
+    classificationEditing.value = false
+  } catch (caught) {
+    classificationError.value =
+      caught instanceof Error ? caught.message : t('errors.generic')
+  } finally {
+    classificationSaving.value = false
+  }
+}
+
+async function prepareReanalysis() {
+  if (!item.value || reanalyzeBusy.value) return
+  reanalyzeBusy.value = true
+  reanalyzeError.value = ''
+  reanalyzeNotice.value = ''
+  try {
+    reanalyzeQuote.value = await createBillingQuote({
+      operation: 'reanalyze',
+      itemId: item.value.id,
+      lines: [{ feature: 'classify', quantity: 1 }],
+      useAutoCharge: true,
+    })
+    reanalyzeKey.value = createIdempotencyKey('knowledge-reanalyze')
+  } catch (caught) {
+    reanalyzeError.value = caught instanceof Error ? caught.message : t('errors.generic')
+  } finally {
+    reanalyzeBusy.value = false
+  }
+}
+
+async function confirmReanalysis() {
+  if (!item.value || !reanalyzeQuote.value || reanalyzeBusy.value) return
+  reanalyzeBusy.value = true
+  reanalyzeError.value = ''
+  try {
+    const task = await confirmBillingQuote(
+      reanalyzeQuote.value.quoteId,
+      reanalyzeQuote.value.maxPoints,
+    )
+    item.value = await reanalyzeKnowledgeItem(item.value.id, task.id, reanalyzeKey.value)
+    reanalyzeQuote.value = null
+    reanalyzeKey.value = ''
+    reanalyzeNotice.value = t('detail.reanalyzeComplete')
+  } catch (caught) {
+    reanalyzeError.value = caught instanceof Error ? caught.message : t('errors.generic')
+  } finally {
+    reanalyzeBusy.value = false
+  }
+}
+
+function cancelReanalysis() {
+  if (reanalyzeBusy.value) return
+  reanalyzeQuote.value = null
+  reanalyzeKey.value = ''
+  reanalyzeError.value = ''
+}
+
+function closeDelete() {
+  if (deleting.value) return
+  deleteOpen.value = false
+  deleteError.value = ''
 }
 
 onMounted(load)

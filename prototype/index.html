@@ -42,6 +42,10 @@
         <circle cx="12" cy="12" r="3" />
         <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.5 4.64a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.1.35.3.7.6 1 .3.28.7.42 1.1.42H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z" />
       </symbol>
+      <symbol id="icon-credit-card" viewBox="0 0 24 24">
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <path d="M2 10h20M6 15h2" />
+      </symbol>
       <symbol id="icon-search" viewBox="0 0 24 24">
         <circle cx="11" cy="11" r="8" />
         <path d="m21 21-4.35-4.35" />
@@ -136,6 +140,10 @@
             <svg><use href="#icon-inbox"></use></svg>
             <span>待处理</span>
             <b class="nav-count" id="navPendingCount">4</b>
+          </button>
+          <button class="rail-item" data-view="billing" aria-label="点数" data-tooltip="点数">
+            <svg><use href="#icon-credit-card"></use></svg>
+            <span data-i18n="navBilling">点数</span>
           </button>
           <button class="rail-item" data-view="trash" aria-label="回收站" data-tooltip="回收站">
             <svg><use href="#icon-trash"></use></svg>
@@ -325,6 +333,7 @@
                 <button class="filter-chip" data-filter="webpage">网页 <span id="filterWebCount">4</span></button>
                 <button class="filter-chip" data-filter="document">文档 <span id="filterDocCount">3</span></button>
                 <button class="filter-chip" data-filter="screenshot">截图 <span id="filterShotCount">2</span></button>
+                <button class="filter-chip" data-filter="text">AI 文字 <span id="filterTextCount">0</span></button>
                 <button class="filter-chip" data-filter="manual">手动 <span id="filterManualCount">3</span></button>
               </div>
               <span class="freshness" id="libraryFreshness">最后整理：刚刚</span>
@@ -359,13 +368,14 @@
               <div>
                 <h1 data-i18n="captureTitle">采集</h1>
                 <p class="title-subtitle" data-i18n="captureSubtitle">
-                  文字、网页、文档与截图都会先经过安全检查，再进入自动归类。
+                  手动原文与 AI 整理结果。
                 </p>
               </div>
             </div>
             <section class="panel capture-workbench">
               <div class="capture-tabs" role="tablist" aria-label="采集方式">
                 <button class="capture-tab is-active" data-capture-mode="manual" role="tab" aria-selected="true" aria-controls="captureContent">手动录入</button>
+                <button class="capture-tab" data-capture-mode="ai-text" role="tab" aria-selected="false" aria-controls="captureContent" tabindex="-1">AI 文字</button>
                 <button class="capture-tab" data-capture-mode="webpage" role="tab" aria-selected="false" aria-controls="captureContent" tabindex="-1">网页链接</button>
                 <button class="capture-tab" data-capture-mode="document" role="tab" aria-selected="false" aria-controls="captureContent" tabindex="-1">文档</button>
                 <button class="capture-tab" data-capture-mode="screenshot" role="tab" aria-selected="false" aria-controls="captureContent" tabindex="-1">截图</button>
@@ -399,6 +409,72 @@
             </div>
             <section class="panel trash-panel">
               <div class="trash-list" id="trashList"></div>
+            </section>
+          </section>
+
+          <section class="view" id="view-billing" hidden>
+            <div class="title-row">
+              <div>
+                <h1 data-i18n="billingTitle">点数与支付</h1>
+                <p class="title-subtitle" data-i18n="billingSubtitle">
+                  一次性点数包，按实际成功的 AI 步骤结算。
+                </p>
+              </div>
+              <button class="ghost-button" type="button" data-i18n="billingSupport">退款支持</button>
+            </div>
+            <section class="panel billing-summary">
+              <div>
+                <span data-i18n="billingBalance">可用点数</span>
+                <strong class="num">1,286</strong>
+              </div>
+              <div>
+                <span data-i18n="billingTrial">体验点</span>
+                <strong class="num">36</strong>
+              </div>
+              <div>
+                <span data-i18n="billingPurchased">购买点</span>
+                <strong class="num">1,250</strong>
+              </div>
+              <div>
+                <span data-i18n="billingReserved">已预留</span>
+                <strong class="num">15</strong>
+              </div>
+            </section>
+            <section class="billing-pack-grid" aria-label="点数包">
+              <article class="panel billing-pack-card">
+                <span data-i18n="billingPackStarter">轻量加量包</span>
+                <strong class="num">¥9</strong>
+                <small>400 points</small>
+                <button class="primary-button" type="button" data-i18n="billingBuy">购买</button>
+              </article>
+              <article class="panel billing-pack-card">
+                <span data-i18n="billingPackStandard">常用加量包</span>
+                <strong class="num">¥29</strong>
+                <small>1,400 points</small>
+                <button class="primary-button" type="button" data-i18n="billingBuy">购买</button>
+              </article>
+              <article class="panel billing-pack-card">
+                <span data-i18n="billingPackPro">超值加量包</span>
+                <strong class="num">¥99</strong>
+                <small>5,000 points</small>
+                <button class="primary-button" type="button" data-i18n="billingBuy">购买</button>
+              </article>
+            </section>
+            <section class="panel billing-orders">
+              <header>
+                <h2 data-i18n="billingOrders">订单历史</h2>
+                <span data-i18n="billingOrdersHint">可靠支付结果到达后自动到账</span>
+              </header>
+              <div class="billing-order-row">
+                <span>kb_pack_29 · 2026-10-22</span>
+                <b class="num">+1,400</b>
+                <small data-i18n="billingPaid">已支付</small>
+              </div>
+              <div class="billing-order-row">
+                <span>kb_pack_9 · 2026-10-18</span>
+                <b class="num">+400</b>
+                <small data-i18n="billingRefunded">已退款</small>
+              </div>
             </section>
           </section>
 
@@ -546,6 +622,7 @@
         </div>
         <div class="dialog-tabs" role="tablist" aria-label="采集方式">
           <button type="button" class="is-active" data-dialog-mode="manual" role="tab" aria-selected="true" aria-controls="dialogFields">文字</button>
+          <button type="button" data-dialog-mode="ai-text" role="tab" aria-selected="false" aria-controls="dialogFields" tabindex="-1">AI 文字</button>
           <button type="button" data-dialog-mode="webpage" role="tab" aria-selected="false" aria-controls="dialogFields" tabindex="-1">网页</button>
           <button type="button" data-dialog-mode="document" role="tab" aria-selected="false" aria-controls="dialogFields" tabindex="-1">文档</button>
           <button type="button" data-dialog-mode="screenshot" role="tab" aria-selected="false" aria-controls="dialogFields" tabindex="-1">截图</button>

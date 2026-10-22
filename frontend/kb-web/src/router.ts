@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { watch } from 'vue'
+import { i18n } from '@/i18n'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -7,13 +9,13 @@ export const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
-      meta: { title: '登录识海' },
+      meta: { titleKey: 'route.login' },
     },
     {
       path: '/register',
       name: 'register',
       component: () => import('@/views/RegisterView.vue'),
-      meta: { title: '创建账户' },
+      meta: { titleKey: 'route.register' },
     },
     {
       path: '/',
@@ -23,55 +25,71 @@ export const router = createRouter({
           path: '',
           name: 'home',
           component: () => import('@/views/HomeView.vue'),
-          meta: { title: '搜索知识' },
+          meta: { titleKey: 'route.home' },
         },
         {
           path: 'capture',
           name: 'capture',
           component: () => import('@/views/CaptureView.vue'),
-          meta: { title: '新建知识' },
+          meta: { titleKey: 'route.capture' },
         },
         {
           path: 'library',
           name: 'library',
           component: () => import('@/views/LibraryView.vue'),
-          meta: { title: '知识库' },
+          meta: { titleKey: 'route.library' },
         },
         {
           path: 'processing',
           name: 'processing',
           component: () => import('@/views/ProcessingView.vue'),
-          meta: { title: '待处理' },
+          meta: { titleKey: 'route.processing' },
         },
         {
           path: 'trash',
           name: 'trash',
           component: () => import('@/views/TrashView.vue'),
-          meta: { title: '回收站' },
+          meta: { titleKey: 'route.trash' },
         },
         {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/SettingsView.vue'),
-          meta: { title: '设置' },
+          meta: { titleKey: 'route.settings' },
+        },
+        {
+          path: 'billing',
+          name: 'billing',
+          component: () => import('@/views/BillingView.vue'),
+          meta: { titleKey: 'route.billing' },
+        },
+        {
+          path: 'billing/return',
+          name: 'billing-return',
+          component: () => import('@/views/BillingView.vue'),
+          meta: { titleKey: 'route.billingReturn' },
+        },
+        {
+          path: 'pricing',
+          redirect: '/billing',
         },
         {
           path: 'profile',
           name: 'profile',
           component: () => import('@/views/ProfileView.vue'),
-          meta: { title: '个人资料' },
+          meta: { titleKey: 'route.profile' },
         },
         {
           path: 'library/:id',
           name: 'detail',
           component: () => import('@/views/DetailView.vue'),
-          meta: { title: '知识详情' },
+          meta: { titleKey: 'route.detail' },
         },
         {
           path: 'library/:id/edit',
           name: 'edit',
           component: () => import('@/views/CaptureView.vue'),
-          meta: { title: '编辑知识' },
+          meta: { titleKey: 'route.edit' },
         },
       ],
     },
@@ -79,7 +97,7 @@ export const router = createRouter({
       path: '/:pathMatch(.*)*',
       name: 'notFound',
       component: () => import('@/views/NotFoundView.vue'),
-      meta: { title: '页面不存在' },
+      meta: { titleKey: 'route.notFound' },
     },
   ],
   scrollBehavior() {
@@ -87,7 +105,11 @@ export const router = createRouter({
   },
 })
 
-router.afterEach((to) => {
-  document.title = `${String(to.meta.title || '识海')} · 识海`
-})
+function updateTitle() {
+  const key = String(router.currentRoute.value.meta.titleKey || 'route.home')
+  document.title = `${i18n.global.t(key)} · ${i18n.global.t('common.appName')}`
+}
+
+router.afterEach(updateTitle)
+watch(i18n.global.locale, updateTitle)
 

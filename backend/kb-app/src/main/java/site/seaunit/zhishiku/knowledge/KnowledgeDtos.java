@@ -32,6 +32,12 @@ public final class KnowledgeDtos {
     }
   }
 
+  public record UpdateClassificationRequest(
+      @NotBlank @Size(max = 100) String category,
+      @NotNull @Size(max = 8) List<@NotBlank @Size(max = 100) String> tags) {}
+
+  public record ReanalyzeKnowledgeRequest(boolean externalAiConsent, UUID billingTaskId) {}
+
   public record KnowledgeItemResponse(
       UUID id,
       String title,

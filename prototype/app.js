@@ -1,8 +1,10 @@
 const sourceMeta = {
   manual: { labelZh: "手动", labelEn: "Manual", icon: "icon-file" },
+  text: { labelZh: "AI 文字", labelEn: "AI text", icon: "icon-file" },
   webpage: { labelZh: "网页", labelEn: "Web", icon: "icon-link" },
   document: { labelZh: "文档", labelEn: "Document", icon: "icon-file" },
   screenshot: { labelZh: "截图", labelEn: "Screenshot", icon: "icon-image" },
+  internet_result: { labelZh: "互联网结果", labelEn: "Internet result", icon: "icon-link" },
 };
 
 const items = [
@@ -326,13 +328,29 @@ const translations = {
     librarySubtitle: "分类与标签由系统自动生成，你只需要纠正结果。",
     captureKicker: "新的知识流",
     captureTitle: "采集",
-    captureSubtitle: "文字、网页、文档与截图都会先经过安全检查，再进入自动归类。",
+    captureSubtitle: "手动原文与 AI 整理结果。",
     processingKicker: "自动整理",
     processingTitle: "待处理",
     processingSubtitle: "低置信度会以暂定结果保存，不会阻塞检索。",
     trashKicker: "可恢复区",
     trashTitle: "回收站",
     trashSubtitle: "删除后立即退出检索，30 天后永久清理。",
+    navBilling: "点数",
+    billingTitle: "点数与支付",
+    billingSubtitle: "一次性点数包，按实际成功的 AI 步骤结算。",
+    billingSupport: "退款支持",
+    billingBalance: "可用点数",
+    billingTrial: "体验点",
+    billingPurchased: "购买点",
+    billingReserved: "已预留",
+    billingPackStarter: "轻量加量包",
+    billingPackStandard: "常用加量包",
+    billingPackPro: "超值加量包",
+    billingBuy: "购买",
+    billingOrders: "订单历史",
+    billingOrdersHint: "可靠支付结果到达后自动到账",
+    billingPaid: "已支付",
+    billingRefunded: "已退款",
     settingsKicker: "控制与边界",
     settingsTitle: "设置",
     settingsSubtitle: "AI 只在授权的服务与内容类型内处理你的知识。",
@@ -409,6 +427,7 @@ const translations = {
     purgeAt: "永久清理",
     all: "全部",
     manual: "手动",
+    text: "AI 文字",
     webpage: "网页",
     document: "文档",
     screenshot: "截图",
@@ -427,8 +446,12 @@ const translations = {
     formBody: "内容",
     formUrl: "网页链接",
     formNote: "备注",
+    aiTextLabel: "待整理文字",
+    aiTextPlaceholder: "粘贴或输入需要拆分整理的文字",
+    aiTextConsent: "允许外部 AI 整理这段文字",
+    aiTextConsentHint: "文字会先移除疑似密钥，再发送给 DeepSeek。",
     formFile: "选择文件",
-    formFileHint: "支持 PDF、Word、TXT、Markdown、JPG、PNG、WebP、HEIC，单文件最大 25 MiB",
+    formFileHint: "支持 PDF、Word、TXT、Markdown、JPG、PNG、WebP，单文件最大 25 MiB",
     documentDropTitle: "拖入或选择文档或图片",
     documentDropHint: "文档与图片共用同一套安全扫描流程",
     screenshotPasteTitle: "点击这里，然后粘贴截图",
@@ -441,7 +464,7 @@ const translations = {
     fileMissing: "请先选择一个文档或图片文件。",
     screenshotTooLarge: "截图超过 25 MiB，请压缩后重新复制。",
     fileTooLarge: "文件超过 25 MiB，请压缩或拆分后重试。",
-    fileUnsupported: "不支持此文件类型，请选择受支持的文档或 JPG、PNG、WebP、HEIC 图片。",
+    fileUnsupported: "不支持此文件类型，请选择受支持的文档或 JPG、PNG、WebP 图片。",
     removeFile: "移除",
     editorAria: "富文本格式工具栏",
     editorPlaceholder: "开始整理这段知识……",
@@ -502,13 +525,29 @@ const translations = {
     librarySubtitle: "Categories and tags are automatic. You only correct what matters.",
     captureKicker: "New knowledge stream",
     captureTitle: "Capture",
-    captureSubtitle: "Text, pages, documents, and screenshots are scanned before classification.",
+    captureSubtitle: "Source text and organized knowledge.",
     processingKicker: "Automatic organization",
     processingTitle: "In progress",
     processingSubtitle: "Low-confidence results are provisional and never block retrieval.",
     trashKicker: "Recoverable",
     trashTitle: "Trash",
     trashSubtitle: "Deleted items leave search immediately and purge after 30 days.",
+    navBilling: "Points",
+    billingTitle: "Points and billing",
+    billingSubtitle: "One-time point packs settled by successful AI steps.",
+    billingSupport: "Refund support",
+    billingBalance: "Available points",
+    billingTrial: "Trial points",
+    billingPurchased: "Purchased points",
+    billingReserved: "Reserved",
+    billingPackStarter: "Starter",
+    billingPackStandard: "Standard",
+    billingPackPro: "Pro",
+    billingBuy: "Buy",
+    billingOrders: "Order history",
+    billingOrdersHint: "Points arrive after a reliable payment result",
+    billingPaid: "Paid",
+    billingRefunded: "Refunded",
     settingsKicker: "Control and boundaries",
     settingsTitle: "Settings",
     settingsSubtitle: "AI only processes the services and content types you authorize.",
@@ -585,6 +624,7 @@ const translations = {
     purgeAt: "Purge",
     all: "All",
     manual: "Manual",
+    text: "AI text",
     webpage: "Web",
     document: "Document",
     screenshot: "Screenshot",
@@ -603,8 +643,12 @@ const translations = {
     formBody: "Content",
     formUrl: "Page URL",
     formNote: "Note",
+    aiTextLabel: "Text to organize",
+    aiTextPlaceholder: "Paste or enter text to split and organize",
+    aiTextConsent: "Allow external AI to organize this text",
+    aiTextConsentHint: "Likely secrets are redacted before the text is sent to DeepSeek.",
     formFile: "Choose file",
-    formFileHint: "PDF, Word, TXT, Markdown, JPG, PNG, WebP, HEIC; max 25 MiB",
+    formFileHint: "PDF, Word, TXT, Markdown, JPG, PNG, WebP; max 25 MiB",
     documentDropTitle: "Drop or choose a document or image",
     documentDropHint: "Documents and images share the same safety scan",
     screenshotPasteTitle: "Click here, then paste a screenshot",
@@ -617,7 +661,7 @@ const translations = {
     fileMissing: "Choose a document or image file first.",
     screenshotTooLarge: "The screenshot exceeds 25 MiB. Compress it and copy again.",
     fileTooLarge: "The file exceeds 25 MiB. Compress or split it, then try again.",
-    fileUnsupported: "Unsupported file type. Choose a supported document or a JPG, PNG, WebP, or HEIC image.",
+    fileUnsupported: "Unsupported file type. Choose a supported document or a JPG, PNG, or WebP image.",
     removeFile: "Remove",
     editorAria: "Rich text formatting toolbar",
     editorPlaceholder: "Start shaping this knowledge…",
@@ -748,11 +792,13 @@ function updateAllCounts() {
   const webCount = items.filter((item) => item.source === "webpage").length;
   const docCount = items.filter((item) => item.source === "document").length;
   const shotCount = items.filter((item) => item.source === "screenshot").length;
+  const textCount = items.filter((item) => item.source === "text").length;
   const manualCount = items.filter((item) => item.source === "manual").length;
   const map = {
     filterWebCount: webCount,
     filterDocCount: docCount,
     filterShotCount: shotCount,
+    filterTextCount: textCount,
     filterManualCount: manualCount,
   };
   Object.entries(map).forEach(([id, value]) => {
@@ -955,6 +1001,10 @@ function renderKnowledgeTable() {
 function renderDetail(itemId) {
   const item = items.find((candidate) => candidate.id === itemId);
   if (!item) return;
+  const sourceUrl =
+    item.source === "webpage"
+      ? item.sourceUrl || `https://${item.sourceLabel}`
+      : item.sourceUrl || "";
   state.currentDetailId = item.id;
   const tags = item.tags.map((tag) => `
     <span class="tag">
@@ -1009,6 +1059,7 @@ function renderDetail(itemId) {
         <h2>${state.lang === "en" ? "Source trail" : "来源与处理"}</h2>
         <p class="detail-lead" style="font-size:12px;margin:0">
           ${escapeHtml(sourceName(item.source))} · ${escapeHtml(item.sourceLabel)}<br />
+          ${sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceUrl)}</a><br />` : ""}
           ${state.lang === "en" ? "Classified automatically. Edited fields become locked." : "系统自动归类；用户修改后的字段将被锁定。"}
         </p>
       </section>
@@ -1575,6 +1626,72 @@ function renderCaptureForm(mode, target = "page") {
       </aside>
     `;
     attachRichEditor(container, target);
+  } else if (mode === "ai-text") {
+    container.innerHTML = `
+      ${openTag}
+        <div class="field-group">
+          <label for="${inputId}">${t("aiTextLabel")}</label>
+          <textarea
+            class="text-input capture-ai-text"
+            id="${inputId}"
+            name="aiText"
+            rows="9"
+            maxlength="30000"
+            placeholder="${t("aiTextPlaceholder")}"
+            required
+          ></textarea>
+        </div>
+        <div class="field-group">
+          <label for="${urlId}">${t("formNote")}</label>
+          <input class="text-input" id="${urlId}" name="note" placeholder="可选：补充上下文" />
+        </div>
+        <label class="authorization-row webpage-consent">
+          <span>
+            <strong>${t("aiTextConsent")}</strong>
+            <small>${t("aiTextConsentHint")}</small>
+          </span>
+          <input name="externalAiConsent" type="checkbox" required />
+        </label>
+        ${target === "page" ? `
+          <div class="form-actions">
+            <button class="outline-button" type="button" data-view="home">${t("cancel")}</button>
+            <button class="primary-button" type="submit">${state.lang === "en" ? "Organize with AI" : "AI 整理文字"}</button>
+          </div>
+        ` : ""}
+      ${closeTag}
+      <aside class="capture-side">
+        <h3>${state.lang === "en" ? "AI-assisted text" : "AI 辅助文字"}</h3>
+        <p>${state.lang === "en" ? "AI splits, summarizes, classifies, and tags the text before it enters your knowledge base." : "AI 会先拆分、摘要、分类并生成标签，再把结果写入知识库。"}</p>
+        <h3>${state.lang === "en" ? "Manual is separate" : "手动录入另存"}</h3>
+        <p>${state.lang === "en" ? "Use Manual when you need to preserve your original wording without AI organization." : "需要完整保留原文时，请使用手动录入。"}</p>
+      </aside>
+    `;
+  } else if (mode === "ai-text") {
+    const text = String(formData.get("aiText") || "").trim();
+    const externalAiConsent = formData.get("externalAiConsent") === "on";
+    if (!text || !externalAiConsent) {
+      showToast(state.lang === "en"
+        ? "Enter text and allow external AI organization first."
+        : "请先输入文字并同意外部 AI 整理。");
+      return;
+    }
+    const segments = text.split(/\n{2,}/).filter(Boolean).slice(0, 2);
+    segments.forEach((segment, index) => {
+      addItem({
+        title: state.lang === "en"
+          ? `AI text topic ${index + 1}`
+          : `AI 文字整理主题 ${index + 1}`,
+        body: segment.slice(0, 800),
+        category: state.lang === "en" ? "AI text knowledge" : "AI 文字知识",
+        tags: state.lang === "en"
+          ? ["AI text", "Auto category", "Auto tag"]
+          : ["AI 文字", "自动分类", "自动标签"],
+        source: "text",
+        sourceLabel: state.lang === "en" ? "AI-assisted text" : "AI 辅助文字",
+        status: "processing",
+        finalStatus: "done",
+      });
+    });
   } else if (mode === "webpage") {
     container.innerHTML = `
       ${openTag}
@@ -1582,14 +1699,17 @@ function renderCaptureForm(mode, target = "page") {
           <label for="${urlId}">${t("formUrl")}</label>
           <input class="text-input" id="${urlId}" name="url" type="url" placeholder="https://developer.mozilla.org/zh-CN/docs/Web" required />
         </div>
-        <div class="field-group">
-          <label for="${inputId}">${t("formNote")}</label>
-          <input class="text-input" id="${inputId}" name="note" placeholder="可选：这条链接与什么有关" />
-        </div>
+        <label class="authorization-row webpage-consent">
+          <span>
+            <strong>${state.lang === "en" ? "Allow external AI processing" : "允许外部 AI 处理本页文字"}</strong>
+            <small>${state.lang === "en" ? "Likely secrets are redacted before OCR text is sent to DeepSeek." : "OCR 文本会先移除疑似密钥，再发送给 DeepSeek。"}</small>
+          </span>
+          <input name="externalAiConsent" type="checkbox" required />
+        </label>
         ${target === "page" ? `
           <div class="form-actions">
             <button class="outline-button" type="button" data-view="home">${t("cancel")}</button>
-            <button class="primary-button" type="submit">${state.lang === "en" ? "Capture page" : "截图并分析"}</button>
+            <button class="primary-button" type="submit">${state.lang === "en" ? "Screenshot and organize" : "截图拆分入库"}</button>
           </div>
         ` : ""}
       ${closeTag}
@@ -1616,13 +1736,20 @@ function renderCaptureForm(mode, target = "page") {
           type="file"
           hidden
           data-file-input
-          accept=".pdf,.doc,.docx,.txt,.md,.rtf,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
+          accept=".pdf,.doc,.docx,.txt,.md,.rtf,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/plain,text/markdown,image/jpeg,image/png,image/webp"
         />
         <div class="file-selection" data-file-selection hidden></div>
         <div class="field-group">
           <label for="${inputId}">${t("formNote")}</label>
           <input class="text-input" id="${inputId}" name="note" placeholder="可选：补充上下文" />
         </div>
+        <label class="authorization-row webpage-consent">
+          <span>
+            <strong>${state.lang === "en" ? "Allow external AI file parsing" : "允许外部 AI 解析并整理此文件"}</strong>
+            <small>${state.lang === "en" ? "Document text or image text is redacted before it is sent to DeepSeek." : "文档文字或图片识别文字会先移除疑似密钥，再发送给 DeepSeek。"}</small>
+          </span>
+          <input name="externalAiConsent" type="checkbox" />
+        </label>
         ${target === "page" ? `
           <div class="form-actions">
             <button class="outline-button" type="button" data-view="home">${t("cancel")}</button>
@@ -1632,7 +1759,7 @@ function renderCaptureForm(mode, target = "page") {
       ${closeTag}
       <aside class="capture-side">
         <h3>${state.lang === "en" ? "Documents and images" : "文档与图片"}</h3>
-        <p>${state.lang === "en" ? "Choose documents or JPG, PNG, WebP, and HEIC/HEIF images. Both use the same safety scan." : "可选择文档或 JPG、PNG、WebP、HEIC/HEIF 图片，二者使用同一套安全扫描。"}</p>
+        <p>${state.lang === "en" ? "Documents and JPG, PNG, or WebP images are extracted, redacted, and organized by AI." : "文档与 JPG、PNG、WebP 图片会先提取或识别文字，脱敏后交给 AI 整理。"}</p>
         <h3>${state.lang === "en" ? "Fail closed" : "安全优先"}</h3>
         <p>${t("safetyNote")}</p>
       </aside>
@@ -1660,6 +1787,13 @@ function renderCaptureForm(mode, target = "page") {
           <label for="${inputId}">${t("formNote")}</label>
           <input class="text-input" id="${inputId}" name="note" placeholder="可选：补充上下文" />
         </div>
+        <label class="authorization-row webpage-consent">
+          <span>
+            <strong>${state.lang === "en" ? "Allow external AI screenshot parsing" : "允许外部 AI 解析并整理这张截图"}</strong>
+            <small>${state.lang === "en" ? "Recognized text is redacted before it is sent to DeepSeek. The screenshot itself is temporary." : "识别文字会先移除疑似密钥，再发送给 DeepSeek；截图本身不会长期保存。"}</small>
+          </span>
+          <input name="externalAiConsent" type="checkbox" required />
+        </label>
         ${target === "page" ? `
           <div class="form-actions">
             <button class="outline-button" type="button" data-view="home">${t("cancel")}</button>
@@ -1671,8 +1805,8 @@ function renderCaptureForm(mode, target = "page") {
         <h3>${t("screenshotClipboardOnly")}</h3>
         <p>${state.lang === "en" ? "Click the paste area, copy a screenshot, then paste. This tab has no file chooser." : "点击粘贴区、复制截图后执行粘贴；这个入口不提供文件选择。"}</p>
         <button class="text-link capture-fallback" type="button" data-switch-${target}="document">${t("goToDocument")}</button>
-        <h3>${state.lang === "en" ? "Original image" : "原始图片"}</h3>
-        <p>${state.lang === "en" ? "The original remains only when no secret is detected. Otherwise only a verified redacted image remains." : "未检测到密钥时保留原图；检测到密钥时只保留经过验证的脱敏派生图。"}</p>
+        <h3>${state.lang === "en" ? "Temporary OCR input" : "临时 OCR 输入"}</h3>
+        <p>${state.lang === "en" ? "The screenshot is used only for OCR. Recognized text is redacted before AI processing, and the image is not retained." : "截图只用于 OCR；识别文字脱敏后再交给 AI，截图本身不长期保存。"}</p>
       </aside>
     `;
     paintPastedScreenshot(target);
@@ -1721,6 +1855,7 @@ function setLanguage(lang) {
     library: lang === "en" ? "Library" : "知识库",
     capture: lang === "en" ? "Capture" : "采集",
     processing: lang === "en" ? "In progress" : "待处理",
+    billing: lang === "en" ? "Points" : "点数",
     trash: lang === "en" ? "Trash" : "回收站",
     settings: lang === "en" ? "Settings" : "设置",
   };
@@ -1757,6 +1892,8 @@ function updateStaticDynamicLabels() {
     const mode = tab.dataset.captureMode;
     tab.textContent = mode === "manual"
       ? (state.lang === "en" ? "Manual" : "手动录入")
+      : mode === "ai-text"
+        ? (state.lang === "en" ? "AI text" : "AI 文字")
       : mode === "webpage"
         ? (state.lang === "en" ? "Web page" : "网页链接")
         : mode === "document"
@@ -1767,6 +1904,8 @@ function updateStaticDynamicLabels() {
     const mode = tab.dataset.dialogMode;
     tab.textContent = mode === "manual"
       ? (state.lang === "en" ? "Text" : "文字")
+      : mode === "ai-text"
+        ? (state.lang === "en" ? "AI text" : "AI 文字")
       : mode === "webpage"
         ? (state.lang === "en" ? "Web" : "网页")
         : mode === "document"
@@ -1836,7 +1975,7 @@ function addItem({
   finalCategory = "产品设计",
   attachments = [],
 }) {
-  const id = `k${Date.now()}`;
+  const id = `k${Date.now()}-${items.length}`;
   const newItem = {
     id,
     title,
@@ -1878,13 +2017,18 @@ function saveExternalResult(resultId) {
   const result = externalResults.find((candidate) => candidate.id === resultId);
   if (!result) return;
   addItem({
-    title: result.title,
-    body: result.summary,
-    source: "webpage",
+    title: state.lang === "en" ? `${result.title}: AI organized` : `${result.title}：AI 整理`,
+    body: state.lang === "en"
+      ? "The selected candidate was fetched through the approved API, redacted, split, summarized, classified, and tagged by AI before entering the knowledge base."
+      : "所选候选通过授权接口获取内容，脱敏后由 AI 完成拆分、摘要、分类和标签，再进入知识库。",
+    source: "internet_result",
     sourceLabel: result.domain,
-    status: "review",
-    finalStatus: "review",
-    tags: ["互联网结果", "待复核"],
+    category: state.lang === "en" ? "Internet knowledge" : "互联网知识",
+    status: "processing",
+    finalStatus: "done",
+    tags: state.lang === "en"
+      ? ["Internet result", "AI organized", "Searchable"]
+      : ["互联网结果", "AI整理", "可检索"],
   });
   state.externalVisible = false;
   renderHomeResults();
@@ -1926,21 +2070,50 @@ function handleCaptureSubmit(form, target) {
     state.richDrafts[target] = "";
   } else if (mode === "webpage") {
     const url = String(formData.get("url") || "").trim();
-    if (!url) return;
+    const externalAiConsent = formData.get("externalAiConsent") === "on";
+    if (!url || !externalAiConsent) return;
     let host = "网页";
     try {
       host = new URL(url).hostname;
     } catch {
       host = "网页";
     }
-    addItem({
-      title: note || `网页收藏：${host}`,
-      body: `正在分析 ${host} 的单页渲染截图。原型中会模拟自动摘要、分类和标签。`,
-      source: "webpage",
-      sourceLabel: host,
-      status: "processing",
-      finalStatus: "review",
-      tags: ["网页截图", "自动整理"],
+    const notes = state.lang === "en"
+      ? [
+          {
+            title: `${host}: one page becomes searchable notes`,
+            body: "The submitted page is captured once as a screenshot. OCR reads only its visible text, and AI splits that content into organized knowledge.",
+            tags: ["Page capture", "OCR", "Automatic tags"],
+          },
+          {
+            title: `${host}: no crawling and no URL-only record`,
+            body: "The system does not follow page links or paginate. Each saved item contains searchable text instead of a bare URL.",
+            tags: ["Single page", "No crawler", "Knowledge base"],
+          },
+        ]
+      : [
+          {
+            title: `${host}：一个页面拆成多条可检索知识`,
+            body: "用户提交的页面只截图一次。OCR 读取截图中的可见文字，再由 AI 将内容拆分、摘要、分类并生成标签。",
+            tags: ["网页截图", "OCR", "自动标签"],
+          },
+          {
+            title: `${host}：不爬取链接，也不会只保存 URL`,
+            body: "系统不会跟随页面中的链接，也不会分页抓取。入库的是整理后的可检索正文，而不是一条只有网址的伪知识。",
+            tags: ["单页采集", "禁止爬虫", "知识入库"],
+          },
+        ];
+    notes.forEach((entry) => {
+      addItem({
+        title: entry.title,
+        body: entry.body,
+        category: state.lang === "en" ? "Web knowledge" : "网页知识",
+        tags: entry.tags,
+        source: "webpage",
+        sourceLabel: host,
+        status: "processing",
+        finalStatus: "done",
+      });
     });
   } else if (mode === "document") {
     const file = state.selectedFiles[target] || formData.get("file");
@@ -1948,19 +2121,52 @@ function handleCaptureSubmit(form, target) {
       showToast(t("fileMissing"));
       return;
     }
+    const externalAiConsent = formData.get("externalAiConsent") === "on";
+    if (!externalAiConsent) {
+      showToast(state.lang === "en" ? "Agree to external AI parsing first." : "请先同意外部 AI 解析本文档。");
+      return;
+    }
     const image = isImageFile(file);
-    const attachmentUrl = image ? URL.createObjectURL(file) : null;
-    addItem({
-      title: image ? "新的图片知识" : "新的文档知识",
-      body: note || (image ? "图片正在提取可见文字、扫描密钥和自动归类。" : "文档正在提取文字、扫描密钥和自动归类。"),
-      source: "document",
-      sourceLabel: file.name,
-      status: "processing",
-      finalStatus: "review",
-      tags: [image ? "图片文字识别" : "文档解析", "安全扫描"],
-      attachments: image
-        ? [{ kind: "image", name: file.name, url: attachmentUrl, safety: "clean" }]
-        : [],
+    const parsed = state.lang === "en"
+        ? [
+            {
+              title: `${file.name}：first organized topic`,
+              body: image
+                ? "The image passed safety checks and OCR. AI removed likely secrets and created a searchable topic from the recognized text."
+                : "The document parser extracted the full document text. AI removed likely secrets and created a searchable topic from the first section.",
+              tags: [image ? "Image OCR" : "Document parsing", "AI split", "Automatic tags"],
+            },
+            {
+              title: `${file.name}：second organized topic`,
+              body: "The remaining content became another knowledge item. The original file or image was not stored as a permanent attachment.",
+              tags: ["AI knowledge", "Content split", "Searchable"],
+            },
+          ]
+        : [
+            {
+              title: `${file.name}：第一个整理主题`,
+              body: image
+                ? "图片通过安全检查并完成 OCR，AI 移除疑似密钥后，把识别文字整理成可检索知识。"
+                : "文档解析服务提取全文，AI 先移除疑似密钥，再把第一部分整理成可检索知识。",
+              tags: [image ? "图片OCR" : "文档解析", "AI拆分", "自动标签"],
+            },
+            {
+              title: `${file.name}：第二个整理主题`,
+              body: "其余内容被拆成独立知识条目；原始文档或图片不会作为永久附件保存。",
+              tags: ["AI知识", "内容拆分", "可检索"],
+            },
+          ];
+    parsed.forEach((entry) => {
+      addItem({
+        title: note ? `${entry.title} · ${note}` : entry.title,
+        body: entry.body,
+        category: state.lang === "en" ? "Document knowledge" : "文档知识",
+        tags: entry.tags,
+        source: "document",
+        sourceLabel: file.name,
+        status: "processing",
+        finalStatus: "done",
+      });
     });
     state.selectedFiles[target] = null;
   } else {
@@ -1969,18 +2175,47 @@ function handleCaptureSubmit(form, target) {
       showToast(t("screenshotPasteEmpty"));
       return;
     }
-    const attachmentUrl = pasted.file instanceof Blob
-      ? URL.createObjectURL(pasted.file)
-      : pasted.previewUrl;
-    addItem({
-      title: "新的截图知识",
-      body: note || "剪贴板截图正在做 OCR、密钥扫描和自动归类。",
-      source: "screenshot",
-      sourceLabel: pasted.file.name || "剪贴板截图",
-      status: "processing",
-      finalStatus: "review",
-      tags: ["截图分析", "剪贴板粘贴", "安全扫描"],
-      attachments: [{ kind: "image", name: pasted.file.name, url: attachmentUrl, safety: "clean" }],
+    const externalAiConsent = formData.get("externalAiConsent") === "on";
+    if (!externalAiConsent) {
+      showToast(state.lang === "en" ? "Agree to external AI parsing first." : "请先同意外部 AI 解析截图。");
+      return;
+    }
+    const notes = state.lang === "en"
+      ? [
+          {
+            title: "First topic recognized from the screenshot",
+            body: "The screenshot is processed once for OCR. AI removes likely secrets and turns the visible text into searchable knowledge.",
+            tags: ["Screenshot OCR", "Automatic tags", "Temporary image"],
+          },
+          {
+            title: "Second topic recognized from the screenshot",
+            body: "Distinct visible sections become separate knowledge items. The screenshot is not stored as a permanent attachment.",
+            tags: ["Screenshot split", "Searchable", "No image retention"],
+          },
+        ]
+      : [
+          {
+            title: "从截图识别的第一个主题",
+            body: "截图只用于一次 OCR 处理。AI 移除疑似密钥后，把可见文字整理成可检索知识。",
+            tags: ["截图识别", "自动标签", "临时图片"],
+          },
+          {
+            title: "从截图识别的第二个主题",
+            body: "截图中不同内容会被拆成独立知识，截图本身不会作为永久附件保存。",
+            tags: ["截图拆分", "可检索", "不保留原图"],
+          },
+        ];
+    notes.forEach((entry) => {
+      addItem({
+        title: note ? `${entry.title} · ${note}` : entry.title,
+        body: entry.body,
+        category: state.lang === "en" ? "Screenshot knowledge" : "截图知识",
+        tags: entry.tags,
+        source: "screenshot",
+        sourceLabel: state.lang === "en" ? "Clipboard screenshot" : "剪贴板截图",
+        status: "processing",
+        finalStatus: "done",
+      });
     });
     clearPastedScreenshot(target);
   }
@@ -2362,7 +2597,7 @@ function initialize() {
   const requestedView = params.get("view");
   const requestedMode = params.get("mode");
   const requestedDialog = params.get("dialog");
-  if (["manual", "webpage", "document", "screenshot"].includes(requestedMode)) {
+  if (["manual", "ai-text", "webpage", "document", "screenshot"].includes(requestedMode)) {
     state.captureMode = requestedMode;
   }
   renderHomeResults();
@@ -2379,7 +2614,7 @@ function initialize() {
   if (["home", "library", "capture", "processing", "trash", "settings", "profile"].includes(requestedView)) {
     showView(requestedView);
   }
-  if (["manual", "webpage", "document", "screenshot"].includes(requestedDialog)) {
+  if (["manual", "ai-text", "webpage", "document", "screenshot"].includes(requestedDialog)) {
     openCaptureDialog(requestedDialog);
   }
   if (params.get("demoScreenshot") === "1" && state.captureMode === "screenshot") {

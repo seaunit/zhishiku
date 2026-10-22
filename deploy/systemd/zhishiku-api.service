@@ -9,6 +9,7 @@ User=zhishiku
 Group=zhishiku
 WorkingDirectory=/opt/zhishiku/current
 EnvironmentFile=/etc/zhishiku/kb.env
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/zhishiku/playwright
 ExecStart=/usr/bin/java -Xms256m -Xmx768m -jar /opt/zhishiku/current/kb-app.jar
 Restart=on-failure
 RestartSec=5

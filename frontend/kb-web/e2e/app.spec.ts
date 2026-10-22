@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test'
+import type { KnowledgeItem } from '@/types/api'
+import type { RichTextDocument } from '@/types/rich-text'
 
 const summary = {
   id: '123e4567-e89b-42d3-a456-426614174000',
@@ -20,6 +22,50 @@ const profile = {
   email: 'linzhou@example.com',
   displayName: '林舟',
   locale: 'zh-CN',
+}
+
+const billingCatalog = {
+  environment: 'test',
+  versionCode: '2026-10-mvp',
+  packs: [
+    {
+      sku: 'kb_pack_9',
+      name: '轻量加量包',
+      nameZh: '轻量加量包',
+      nameEn: 'Starter',
+      priceMinor: 900,
+      currency: 'CNY',
+      points: 400,
+      oneTime: true,
+    },
+    {
+      sku: 'kb_pack_29',
+      name: '常用加量包',
+      nameZh: '常用加量包',
+      nameEn: 'Standard',
+      priceMinor: 2900,
+      currency: 'CNY',
+      points: 1400,
+      oneTime: true,
+    },
+    {
+      sku: 'kb_pack_99',
+      name: '超值加量包',
+      nameZh: '超值加量包',
+      nameEn: 'Pro',
+      priceMinor: 9900,
+      currency: 'CNY',
+      points: 5000,
+      oneTime: true,
+    },
+  ],
+  aiRates: [],
+  refundPolicy: {
+    supportUrl: 'https://seaunit.site/kb/billing',
+    responseTarget: '3 个工作日',
+    automaticFullRefundRecovery: true,
+    partialRefundManualReview: true,
+  },
 }
 
 test.beforeEach(async ({ page }) => {
@@ -51,6 +97,75 @@ test.beforeEach(async ({ page }) => {
     })
   })
 
+  await page.route('**/kb/api/v1/ai-consents', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fallback()
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          scope: 'text',
+          service: 'deepseek:chat',
+          contentType: 'text',
+          granted: false,
+          consentVersion: 'ai-consent-v1',
+          updatedAt: null,
+        },
+        {
+          scope: 'webpage',
+          service: 'deepseek:chat',
+          contentType: 'webpage_screenshot',
+          granted: false,
+          consentVersion: 'ai-consent-v1',
+          updatedAt: null,
+        },
+        {
+          scope: 'document',
+          service: 'deepseek:chat',
+          contentType: 'document_text',
+          granted: false,
+          consentVersion: 'ai-consent-v1',
+          updatedAt: null,
+        },
+        {
+          scope: 'screenshot',
+          service: 'deepseek:chat',
+          contentType: 'screenshot_ocr',
+          granted: false,
+          consentVersion: 'ai-consent-v1',
+          updatedAt: null,
+        },
+        {
+          scope: 'search',
+          service: 'deepseek:search',
+          contentType: 'search_query',
+          granted: false,
+          consentVersion: 'ai-consent-v1',
+          updatedAt: null,
+        },
+      ]),
+    })
+  })
+  await page.route('**/kb/api/v1/ai-consents/*', async (route) => {
+    const scope = route.request().url().split('/').pop()
+    const body = route.request().postDataJSON() as { granted: boolean }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        scope,
+        service: scope === 'search' ? 'deepseek:search' : 'deepseek:chat',
+        contentType: scope,
+        granted: body.granted,
+        consentVersion: 'ai-consent-v1',
+        updatedAt: new Date().toISOString(),
+      }),
+    })
+  })
+
   await page.route('**/kb/api/v1/knowledge-items**', async (route) => {
     await route.fulfill({
       status: 200,
@@ -67,6 +182,154 @@ test.beforeEach(async ({ page }) => {
         items: [{ item: summary, matchedFields: ['title'], highlights: {} }],
         nextCursor: null,
         degraded: false,
+      }),
+    })
+  })
+
+  await page.route('**/kb/api/v1/billing/catalog', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(billingCatalog),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/account', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        availablePoints: 100,
+        reservedPoints: 0,
+        trialPoints: 100,
+        purchasedPoints: 0,
+        updatedAt: new Date().toISOString(),
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/ledger**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], nextCursor: null }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/orders**', async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: '123e4567-e89b-42d3-a456-426614174180',
+          sku: 'kb_pack_9',
+          environment: 'test',
+          amountMinor: 900,
+          currency: 'CNY',
+          points: 400,
+          providerProductId: 'PROD_9',
+          status: 'PENDING',
+          checkoutUrl: null,
+          paidAt: null,
+          closedAt: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], nextCursor: null }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/auto-charge', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        featureScope: 'classify',
+        enabled: false,
+        maxPointsPerTask: 15,
+        maxPointsPerDay: 100,
+        timezone: 'Asia/Shanghai',
+        consentTextVersion: 'billing-auto-v1',
+        version: 1,
+        updatedAt: new Date().toISOString(),
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/refunds', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    })
+  })
+  await page.route('**/kb/api/v1/billing/preflights', async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        preflightId: '123e4567-e89b-42d3-a456-426614174181',
+        measuredCharactersUpperBound: 10000,
+        viewCount: 1,
+        pricingBasis: 'document_chars',
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/quotes', async (route) => {
+    const payload = route.request().postDataJSON() as {
+      lines: Array<{ feature: string; quantity: number }>
+    }
+    const points: Record<string, number> = {
+      ai_text: 5,
+      webpage_vision: 10,
+      document_extract: 10,
+      screenshot_ocr: 10,
+      internet_search: 3,
+      classify: 5,
+    }
+    const lines = payload.lines.map((line) => ({
+      feature: line.feature,
+      unit: 'entry',
+      quantity: line.quantity,
+      pointsPerUnit: points[line.feature] || 1,
+      maxPoints: (points[line.feature] || 1) * line.quantity,
+      successRule: 'success',
+    }))
+    const maxPoints = lines.reduce((sum, line) => sum + line.maxPoints, 0)
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        quoteId: '123e4567-e89b-42d3-a456-426614174182',
+        status: 'QUOTED',
+        lines,
+        imageResources: [],
+        maxPoints,
+        availablePoints: 100,
+        projectedRemainingPoints: 100 - maxPoints,
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+        autoChargeEligible: false,
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/quotes/*/confirm', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: '123e4567-e89b-42d3-a456-426614174183',
+        status: 'RESERVED',
+        lines: [],
+        maxPoints: 15,
+        settledPoints: 0,
+        reservedPoints: 15,
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+        autoChargeApplied: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       }),
     })
   })
@@ -284,6 +547,99 @@ test('searches from the prototype-aligned home screen', async ({ page }) => {
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true })
 })
 
+test('corrects locked classification and restores an item from the trash', async ({ page }) => {
+  const itemId = '123e4567-e89b-42d3-a456-426614174901'
+  let current: KnowledgeItem = {
+    ...summary,
+    id: itemId,
+    title: '深海分类测试',
+    body: '这是一条用于验证分类纠正和回收站恢复的知识。',
+    bodyDocument: {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: '正文' }] }],
+    } as RichTextDocument,
+    bodySchemaVersion: 1,
+    bodyMigrationState: 'completed' as const,
+    note: '',
+    redactionApplied: false,
+    category: {
+      id: '123e4567-e89b-42d3-a456-426614174902',
+      name: '未分类',
+      status: 'provisional',
+      origin: 'ai',
+      confidence: 0.4,
+    },
+    tags: [],
+  }
+
+  await page.route(`**/kb/api/v1/knowledge-items/${itemId}`, async (route) => {
+    if (route.request().method() === 'DELETE') {
+      await route.fulfill({ status: 204 })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(current),
+    })
+  })
+  await page.route(
+    `**/kb/api/v1/knowledge-items/${itemId}/classification`,
+    async (route) => {
+      const payload = route.request().postDataJSON() as { category: string; tags: string[] }
+      current = {
+        ...current,
+        category: {
+          id: '123e4567-e89b-42d3-a456-426614174903',
+          name: payload.category,
+          status: 'locked',
+          origin: 'user',
+          confidence: null,
+        },
+        tags: payload.tags.map((name, index) => ({
+          id: `tag-${index}`,
+          name,
+          status: 'locked',
+          origin: 'user',
+        })),
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(current),
+      })
+    },
+  )
+  await page.route('**/kb/api/v1/knowledge-items/trash**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [current], nextCursor: null }),
+    })
+  })
+  await page.route(
+    `**/kb/api/v1/knowledge-items/${itemId}/restore`,
+    async (route) => {
+      await route.fulfill({ status: 204 })
+    },
+  )
+
+  await page.goto(`/kb/library/${itemId}`)
+  await page.getByRole('button', { name: '纠正分类' }).click()
+  await page.getByLabel('分类').fill('人工智能')
+  await page.getByLabel('标签').fill('知识管理、深检索')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await expect(page.getByText('人工智能', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('知识管理', { exact: true }).first()).toBeVisible()
+
+  await page.getByRole('button', { name: '删除', exact: true }).click()
+  await page.getByRole('button', { name: '移入回收站', exact: true }).click()
+  await expect(page).toHaveURL(/\/kb\/trash$/)
+  await expect(page.getByText('深海分类测试')).toBeVisible()
+  await page.getByRole('button', { name: '恢复', exact: true }).click()
+  await expect(page.getByText('深海分类测试')).toHaveCount(0)
+})
+
 test('uses the prototype bottom navigation on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/kb/')
@@ -291,8 +647,15 @@ test('uses the prototype bottom navigation on a phone', async ({ page }) => {
   await expect(page.getByRole('button', { name: '打开菜单' })).toHaveCount(0)
   const navigation = page.getByRole('navigation', { name: '主导航' })
   await expect(navigation).toBeVisible()
-  await expect(navigation.getByRole('link')).toHaveCount(6)
+  await expect(navigation.getByRole('link')).toHaveCount(7)
   await expect(navigation.getByRole('link', { name: '设置', exact: true })).toBeVisible()
+  const targets = await navigation.getByRole('link').evaluateAll((links) =>
+    links.map((link) => {
+      const box = link.getBoundingClientRect()
+      return { width: box.width, height: box.height }
+    }),
+  )
+  expect(targets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true)
   await page.screenshot({ path: 'test-results/home-mobile.png', fullPage: true })
 })
 
@@ -312,16 +675,88 @@ test('opens every prototype navigation destination', async ({ page }) => {
   await expect(page).toHaveURL(/\/kb\/trash$/)
   await expect(page.getByRole('heading', { level: 1, name: '回收站' })).toBeVisible()
 
+  await navigation.getByRole('link', { name: '点数', exact: true }).click()
+  await expect(page).toHaveURL(/\/kb\/billing$/)
+  await expect(page.getByRole('heading', { level: 1, name: '点数与支付' })).toBeVisible()
+
   await navigation.getByRole('link', { name: '设置', exact: true }).click()
   await expect(page).toHaveURL(/\/kb\/settings$/)
   await expect(page.getByRole('heading', { level: 1, name: '设置' })).toBeVisible()
 })
 
-test('offers all four prototype capture modes', async ({ page }) => {
+test('shows pricing, balance, and automatic charging controls', async ({ page }) => {
+  let savedAutoCharge: Record<string, unknown> | undefined
+  await page.route('**/kb/api/v1/billing/auto-charge', async (route) => {
+    if (route.request().method() === 'PATCH') {
+      savedAutoCharge = route.request().postDataJSON() as Record<string, unknown>
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          featureScope: 'classify',
+          enabled: true,
+          maxPointsPerTask: 15,
+          maxPointsPerDay: 100,
+          timezone: 'Asia/Shanghai',
+          consentTextVersion: 'billing-auto-v1',
+          version: 2,
+          updatedAt: new Date().toISOString(),
+        }),
+      })
+      return
+    }
+    await route.fallback()
+  })
+
+  await page.goto('/kb/billing')
+  await expect(page.getByRole('heading', { level: 1, name: '点数与支付' })).toBeVisible()
+  await expect(page.locator('.billing-balance-value')).toHaveText('100')
+  await expect(page.getByText('轻量加量包')).toBeVisible()
+  await expect(page.getByText('常用加量包')).toBeVisible()
+  await expect(page.getByText('超值加量包')).toBeVisible()
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button', { name: '保存设置' }).click()
+  expect(savedAutoCharge).toMatchObject({
+    enabled: true,
+    maxPointsPerTask: 15,
+    maxPointsPerDay: 100,
+  })
+})
+
+test('persists AI consent per account and scope', async ({ page }) => {
+  const updates: Array<{ scope: string; granted: boolean }> = []
+  page.on('request', (request) => {
+    if (
+      request.url().includes('/kb/api/v1/ai-consents/') &&
+      request.method() === 'PUT'
+    ) {
+      updates.push({
+        scope: request.url().split('/').pop() || '',
+        granted: (request.postDataJSON() as { granted: boolean }).granted,
+      })
+    }
+  })
+
+  await page.goto('/kb/settings')
+  const textConsent = page.getByRole('checkbox', {
+    name: 'DeepSeek 分类 · 文本',
+  })
+  await textConsent.check()
+  await expect(textConsent).toBeChecked()
+  await page.getByRole('checkbox', { name: 'DeepSeek Vision · 网页' }).check()
+  expect(updates).toEqual([
+    { scope: 'text', granted: true },
+    { scope: 'webpage', granted: true },
+  ])
+  await textConsent.uncheck()
+  await expect(textConsent).not.toBeChecked()
+})
+
+test('offers all five prototype capture modes', async ({ page }) => {
   await page.goto('/kb/capture')
 
   const tabs = page.getByRole('tab')
-  await expect(tabs).toHaveCount(4)
+  await expect(tabs).toHaveCount(5)
   await expect(page.getByRole('tab', { name: '手动录入' })).toHaveAttribute(
     'aria-selected',
     'true',
@@ -329,6 +764,9 @@ test('offers all four prototype capture modes', async ({ page }) => {
 
   await page.getByRole('tab', { name: '网页链接' }).click()
   await expect(page.getByLabel('网页链接', { exact: true })).toBeVisible()
+
+  await page.getByRole('tab', { name: 'AI 文字', exact: true }).click()
+  await expect(page.getByLabel('待整理文字')).toBeVisible()
 
   await page.getByRole('tab', { name: '文档', exact: true }).click()
   await expect(page.getByLabel('选择文档或图片')).toHaveAttribute(
@@ -341,8 +779,66 @@ test('offers all four prototype capture modes', async ({ page }) => {
   await expect(page.getByTestId('screenshot-paste-zone').locator('input[type=file]')).toHaveCount(0)
 })
 
-test('saves webpage and text document capture sources', async ({ page }) => {
+test('organizes explicitly authorized AI text without using manual creation', async ({ page }) => {
+  const textBodies: string[] = []
+  let directCreateRequests = 0
+  page.on('request', (request) => {
+    if (
+      request.url().includes('/api/v1/knowledge-items') &&
+      request.method() === 'POST'
+    ) {
+      directCreateRequests += 1
+    }
+  })
+  await page.route('**/kb/api/v1/auth/csrf', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token: 'csrf-ai-text', headerName: 'X-XSRF-TOKEN' }),
+    })
+  })
+  await page.route('**/kb/api/v1/text-imports', async (route) => {
+    textBodies.push(route.request().postData() || '')
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            ...summary,
+            id: '123e4567-e89b-42d3-a456-426614174130',
+            body: 'AI organized text',
+            bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
+            bodySchemaVersion: 1,
+            bodyMigrationState: 'completed',
+            note: 'AI 摘要',
+            processingStatus: 'succeeded',
+            redactionApplied: false,
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/kb/capture')
+  await page.getByRole('tab', { name: 'AI 文字', exact: true }).click()
+  await page.getByLabel('待整理文字').fill('这是一段需要 AI 拆分整理的知识文字内容。'.repeat(3))
+  await expect(page.getByRole('button', { name: 'AI 整理文字' })).toBeDisabled()
+  await page.getByLabel('允许外部 AI 整理这段文字').check()
+  await page.getByRole('button', { name: 'AI 整理文字' }).click()
+  await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
+  await expect(page).toHaveURL(/\/kb\/library$/)
+  expect(textBodies).toHaveLength(1)
+  expect(JSON.parse(textBodies[0])).toMatchObject({
+    externalAiConsent: true,
+  })
+  expect(directCreateRequests).toBe(0)
+})
+
+test('saves webpage and parsed document capture sources', async ({ page }) => {
   const payloads: Array<Record<string, unknown>> = []
+  const webImportPayloads: Array<Record<string, unknown>> = []
+  const documentImportBodies: string[] = []
   let nextId = 0
   await page.route('**/kb/api/v1/auth/csrf', async (route) => {
     await route.fulfill({
@@ -373,33 +869,173 @@ test('saves webpage and text document capture sources', async ({ page }) => {
       }),
     })
   })
+  await page.route('**/kb/api/v1/web-imports', async (route) => {
+    webImportPayloads.push(route.request().postDataJSON() as Record<string, unknown>)
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            ...summary,
+            id: '123e4567-e89b-42d3-a456-426614174101',
+            body: '网页第一段',
+            bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
+            bodySchemaVersion: 1,
+            bodyMigrationState: 'completed',
+            note: 'AI 摘要',
+            redactionApplied: false,
+          },
+          {
+            ...summary,
+            id: '123e4567-e89b-42d3-a456-426614174102',
+            title: '网页第二段知识',
+            body: '网页第二段',
+            bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
+            bodySchemaVersion: 1,
+            bodyMigrationState: 'completed',
+            note: 'AI 摘要',
+            redactionApplied: false,
+          },
+        ],
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/document-imports', async (route) => {
+    documentImportBodies.push(route.request().postDataBuffer()?.toString('utf8') || '')
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            ...summary,
+            id: '123e4567-e89b-42d3-a456-426614174101',
+            body: '文档第一段',
+            bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
+            bodySchemaVersion: 1,
+            bodyMigrationState: 'completed',
+            note: '来源格式：PDF',
+            processingStatus: 'succeeded',
+            redactionApplied: false,
+          },
+        ],
+      }),
+    })
+  })
 
   await page.goto('/kb/capture')
   await page.getByRole('tab', { name: '网页链接' }).click()
   await page.getByLabel('网页链接', { exact: true }).fill('https://example.com/article')
-  await page.getByRole('button', { name: '保存链接' }).click()
-  await expect(page).toHaveURL(/\/kb\/library\/123e4567-e89b-42d3-a456-426614174101$/)
-  expect(payloads[0]?.bodySource).toMatchObject({
-    kind: 'webpage',
-    sourceUrl: 'https://example.com/article',
+  await expect(page.getByRole('button', { name: 'AI截图拆分入库' })).toBeDisabled()
+  await page.getByLabel('允许外部 AI 处理本页文字').check()
+  await page.getByRole('button', { name: 'AI截图拆分入库' }).click()
+  await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
+  await expect(page).toHaveURL(/\/kb\/library$/)
+  expect(webImportPayloads).toHaveLength(1)
+  expect(webImportPayloads[0]).toMatchObject({
+    url: 'https://example.com/article',
+    externalAiConsent: true,
+    billingTaskId: '123e4567-e89b-42d3-a456-426614174183',
   })
+  expect(payloads).toHaveLength(0)
 
   await page.goto('/kb/capture')
   await page.getByRole('tab', { name: '文档', exact: true }).click()
   await page.getByLabel('选择文档或图片').setInputFiles({
-    name: 'notes.md',
-    mimeType: 'text/markdown',
-    buffer: Buffer.from('# Heading\n\nDocument body'),
+    name: 'brief.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.7\nmock document'),
   })
-  await page.getByRole('button', { name: '保存文档' }).click()
-  await expect(page).toHaveURL(/\/kb\/library\/123e4567-e89b-42d3-a456-426614174102$/)
-  expect(payloads[1]?.bodySource).toMatchObject({ kind: 'document' })
-  expect(JSON.stringify(payloads[1]?.bodyDocument)).toContain('Document body')
+  await expect(page.getByRole('button', { name: '解析并整理' })).toBeDisabled()
+  await page.getByLabel('允许外部 AI 解析并整理此文件').check()
+  await page.getByRole('button', { name: '解析并整理' }).click()
+  await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
+  await expect(page).toHaveURL(/\/kb\/library$/)
+  expect(payloads).toHaveLength(0)
+  expect(documentImportBodies).toHaveLength(1)
+  expect(documentImportBodies[0]).toContain('brief.pdf')
+  expect(documentImportBodies[0]).toContain('externalAiConsent')
 })
 
-test('saves a clipboard screenshot through the dedicated capture mode', async ({ page }) => {
-  const uploadId = '123e4567-e89b-42d3-a456-426614174099'
-  let capturedPayload: Record<string, unknown> | undefined
+test('sends document images to AI import without attachment uploads', async ({ page }) => {
+  let documentImportRequests = 0
+  let imageUploadRequests = 0
+  let directCreateRequests = 0
+  page.on('request', (request) => {
+    if (request.url().includes('/api/v1/rich-text/image-uploads')) imageUploadRequests += 1
+    if (
+      request.url().includes('/api/v1/knowledge-items') &&
+      request.method() === 'POST'
+    ) {
+      directCreateRequests += 1
+    }
+  })
+  await page.route('**/kb/api/v1/auth/csrf', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token: 'csrf-document-image', headerName: 'X-XSRF-TOKEN' }),
+    })
+  })
+  await page.route('**/kb/api/v1/document-imports', async (route) => {
+    documentImportRequests += 1
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            ...summary,
+            id: '123e4567-e89b-42d3-a456-426614174140',
+            body: '图片 OCR 后由 AI 整理的知识',
+            bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
+            bodySchemaVersion: 1,
+            bodyMigrationState: 'completed',
+            note: '来源格式：PNG 图片',
+            processingStatus: 'succeeded',
+            redactionApplied: false,
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/kb/capture')
+  await page.getByRole('tab', { name: '文档', exact: true }).click()
+  const input = page.getByLabel('选择文档或图片')
+  await expect(input).toHaveAttribute(
+    'accept',
+    /image\/png/,
+  )
+  await input.setInputFiles({
+    name: 'notes.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('mock png'),
+  })
+  await expect(page.getByRole('button', { name: '解析并整理' })).toBeDisabled()
+  await page.getByLabel('允许外部 AI 解析并整理此文件').check()
+  await page.getByRole('button', { name: '解析并整理' }).click()
+  await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
+  await expect(page).toHaveURL(/\/kb\/library$/)
+  expect(documentImportRequests).toBe(1)
+  expect(imageUploadRequests).toBe(0)
+  expect(directCreateRequests).toBe(0)
+})
+
+test('recognizes and splits a clipboard screenshot without saving the image', async ({ page }) => {
+  const screenshotBodies: string[] = []
+  let imageUploadRequests = 0
+  let knowledgeCreateRequests = 0
+  page.on('request', (request) => {
+    if (request.url().includes('/rich-text/image-uploads')) imageUploadRequests += 1
+    if (
+      request.url().includes('/api/v1/knowledge-items') &&
+      request.method() === 'POST'
+    ) {
+      knowledgeCreateRequests += 1
+    }
+  })
   await page.route('**/kb/api/v1/auth/csrf', async (route) => {
     await route.fulfill({
       status: 200,
@@ -407,43 +1043,37 @@ test('saves a clipboard screenshot through the dedicated capture mode', async ({
       body: JSON.stringify({ token: 'csrf-screenshot', headerName: 'X-XSRF-TOKEN' }),
     })
   })
-  await page.route('**/kb/api/v1/rich-text/image-uploads', async (route) => {
+  await page.route('**/kb/api/v1/screenshot-imports', async (route) => {
+    screenshotBodies.push(route.request().postDataBuffer()?.toString('utf8') || '')
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
       body: JSON.stringify({
-        uploadId,
-        status: 'ready',
-        scanState: 'clean',
-        redactionState: 'none',
-        mediaType: 'image/png',
-        sourceSizeBytes: 12,
-        sizeBytes: 12,
-        normalizedWidth: 1,
-        normalizedHeight: 1,
-        aspectRatio: 1,
-        expiresAt: '2026-10-23T00:00:00Z',
-      }),
-    })
-  })
-  await page.route('**/kb/api/v1/knowledge-items', async (route) => {
-    if (route.request().method() !== 'POST') {
-      await route.fallback()
-      return
-    }
-    capturedPayload = route.request().postDataJSON() as Record<string, unknown>
-    await route.fulfill({
-      status: 201,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        ...summary,
-        id: '123e4567-e89b-42d3-a456-426614174103',
-        body: '',
-        bodyDocument: capturedPayload.bodyDocument,
-        bodySchemaVersion: 1,
-        bodyMigrationState: 'completed',
-        note: '',
-        redactionApplied: false,
+        items: [
+          {
+            ...summary,
+            id: '123e4567-e89b-42d3-a456-426614174103',
+            body: '截图整理出的第一段知识',
+            bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
+            bodySchemaVersion: 1,
+            bodyMigrationState: 'completed',
+            note: '来源格式：PNG 截图',
+            processingStatus: 'succeeded',
+            redactionApplied: false,
+          },
+          {
+            ...summary,
+            id: '123e4567-e89b-42d3-a456-426614174104',
+            title: '截图整理出的第二段知识',
+            body: '截图整理出的第二段知识',
+            bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
+            bodySchemaVersion: 1,
+            bodyMigrationState: 'completed',
+            note: '来源格式：PNG 截图',
+            processingStatus: 'succeeded',
+            redactionApplied: false,
+          },
+        ],
       }),
     })
   })
@@ -469,10 +1099,16 @@ test('saves a clipboard screenshot through the dedicated capture mode', async ({
       )
   })
   await expect(page.getByText('剪贴板截图已就绪')).toBeVisible()
-  await page.getByRole('button', { name: '保存截图' }).click()
-  await expect(page).toHaveURL(/\/kb\/library\/123e4567-e89b-42d3-a456-426614174103$/)
-  expect(capturedPayload?.bodySource).toMatchObject({ kind: 'screenshot' })
-  expect(JSON.stringify(capturedPayload?.bodyDocument)).toContain(uploadId)
+  await expect(page.getByRole('button', { name: '识别并拆分' })).toBeDisabled()
+  await page.getByLabel('允许外部 AI 解析并整理这张截图').check()
+  await page.getByRole('button', { name: '识别并拆分' }).click()
+  await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
+  await expect(page).toHaveURL(/\/kb\/library$/)
+  expect(screenshotBodies).toHaveLength(1)
+  expect(screenshotBodies[0]).toContain('clipboard.png')
+  expect(screenshotBodies[0]).toContain('externalAiConsent')
+  expect(imageUploadRequests).toBe(0)
+  expect(knowledgeCreateRequests).toBe(0)
 })
 
 test('continues to internet search only after explicit consent and saves a candidate', async ({
@@ -480,6 +1116,7 @@ test('continues to internet search only after explicit consent and saves a candi
 }) => {
   let externalRequests = 0
   let consentPayload: Record<string, unknown> | undefined
+  let savePayload: Record<string, unknown> | undefined
   await page.route('**/kb/api/v1/search/external', async (route) => {
     externalRequests += 1
     consentPayload = route.request().postDataJSON() as Record<string, unknown>
@@ -503,18 +1140,24 @@ test('continues to internet search only after explicit consent and saves a candi
   await page.route(
     '**/kb/api/v1/search/external/123e4567-e89b-42d3-a456-426614174120/save',
     async (route) => {
+      savePayload = route.request().postDataJSON() as Record<string, unknown>
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify({
-          ...summary,
-          id: '123e4567-e89b-42d3-a456-426614174121',
-          body: 'Fetched web content',
-          bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
-          bodySchemaVersion: 1,
-          bodyMigrationState: 'completed',
-          note: 'Internet summary',
-          redactionApplied: false,
+          items: [
+            {
+              ...summary,
+              id: '123e4567-e89b-42d3-a456-426614174121',
+              body: 'AI organized web content',
+              bodyDocument: { type: 'doc', content: [{ type: 'paragraph' }] },
+              bodySchemaVersion: 1,
+              bodyMigrationState: 'completed',
+              note: 'Internet summary',
+              processingStatus: 'succeeded',
+              redactionApplied: false,
+            },
+          ],
         }),
       })
     },
@@ -531,6 +1174,8 @@ test('continues to internet search only after explicit consent and saves a candi
 
   await expect(internetButton).toBeEnabled()
   await internetButton.click()
+  await expect(page.getByText('互联网搜索点数')).toBeVisible()
+  await page.getByRole('button', { name: /确认 \d+ 点并搜索/ }).click()
   await expect(page.getByText('DeepSeek Search result')).toBeVisible()
   expect(consentPayload).toMatchObject({
     query: 'DeepSeek',
@@ -538,8 +1183,13 @@ test('continues to internet search only after explicit consent and saves a candi
     includeAnswer: false,
   })
 
-  await page.getByRole('button', { name: '收入识海' }).click()
+  await page.getByRole('button', { name: 'AI 整理后收入' }).click()
+  await page.getByRole('button', { name: /确认 \d+ 点并收入/ }).click()
   await expect(page).toHaveURL(/\/kb\/library\/123e4567-e89b-42d3-a456-426614174121$/)
+  expect(savePayload).toEqual({
+    externalAiConsent: true,
+    billingTaskId: '123e4567-e89b-42d3-a456-426614174183',
+  })
 })
 
 test('logs in after fetching a CSRF token', async ({ page }) => {
@@ -821,6 +1471,16 @@ test('renders a rich text document recursively without v-html', async ({ page })
 test('saves a structured Tiptap body from the capture screen', async ({ page }) => {
   let posted: Record<string, unknown> | undefined
   let savedItem: Record<string, unknown> | undefined
+  let aiImportRequests = 0
+  page.on('request', (request) => {
+    if (
+      ['/text-imports', '/web-imports', '/document-imports', '/screenshot-imports'].some(
+        (path) => request.url().includes(path),
+      )
+    ) {
+      aiImportRequests += 1
+    }
+  })
   await page.route('**/kb/api/v1/knowledge-items', async (route) => {
     if (route.request().method() !== 'POST') {
       await route.fallback()
@@ -879,6 +1539,7 @@ test('saves a structured Tiptap body from the capture screen', async ({ page }) 
       }
     ).content?.[0]?.content?.[0]?.marks?.[0]?.type,
   ).toBe('bold')
+  expect(aiImportRequests).toBe(0)
   await expect(page.locator('.rich-text-view strong')).toContainText('Tiptap 粗体正文')
 })
 

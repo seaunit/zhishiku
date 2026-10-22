@@ -1,0 +1,22 @@
+[Unit]
+Description=Zhishiku Waffo Pancake bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=zhishiku
+Group=zhishiku
+WorkingDirectory=/opt/zhishiku/current/waffo-bridge
+EnvironmentFile=/etc/zhishiku/waffo.env
+ExecStart=/usr/bin/node /opt/zhishiku/current/waffo-bridge/server.js
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

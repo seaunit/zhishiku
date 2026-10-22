@@ -199,8 +199,8 @@ BCrypt 或 Argon2 强哈希。注册只要求邮箱验证码、两次一致密�
 
 - V1 中使用 `UNIQUE(item_id)`，因为每个条目只有一个主要来源。
 - 插入前拒绝包含内嵌凭据或指向非公开目标的 URL。
-- `screenshot` 来源只能使用 `clipboard`；`document` 来源在文档入口使用 `file_upload`，
-  并允许附件媒体类型为文档或静态图片。
+- `text` 来源只用于独立 AI 文字入口；`screenshot` 来源只能使用 `clipboard`；`document`
+  来源可表示文档或文档入口图片。文档图片必须先经 OCR 和 AI 整理，不得直接生成附件型知识。
 - 不存储 Cookie、`Authorization` 请求头或完整提供商响应。
 
 ## 实体：附件
@@ -264,8 +264,10 @@ BCrypt 或 Argon2 强哈希。注册只要求邮箱验证码、两次一致密�
 **输入方式约束**：
 
 - `screenshot` 采集任务只由用户主动粘贴剪贴板图片创建，不设置文件选择器。
-- `image_file` 采集任务由文档入口选择 JPG、PNG、WebP 等图片文件创建。
+- `image_file` 采集任务由文档入口选择 JPG、PNG、WebP 图片创建，必须完成安全检查、OCR 和
+  AI 整理后才生成知识，不长期保存原图。
 - `webpage` 采集任务由浏览器单页渲染产生，与用户截图入口分开。
+- `ai_text` 采集任务由独立 AI 文字入口创建，不得走普通手动知识创建路径。
 
 ## 实体：处理任务
 
@@ -512,7 +514,8 @@ WHERE revoked_at IS NULL
 
 **规则**：
 
-- 确认前不会创建任何 `knowledge_item`、`source`、附件或搜索文档。
+- 确认前不会创建任何 `knowledge_item`、`source`、附件或搜索文档。确认保存时必须先完成
+  Fetch、脱敏和 AI 整理；不得直接保存搜索摘要或 Fetch 原文。
 - 这些行不会作为搜索历史暴露。
 - 过期行会定期清除，并可在确认时清理。
 - 使用 `saved_item_id` 保存候选是幂等操作；即使客户端发送不同的幂等键，重复确认也会返回
@@ -732,3 +735,17 @@ Meilisearch 仅在 PostgreSQL 搜索基准失败后作为可重建派生索引�
 14. 知识删除不得删除订单、支付事件、点数账本或退款事实。
 15. 任何跨账号读取、写入、搜索、附件访问、计费预留或账本结算都必须失败；账号 ID 只能来自
     已认证会话，不能来自客户端可覆盖的业务字段。
+
+## 当前实现映射（2026-10-22）
+
+- `V0010__knowledge_classification.sql`：为 `knowledge_item` 增加 `ai_summary`，并落地
+  `knowledge_classification_term` 与 `knowledge_classification_assignment`。当前实际模型用
+  单个分配表同时承载 category/tag，通过 `kind` 区分；分类最多一条，标签可多条的约束由部分
+  唯一索引保证。
+- `V0012__ai_processing_consent.sql`：`ai_processing_consent` 以账号 + scope 为唯一键，保存
+  service、content type、granted、版本、授予和撤销时间；scope 固定为 text、webpage、document、
+  screenshot、search。
+- `V0013__api_idempotency.sql`：`api_idempotency` 以账号 + operation + key 为唯一键，保存规范化
+  请求哈希、完成状态、安全响应 JSON 和过期时间；相同键不同请求必须拒绝。
+- 回收站与永久清除沿用 `knowledge_item.lifecycle_state`、`attachment_cleanup` 和富文本引用
+  状态；公开接口既提供 `/knowledge-items/trash` 兼容路径，也提供规格中的 `/trash` 路径。

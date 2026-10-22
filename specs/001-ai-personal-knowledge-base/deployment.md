@@ -67,14 +67,12 @@ GitHub 固定 commit/tag 构建并发布：
 
 ```text
 zhishiku-api.service
-zhishiku-worker.service
-zhishiku-browser-worker.service
 zhishiku-waffo-bridge.service
 ```
 
 - API 绑定 `127.0.0.1:8082`。
-- Worker 关闭 HTTP 端口或仅暴露本地管理端口。
-- browser worker 不开放公共端口，最多并发一个 Chromium 实例。
+- MVP 的 Playwright browser worker 由 API 以短生命周期子进程启动，不开放任何端口。
+- OCR 使用本机 Tesseract CLI，与 API 共享只读语言数据目录。
 - Waffo bridge 绑定 `127.0.0.1:8091`。
 - Waffo bridge 使用独立 Node.js 20/22 运行时和依赖目录；不得复用拾题支付 sidecar 的
   `node_modules`、环境文件或进程。
@@ -112,6 +110,7 @@ location /kb/api/ {
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header X-Forwarded-For $remote_addr;
+    client_max_body_size 26m;
 }
 
 location = /kb/pay/webhooks/waffo {
@@ -176,8 +175,21 @@ S3_BUCKET=<环境变量>
 S3_ACCESS_KEY=<环境变量>
 S3_SECRET_KEY=<环境变量>
 DEEPSEEK_API_KEY=<环境变量>
+DEEPSEEK_AI_ENDPOINT=https://api.deepseek.com/chat/completions
+DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_AI_TIMEOUT_SECONDS=35
 DEEPSEEK_SEARCH_API_KEY=<环境变量>
 DEEPSEEK_FETCH_API_KEY=<环境变量>
+KB_BROWSER_WORKER_JAR=/opt/zhishiku/current/kb-browser-worker.jar
+KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false
+KB_BROWSER_TIMEOUT_SECONDS=35
+KB_OCR_TIMEOUT_SECONDS=30
+KB_WEB_IMPORT_MAX_TEXT_CHARS=30000
+KB_WEB_IMPORT_MAX_ITEMS=20
+KB_DOCUMENT_IMPORT_MAX_TEXT_CHARS=60000
+KB_DOCUMENT_IMPORT_TIMEOUT_SECONDS=25
+KB_SCREENSHOT_IMPORT_MAX_TEXT_CHARS=30000
+PLAYWRIGHT_BROWSERS_PATH=/opt/zhishiku/playwright
 SMTP_HOST=smtpdm.aliyun.com
 SMTP_PORT=465
 SMTP_USERNAME=no-reply@mail.seaunit.site
@@ -208,6 +220,47 @@ Waffo 私钥只进入 `/etc/zhishiku/waffo.env`。日志不得输出变量值、
 SMTP 必须启用 TLS，连接、读取和写入超时默认 10 秒。生产响应不得返回邮箱验证码；仅 local
 profile 可以返回 `debugCode` 供自动化测试。临时邮箱域名清单位于仓库受控资源中，不得运行时爬取。
 
+## 网页截图与 OCR 依赖
+
+网页链接入口不是 URL 收藏。生产主机必须安装：
+
+- `tesseract-ocr` 和 `tesseract-ocr-chi-sim`，且 `tesseract --list-langs` 同时包含
+  `chi_sim` 和 `eng`。
+- Playwright Chromium，安装目录固定为 `/opt/zhishiku/playwright`。
+- release 内的 `kb-browser-worker.jar`，由 API 通过受控子进程调用。
+
+部署脚本在切换 release 前构建 worker、安装 Chromium 并校验 OCR 语言包。网页请求只允许打开
+用户提交的一个公开 URL；Playwright 不点击、不滚动触发分页、不发现链接。worker 对 HTTP/HTTPS
+请求执行公开地址检查，并输出最终 URL；API 删除临时截图和元数据前再次校验最终 URL。
+
+截图识别出的文字由 DeepSeek 拆分为 1–20 条知识，再在同一事务中写入知识表。原始 URL 只进入
+来源字段，不进入正文。截图、OCR 文本和 AI 原始响应不写日志、不进对象存储；任一环节失败都
+不得创建 URL-only 占位知识。API 到 Nginx 的超时当前为 120 秒，浏览器和 OCR 分别有独立子进程
+超时。生产环境必须保持 `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false`；在 002 的点数报价、预留、
+结算和释放接入前，网页 AI 请求必须返回 `402 AI_BILLING_REQUIRED`，不得调用 DeepSeek。
+该变量只允许本地自动化或隔离测试环境临时设为 `true`，不得作为生产绕过开关。
+
+用户主动粘贴的剪贴板截图使用同一 Tesseract 中文语言包，但不需要 Playwright。截图会先通过
+PNG/JPEG、尺寸、像素和图片内秘密检查，再写临时文件做 OCR；完成后立即删除。最终只保存 AI
+拆分后的文字知识，来源类型为 `screenshot`，原截图不进入对象存储或知识附件。
+
+“AI 文字”入口不依赖浏览器或 OCR，但会调用 DeepSeek 整理。文字必须先通过长度和密钥脱敏，
+生产环境与其他 AI 入口共用 `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false` 计费门禁。
+
+## 文档解析依赖
+
+PDF、DOCX、DOC、RTF、TXT 和 Markdown 解析使用 Spring Boot 内嵌 Apache Tika 3.3.3，
+不新增系统服务或公共端口。Maven 构建会把 `tika-parsers-standard-package`、PDFBox 和
+Apache POI 打入 `kb-app.jar`，因此发布包会明显增大，但部署步骤和 Nginx 路由不变。
+
+- 文档入口的 JPG、PNG 和 WebP 使用受控 libvips 规范化后交给 Tesseract OCR；图片原文件在
+  OCR 完成后删除，不进入对象存储或知识附件。
+- 单文件上限 25 MiB；解析文字上限 60,000 字符；单次解析超时 25 秒。
+- 格式按文件内容检测，不信任扩展名。
+- 原始文档和图片仅在请求期处理，不写入对象存储或日志。
+- 扫描版 PDF 当前返回 `DOCUMENT_NO_TEXT`，提示改用截图入口。
+- 生产未接入 002 点数门禁时必须返回 `402 AI_BILLING_REQUIRED`。
+
 ## 一键部署
 
 入口脚本必须支持固定 ref，执行：
@@ -217,7 +270,8 @@ profile 可以返回 `debugCode` 供自动化测试。临时邮箱域名清单�
 3. 检查磁盘、内存、端口、数据库和 Nginx 冲突。
 4. 备份当前 release、Nginx、环境文件映射和数据库。
 5. 从 GitHub 拉取指定 commit/tag。
-6. Maven 构建 Java、pnpm 构建 Vue、安装或验证 Node 桥接依赖。
+6. Maven 构建 Java 与 browser worker、安装 Chromium、验证 Tesseract 语言包、pnpm 构建 Vue，
+   并安装或验证 Node 桥接依赖。
 7. Flyway 迁移。
 8. 原子切换 release symlink。
 9. 启动/重启识海 unit。

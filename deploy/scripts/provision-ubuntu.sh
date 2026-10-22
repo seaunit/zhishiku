@@ -5,6 +5,7 @@ REPO_URL="${KB_REPO_URL:-https://github.com/seaunit/zhishiku.git}"
 RAW_BASE="${KB_RAW_BASE:-https://raw.githubusercontent.com/seaunit/zhishiku}"
 REF="${KB_REF:-main}"
 ENV_FILE="${KB_ENV_FILE:-/etc/zhishiku/kb.env}"
+WAFFO_ENV_FILE="${WAFFO_ENV_FILE:-/etc/zhishiku/waffo.env}"
 SWAP_SIZE_MB="${KB_SWAP_SIZE_MB:-2048}"
 PROMPT_SECRETS="${KB_PROMPT_SECRETS:-1}"
 PROMPT_TIMEOUT="${KB_PROMPT_TIMEOUT:-60}"
@@ -25,6 +26,24 @@ read_env_value() {
       exit
     }
   ' "$ENV_FILE"
+}
+
+read_waffo_env_value() {
+  local key="$1"
+  if [[ ! -f "$WAFFO_ENV_FILE" ]]; then
+    return 0
+  fi
+  awk -v key="$key" -v sq="'" '
+    index($0, key "=") == 1 {
+      value = substr($0, length(key) + 2)
+      if ((substr(value, 1, 1) == sq && substr(value, length(value), 1) == sq) ||
+          (substr(value, 1, 1) == "\"" && substr(value, length(value), 1) == "\"")) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      print value
+      exit
+    }
+  ' "$WAFFO_ENV_FILE"
 }
 
 prompt_secret() {
@@ -56,8 +75,12 @@ prompt_secret() {
   else
     printf '\n' > /dev/tty
   fi
-  value="$(printf '%s' "$value" | tr -d '[:space:]')"
-  value="${value//\'/}"
+  value="$(printf '%s' "$value" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  if [[ ${#value} -ge 2 && "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ ${#value} -ge 2 && "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
   if [[ -z "$value" && -n "$current" ]]; then
     value="$current"
   fi
@@ -121,6 +144,8 @@ apt-get install -y \
   nginx \
   openssl \
   python3 \
+  tesseract-ocr \
+  tesseract-ocr-chi-sim \
   tar
 
 echo "==> 2/8 检查 Java 17、Node.js 20+ 和 pnpm"
@@ -233,6 +258,39 @@ DEEPSEEK_API_KEY="$(prompt_secret "DeepSeek AI API Key" "$DEEPSEEK_API_KEY")"
 DEEPSEEK_SEARCH_API_KEY="$(prompt_secret "DeepSeek Search API Key（留空复用主 AI Key）" "$DEEPSEEK_SEARCH_API_KEY")"
 DEEPSEEK_FETCH_API_KEY="$(prompt_secret "DeepSeek Fetch API Key（留空复用主 AI Key）" "$DEEPSEEK_FETCH_API_KEY")"
 SMTP_PASSWORD="$(prompt_secret "SMTP 密码/应用专用密钥" "$SMTP_PASSWORD")"
+WAFFO_MERCHANT_ID="${WAFFO_MERCHANT_ID:-$(read_waffo_env_value WAFFO_MERCHANT_ID)}"
+WAFFO_PRIVATE_KEY_BASE64="${WAFFO_PRIVATE_KEY_BASE64:-$(read_waffo_env_value WAFFO_PRIVATE_KEY_BASE64)}"
+WAFFO_PRODUCT_MAP="${WAFFO_PRODUCT_MAP:-$(read_waffo_env_value WAFFO_PRODUCT_MAP)}"
+APP_TO_BRIDGE_SECRET="${APP_TO_BRIDGE_SECRET:-$(read_env_value APP_TO_BRIDGE_SECRET)}"
+BRIDGE_TO_APP_SECRET="${BRIDGE_TO_APP_SECRET:-$(read_env_value BRIDGE_TO_APP_SECRET)}"
+
+WAFFO_MERCHANT_ID="$(prompt_secret "Waffo 商户 ID" "$WAFFO_MERCHANT_ID")"
+WAFFO_PRIVATE_KEY_BASE64="$(prompt_secret "Waffo 私钥 Base64" "$WAFFO_PRIVATE_KEY_BASE64")"
+WAFFO_PRODUCT_MAP="$(prompt_secret "Waffo 商品映射（kb_pack_9=...，逗号分隔）" "$WAFFO_PRODUCT_MAP")"
+APP_TO_BRIDGE_SECRET="$(prompt_secret "Spring 到 Waffo 桥接内部密钥（留空自动生成）" "$APP_TO_BRIDGE_SECRET")"
+BRIDGE_TO_APP_SECRET="$(prompt_secret "Waffo 桥接到 Spring 内部密钥（留空自动生成）" "$BRIDGE_TO_APP_SECRET")"
+
+if [[ -z "$APP_TO_BRIDGE_SECRET" ]]; then
+  APP_TO_BRIDGE_SECRET="$(openssl rand -hex 32)"
+fi
+if [[ -z "$BRIDGE_TO_APP_SECRET" ]]; then
+  BRIDGE_TO_APP_SECRET="$(openssl rand -hex 32)"
+fi
+if [[ "$APP_TO_BRIDGE_SECRET" == "$BRIDGE_TO_APP_SECRET" ]]; then
+  printf 'APP_TO_BRIDGE_SECRET and BRIDGE_TO_APP_SECRET must be different; generating a new bridge-to-app secret.\n' >&2
+  BRIDGE_TO_APP_SECRET="$(openssl rand -hex 32)"
+fi
+
+BILLING_ENABLED_VALUE="${BILLING_ENABLED:-false}"
+if [[ "$BILLING_ENABLED_VALUE" != "true" && "$BILLING_ENABLED_VALUE" != "false" ]]; then
+  printf 'BILLING_ENABLED must be true or false.\n' >&2
+  exit 1
+fi
+if [[ "$BILLING_ENABLED_VALUE" == "true" ]] &&
+  [[ -z "$WAFFO_MERCHANT_ID" || -z "$WAFFO_PRIVATE_KEY_BASE64" || -z "$WAFFO_PRODUCT_MAP" ]]; then
+  printf 'BILLING_ENABLED=true requires Waffo merchant, private key, and product map.\n' >&2
+  exit 1
+fi
 
 if [[ -z "$DEEPSEEK_SEARCH_API_KEY" ]]; then
   DEEPSEEK_SEARCH_API_KEY="$DEEPSEEK_API_KEY"
@@ -250,6 +308,17 @@ DATABASE_USERNAME='zhishiku'
 DATABASE_PASSWORD='${DB_PASSWORD}'
 SESSION_COOKIE_SECURE=true
 KB_STORAGE_ROOT='/var/lib/zhishiku/uploads'
+KB_WEB_IMPORT_ALLOW_UNBILLED_AI='false'
+BILLING_ENABLED='${BILLING_ENABLED_VALUE}'
+BILLING_DB_ENV='production'
+APP_TO_BRIDGE_SECRET='${APP_TO_BRIDGE_SECRET}'
+BRIDGE_TO_APP_SECRET='${BRIDGE_TO_APP_SECRET}'
+BILLING_CATALOG_VERSION='2026-10-mvp'
+BILLING_ADMIN_EMAILS='${OWNER_EMAIL}'
+CHECKOUT_SUCCESS_URL='https://seaunit.site/kb/billing/return'
+BILLING_WEBHOOK_URL='https://seaunit.site/kb/pay/webhooks/waffo'
+REFUND_SUPPORT_URL='mailto:${OWNER_EMAIL}?subject=Zhishiku%20refund'
+REFUND_RESPONSE_TARGET='3 个工作日'
 KB_AUTO_BOOTSTRAP=${auto_bootstrap}
 KB_OWNER_EMAIL='${OWNER_EMAIL}'
 KB_BOOTSTRAP_TOKEN='${BOOTSTRAP_TOKEN}'
@@ -265,6 +334,27 @@ fi
 chmod 0600 "$env_tmp"
 chown root:root "$env_tmp"
 mv "$env_tmp" "$ENV_FILE"
+
+if [[ -n "$WAFFO_MERCHANT_ID" && -n "$WAFFO_PRIVATE_KEY_BASE64" && -n "$WAFFO_PRODUCT_MAP" ]]; then
+  waffo_tmp="$(mktemp)"
+  cat > "$waffo_tmp" <<EOF
+WAFFO_ENV=production
+WAFFO_STORE_ID=''
+WAFFO_MERCHANT_ID='${WAFFO_MERCHANT_ID}'
+WAFFO_PRIVATE_KEY_BASE64='${WAFFO_PRIVATE_KEY_BASE64}'
+WAFFO_PRODUCT_MAP='${WAFFO_PRODUCT_MAP}'
+WAFFO_CURRENCY=CNY
+WAFFO_DRY_RUN=false
+WAFFO_BRIDGE_PORT=8091
+WAFFO_SUCCESS_URL_ALLOWLIST='https://seaunit.site/kb/billing/return'
+INTERNAL_EVENT_URL='http://127.0.0.1:8082/kb/api/internal/billing/waffo-events'
+APP_TO_BRIDGE_SECRET='${APP_TO_BRIDGE_SECRET}'
+BRIDGE_TO_APP_SECRET='${BRIDGE_TO_APP_SECRET}'
+EOF
+  chmod 0600 "$waffo_tmp"
+  chown root:root "$waffo_tmp"
+  mv "$waffo_tmp" "$WAFFO_ENV_FILE"
+fi
 
 echo "==> 7/8 执行现有应用和 Nginx 预检"
 preflight_tmp="$(mktemp)"

@@ -46,10 +46,10 @@ class RichTextMigrationPostgresTest {
 
     configuration.load().clean();
     assertThat(configuration.target("0004").load().migrate().migrationsExecuted).isEqualTo(2);
-    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(2);
+    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(9);
     assertThat(configuration.load().migrate().migrationsExecuted).isZero();
     configuration.load().clean();
-    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(5);
+    assertThat(configuration.load().migrate().migrationsExecuted).isEqualTo(11);
 
     try (Connection connection = POSTGRES.createConnection("");
         Statement statement = connection.createStatement()) {

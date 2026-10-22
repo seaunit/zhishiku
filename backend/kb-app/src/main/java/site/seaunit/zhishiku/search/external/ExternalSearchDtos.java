@@ -5,12 +5,20 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 
 public final class ExternalSearchDtos {
   private ExternalSearchDtos() {}
 
   public record ExternalSearchRequest(
-      @NotBlank @Size(max = 300) String query, boolean explicitConsent, boolean includeAnswer) {}
+      @NotBlank @Size(max = 300) String query,
+      boolean explicitConsent,
+      boolean includeAnswer,
+      UUID billingTaskId) {
+    public ExternalSearchRequest(String query, boolean explicitConsent, boolean includeAnswer) {
+      this(query, explicitConsent, includeAnswer, null);
+    }
+  }
 
   public record ExternalSearchCandidate(
       UUID candidateId,
@@ -20,7 +28,13 @@ public final class ExternalSearchDtos {
       String provider,
       Instant expiresAt) {}
 
-  public record ExternalSearchResponse(List<ExternalSearchCandidate> items) {}
+  public record ExternalSearchResponse(List<ExternalSearchCandidate> items, String answer) {
+    public ExternalSearchResponse(List<ExternalSearchCandidate> items) {
+      this(items, null);
+    }
+  }
 
-  public record SaveExternalCandidateRequest(UUID billingTaskId) {}
+  public record SaveExternalCandidateRequest(boolean externalAiConsent, UUID billingTaskId) {}
+
+  public record ExternalSearchSaveResponse(List<KnowledgeItemResponse> items) {}
 }

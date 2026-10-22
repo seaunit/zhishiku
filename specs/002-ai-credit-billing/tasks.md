@@ -127,6 +127,23 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - [ ] T071 [P2] 在 `tests/usability/billing.md` 中执行 10 人套餐、扣费和退款理解度研究
 - [ ] T072 [P2] 在 `artifacts/002/monthly-economics.md` 中建立月度成本复测
 
+## 阶段 10：2026-10-22 资金安全与发布门禁收口
+
+- [x] T073 [P0] 在计费服务中强制操作到必需计费项/数量的服务端映射，校验预检所有权、环境、
+  kind、有效期和唯一图片数量，禁止用低价任务执行高价 AI。
+- [x] T074 [P0] 在 Waffo 事件链中强制显式有效签名、商品 ID、金额、币种、订单状态和退款事实；
+  未知查询返回 `unavailable`，商品缺失不得视为匹配。
+- [x] T075 [P0] 修正退款以实际可回收批次点数落账；管理员调整显式指定目标账号，按试用/购买
+  批次维护账本投影；财务状态和 SKU 汇总限定请求日期范围。
+- [x] T076 [P1] 收敛 Spring 到桥接超时、过期收银台、对账 closed/refunded/mismatch 状态、
+  买家不透明 ID、成功返回地址、双向密钥差异和桥接 systemd 写权限。
+- [x] T077 [P1] 在部署脚本中增加 PostgreSQL 预部署备份、桥接 unit/Nginx snippet 回滚、
+  `BILLING_ENABLED` 显式选择、管理员邮箱和邮件退款入口。
+- [ ] T078 [P0] 使用真实 Waffo 测试商户完成商品、收银台、通知、查询、退款、重复/乱序事件和
+  物理测试/生产数据库隔离验收。当前无生产凭据与真实测试商户证据。
+- [ ] T079 [P0] 在真实 PostgreSQL 执行计费并发放行、账本批次、退款、恢复和 100 组并发门禁。
+  当前 Testcontainers 因 Docker 引擎不可用实际执行 0 项。
+
 ## 依赖关系
 
 - T001-T005 在冻结账务迁移前完成。
@@ -140,3 +157,18 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 
 每个任务完成后勾选，并记录任务 ID、日期、执行角色、提交 SHA、摘要、详情、验证命令、
 证据路径、FR/SC 映射、风险和回滚。支付证据不得包含真实密钥或完整支付载荷。
+
+## Completion Log
+
+### 批量完成记录：2026-10-22 资金安全与发布门禁收口
+
+执行角色：产品、开发、测试子智能体。Git commit：未提交。以下各项均完成代码与本地自动化验证；
+真实 Waffo、物理 PostgreSQL 和生产发布仍由 T078、T079 阻塞。
+
+| 任务 | 摘要与详情 | 验证与证据 | 风险与回滚 |
+|------|------------|------------|------------|
+| T073 | 服务端按 operation 固定必需计费行和数量；预检校验账号、环境、kind、有效期；图片按内容哈希计数并与 OCR 行一致。 | `BillingP0PolicyTest` 9 项、后端全量测试；`BillingService`、`BillingP0PolicyTest`。 | 计费目录变化需同步规则；回滚会重新暴露低价任务执行高价 AI 风险。 |
+| T074 | 支付事件必须显式有效签名，商品、金额、币种和订单状态匹配；查询未知订单返回 `unavailable`。 | `BillingP0PolicyTest`、`server.test.ts` 3 项。 | 真实 Waffo 字段仍待测试商户证据；回滚需保持 fail-closed。 |
+| T075 | 退款按批次实际回收量落结论；管理员调整显式目标账号并维护试用/购买投影；财务状态与 SKU 限定日期。 | 后端编译与专项测试；`BillingService`、`002` OpenAPI。 | 真实 PostgreSQL 并发、退款冻结和部分回收仍待 T079。 |
+| T076 | Spring→桥接增加 5/15 秒超时；清除过期 open 收银台；补齐对账状态；买家改为不透明 owner UUID；收银台传成功地址；双向密钥必须不同；桥接 unit 移除可写知识目录。 | 后端专项、桥接 typecheck/test/build、部署脚本检查。 | 真实 SDK 查询和回调仍待测试商户；配置变化必须同步 `/etc/zhishiku`。 |
+| T077 | 部署前 `pg_dump` 备份；备份/恢复桥接 unit 与 Nginx snippet；`BILLING_ENABLED` 不因填入凭据自动开启；增加管理员邮箱和 mailto 退款入口。 | `node tests/deploy/verify-deploy-scripts.mjs`、Git Bash `bash -n`（最终验收执行）。 | 数据库备份不自动回滚迁移；回滚仍以应用 release 和人工恢复演练为准。 |

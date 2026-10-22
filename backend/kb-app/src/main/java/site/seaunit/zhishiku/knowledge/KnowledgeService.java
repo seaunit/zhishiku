@@ -11,6 +11,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -26,13 +27,16 @@ import site.seaunit.zhishiku.attachment.AttachmentEntity;
 import site.seaunit.zhishiku.attachment.AttachmentRepository;
 import site.seaunit.zhishiku.core.richtext.PlainTextProjector;
 import site.seaunit.zhishiku.core.richtext.RichTextValidator;
+import site.seaunit.zhishiku.knowledge.ClassificationService.ClassificationSet;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BodySourceRequest;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.ClassificationSummary;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeSummaryResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchHit;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SourceSummary;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.UpdateClassificationRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.UpdateKnowledgeRequest;
 import site.seaunit.zhishiku.owner.CurrentOwnerService;
 import site.seaunit.zhishiku.owner.OwnerAccountEntity;
@@ -47,9 +51,12 @@ import site.seaunit.zhishiku.richtext.provenance.SourceProvenance;
 import site.seaunit.zhishiku.richtext.provenance.SourceProvenancePolicy;
 import site.seaunit.zhishiku.search.richtext.SearchProjection;
 import site.seaunit.zhishiku.search.richtext.SearchProjectionBuilder;
+import site.seaunit.zhishiku.webimport.OrganizedKnowledge;
 
 @Service
 public class KnowledgeService {
+  private static final Set<String> MANUAL_SOURCE_KINDS =
+      Set.of("native", "clipboard", "word", "google_docs", "webpage", "legacy_text");
   private static final long MAX_TOTAL_IMAGE_BYTES = 50L * 1024 * 1024;
   private static final String ACTIVE = "active";
 
@@ -66,6 +73,7 @@ public class KnowledgeService {
   private final SourceProvenancePolicy sourcePolicy;
   private final SearchProjectionBuilder searchProjections;
   private final RichTextLifecycleService lifecycle;
+  private final ClassificationService classifications;
 
   public KnowledgeService(
       CurrentOwnerService currentOwnerService,
@@ -78,7 +86,8 @@ public class KnowledgeService {
       RichTextConflictPolicy conflicts,
       SourceProvenancePolicy sourcePolicy,
       SearchProjectionBuilder searchProjections,
-      RichTextLifecycleService lifecycle) {
+      RichTextLifecycleService lifecycle,
+      ClassificationService classifications) {
     this.currentOwnerService = currentOwnerService;
     this.items = items;
     this.documents = documents;
@@ -92,18 +101,52 @@ public class KnowledgeService {
     this.sourcePolicy = sourcePolicy;
     this.searchProjections = searchProjections;
     this.lifecycle = lifecycle;
+    this.classifications = classifications;
   }
 
   @Transactional
-  public KnowledgeItemResponse create(
+  public KnowledgeItemResponse createManual(
       CreateKnowledgeRequest request, Authentication authentication) {
+    requireManualSource(request.bodySource());
+    return createWithStatus(request, authentication, "not_requested");
+  }
+
+  @Transactional
+  public KnowledgeItemResponse createOrganized(
+      CreateKnowledgeRequest request, Authentication authentication) {
+    return createWithStatus(request, authentication, "succeeded");
+  }
+
+  @Transactional
+  public KnowledgeItemResponse createOrganized(
+      CreateKnowledgeRequest request, OrganizedKnowledge organized, Authentication authentication) {
+    KnowledgeItemResponse created = createWithStatus(request, authentication, "succeeded");
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    classifications.assignAi(
+        owner.getId(), created.id(), organized.category(), organized.tags(), 0.9);
+    KnowledgeItemEntity item = items.findById(created.id()).orElseThrow();
+    item.updateGeneratedSummary(organized.summary());
+    item = items.saveAndFlush(item);
+    SourceRecord source = latestSource(created.id());
+    return response(
+        item,
+        documents.findById(created.id()).orElseThrow(),
+        source == null ? SourceSummary.manual() : source.summary());
+  }
+
+  private KnowledgeItemResponse createWithStatus(
+      CreateKnowledgeRequest request, Authentication authentication, String processingStatus) {
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
     PreparedDocument prepared = prepare(request.bodyDocument(), owner, null);
     SourceProvenance provenance = authorizeSource(request.bodySource());
     KnowledgeItemEntity item =
         items.saveAndFlush(
             KnowledgeItemEntity.create(
-                owner.getId(), request.title(), prepared.plainText(), request.note()));
+                owner.getId(),
+                request.title(),
+                prepared.plainText(),
+                request.note(),
+                processingStatus));
     RichDocumentEntity document =
         RichDocumentEntity.create(
             item.getId(),
@@ -125,6 +168,7 @@ public class KnowledgeService {
   public KnowledgeItemResponse update(
       UUID itemId, UpdateKnowledgeRequest request, Authentication authentication) {
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    requireManualSource(request.bodySource());
     KnowledgeItemEntity item =
         items
             .findByIdAndOwnerIdAndLifecycleStateForUpdate(itemId, owner.getId(), ACTIVE)
@@ -174,6 +218,20 @@ public class KnowledgeService {
     return response(item, document, source == null ? SourceSummary.manual() : source.summary());
   }
 
+  @Transactional
+  public KnowledgeItemResponse updateClassification(
+      UUID itemId, UpdateClassificationRequest request, Authentication authentication) {
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    KnowledgeItemEntity item =
+        items
+            .findByIdAndOwnerIdAndLifecycleState(itemId, owner.getId(), ACTIVE)
+            .orElseThrow(() -> new IllegalArgumentException("Knowledge item was not found."));
+    classifications.replaceUser(owner.getId(), itemId, request.category(), request.tags());
+    RichDocumentEntity document = documents.findById(itemId).orElse(null);
+    SourceRecord source = latestSource(itemId);
+    return response(item, document, source == null ? SourceSummary.manual() : source.summary());
+  }
+
   @Transactional(readOnly = true)
   public KnowledgeItemResponse detail(UUID itemId, Authentication authentication) {
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
@@ -204,8 +262,37 @@ public class KnowledgeService {
         .findByOwnerIdAndLifecycleStateOrderByUpdatedAtDesc(
             owner.getId(), ACTIVE, PageRequest.of(0, Math.min(Math.max(limit, 1), 100)))
         .stream()
-        .map(KnowledgeService::summary)
+        .map(item -> summary(item, latestSource(item.getId())))
         .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<KnowledgeSummaryResponse> listTrash(int limit, Authentication authentication) {
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    return items
+        .findByOwnerIdAndLifecycleStateOrderByUpdatedAtDesc(
+            owner.getId(), "recycled", PageRequest.of(0, Math.min(Math.max(limit, 1), 100)))
+        .stream()
+        .map(item -> summary(item, latestSource(item.getId())))
+        .toList();
+  }
+
+  @Transactional
+  public void recycle(UUID itemId, Authentication authentication) {
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    lifecycle.recycle(owner.getId(), itemId);
+  }
+
+  @Transactional
+  public void restore(UUID itemId, Authentication authentication) {
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    lifecycle.restore(owner.getId(), itemId);
+  }
+
+  @Transactional
+  public void purge(UUID itemId, Authentication authentication) {
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    lifecycle.purge(owner.getId(), itemId);
   }
 
   @Transactional(readOnly = true)
@@ -215,53 +302,124 @@ public class KnowledgeService {
     if (safeQuery.isBlank()) {
       return new SearchResponse("", List.of(), null, false);
     }
-    String pattern = "%" + safeQuery.toLowerCase(Locale.ROOT) + "%";
-    List<KnowledgeSummaryResponse> results =
+    String lowered = safeQuery.toLowerCase(Locale.ROOT);
+    String pattern = "%" + lowered + "%";
+    List<SearchRow> rows =
         jdbc.query(
             """
-            SELECT k.id, k.title, k.body, k.version, k.created_at, k.updated_at
+            SELECT k.id, s.title_text, s.body_text, s.note_text, s.image_text,
+                   EXISTS (
+                     SELECT 1
+                     FROM knowledge_classification_assignment a
+                     JOIN knowledge_classification_term t ON t.id = a.term_id
+                     WHERE a.item_id = k.id AND lower(t.name) LIKE ?
+                   ) AS classification_match
             FROM knowledge_item k
             JOIN search_document s ON s.item_id = k.id
             WHERE k.owner_id = ?
               AND k.lifecycle_state = 'active'
-              AND (lower(s.search_text) LIKE ? OR similarity(s.search_text, ?) > 0.12)
+              AND (
+                lower(s.title_text) LIKE ?
+                OR lower(s.body_text) LIKE ?
+                OR lower(s.note_text) LIKE ?
+                OR lower(s.image_text) LIKE ?
+                OR EXISTS (
+                  SELECT 1
+                  FROM knowledge_classification_assignment a
+                  JOIN knowledge_classification_term t ON t.id = a.term_id
+                  WHERE a.item_id = k.id AND lower(t.name) LIKE ?
+                )
+                OR similarity(s.search_text, ?) > 0.12
+              )
             ORDER BY
               CASE WHEN lower(k.title) = ? THEN 0
-                   WHEN lower(k.title) LIKE ? THEN 1
-                   ELSE 2 END,
+                   WHEN lower(s.title_text) LIKE ? THEN 1
+                   WHEN lower(s.body_text) LIKE ? THEN 2
+                   WHEN lower(s.note_text) LIKE ? THEN 3
+                   WHEN lower(s.image_text) LIKE ? THEN 4
+                   ELSE 5 END,
               similarity(s.search_text, ?) DESC,
               k.updated_at DESC
             LIMIT ?
             """,
             (rs, rowNum) ->
-                new KnowledgeSummaryResponse(
+                new SearchRow(
                     rs.getObject("id", UUID.class),
-                    rs.getString("title"),
-                    preview(rs.getString("body")),
-                    null,
-                    "not_requested",
-                    ACTIVE,
-                    new SourceSummary("manual", "manual", null, null),
-                    null,
-                    List.of(),
-                    rs.getLong("version"),
-                    rs.getTimestamp("created_at").toInstant(),
-                    rs.getTimestamp("updated_at").toInstant()),
+                    nullToEmpty(rs.getString("title_text")),
+                    nullToEmpty(rs.getString("body_text")),
+                    nullToEmpty(rs.getString("note_text")),
+                    nullToEmpty(rs.getString("image_text")),
+                    rs.getBoolean("classification_match")),
+            pattern,
             owner.getId(),
             pattern,
+            pattern,
+            pattern,
+            pattern,
+            pattern,
             safeQuery,
-            safeQuery.toLowerCase(Locale.ROOT),
+            lowered,
+            pattern,
+            pattern,
+            pattern,
             pattern,
             safeQuery,
             Math.min(Math.max(limit, 1), 100));
-    List<SearchHit> hits =
-        results.stream()
-            .map(
-                item ->
-                    new SearchHit(
-                        item, List.of("body"), Map.of("body", List.of(item.bodyPreview()))))
-            .toList();
+    Map<UUID, KnowledgeItemEntity> entities = new LinkedHashMap<>();
+    for (KnowledgeItemEntity item : items.findAllById(rows.stream().map(SearchRow::id).toList())) {
+      entities.put(item.getId(), item);
+    }
+    List<SearchHit> hits = new ArrayList<>();
+    for (SearchRow row : rows) {
+      KnowledgeItemEntity item = entities.get(row.id());
+      if (item == null) {
+        continue;
+      }
+      KnowledgeSummaryResponse summary = summary(item, latestSource(item.getId()));
+      List<String> matchedFields = new ArrayList<>();
+      Map<String, List<String>> highlights = new LinkedHashMap<>();
+      addMatch(matchedFields, highlights, "title", row.titleText(), lowered);
+      addMatch(matchedFields, highlights, "body", row.bodyText(), lowered);
+      addMatch(matchedFields, highlights, "note", row.noteText(), lowered);
+      addMatch(matchedFields, highlights, "image", row.imageText(), lowered);
+      if (summary.category() != null
+          && summary.category().name().toLowerCase(Locale.ROOT).contains(lowered)) {
+        matchedFields.add("category");
+        highlights.put("category", List.of(summary.category().name()));
+      }
+      for (ClassificationSummary tag : summary.tags()) {
+        if (tag.name().toLowerCase(Locale.ROOT).contains(lowered)) {
+          if (!matchedFields.contains("tag")) {
+            matchedFields.add("tag");
+          }
+          highlights.computeIfAbsent("tag", ignored -> new ArrayList<>()).add(tag.name());
+        }
+      }
+      if (matchedFields.isEmpty() && row.classificationMatch()) {
+        matchedFields.add("classification");
+      }
+      hits.add(new SearchHit(summary, List.copyOf(matchedFields), immutableHighlights(highlights)));
+    }
     return new SearchResponse(safeQuery, hits, null, false);
+  }
+
+  private static void addMatch(
+      List<String> matchedFields,
+      Map<String, List<String>> highlights,
+      String field,
+      String value,
+      String loweredQuery) {
+    if (value != null && value.toLowerCase(Locale.ROOT).contains(loweredQuery)) {
+      matchedFields.add(field);
+      highlights.put(field, List.of(preview(value)));
+    }
+  }
+
+  private static Map<String, List<String>> immutableHighlights(
+      Map<String, List<String>> highlights) {
+    Map<String, List<String>> result = new LinkedHashMap<>();
+    highlights.forEach((key, value) -> result.put(key, List.copyOf(value)));
+    return Map.copyOf(result);
   }
 
   private PreparedDocument prepare(
@@ -355,7 +513,8 @@ public class KnowledgeService {
             item.getVersion());
     documents.save(document);
     SourceRecord source =
-        insertSource(item, authorizeSource(request.bodySource()), prepared.hash());
+        insertSource(
+            item, authorizeSource(requireManualSource(request.bodySource())), prepared.hash());
     UUID revisionId = insertRevision(item, prepared, "conflict_overwrite", 1, source.id());
     insertImageReferences(item, revisionId, prepared.images());
     updateSearch(item, prepared.document());
@@ -417,6 +576,14 @@ public class KnowledgeService {
   private SourceProvenance authorizeSource(BodySourceRequest input) {
     BodySourceRequest source = input == null ? new BodySourceRequest("native", null, null) : input;
     return sourcePolicy.authorize(source.kind(), source.sourceUrl(), source.capturedAt());
+  }
+
+  private static BodySourceRequest requireManualSource(BodySourceRequest source) {
+    if (source != null && source.kind() != null && !MANUAL_SOURCE_KINDS.contains(source.kind())) {
+      throw new IllegalArgumentException(
+          "Manual creation and editing do not accept non-manual capture sources.");
+    }
+    return source;
   }
 
   private SourceRecord insertSource(
@@ -485,6 +652,7 @@ public class KnowledgeService {
     return switch (kind) {
       case "webpage", "internet_result" -> "url";
       case "clipboard" -> "clipboard";
+      case "text" -> "text";
       case "document", "word", "google_docs" -> "upload";
       case "screenshot" -> "screenshot";
       case "legacy_text" -> "migration";
@@ -523,16 +691,17 @@ public class KnowledgeService {
         Timestamp.from(Instant.now()));
   }
 
-  private static KnowledgeItemResponse response(
+  private KnowledgeItemResponse response(
       KnowledgeItemEntity item, RichDocumentEntity document, SourceSummary source) {
     return response(item, document, item.getBodyMigrationState(), source);
   }
 
-  private static KnowledgeItemResponse response(
+  private KnowledgeItemResponse response(
       KnowledgeItemEntity item,
       RichDocumentEntity document,
       String migrationState,
       SourceSummary source) {
+    ClassificationSet classification = classifications.read(item.getId());
     return new KnowledgeItemResponse(
         item.getId(),
         item.getTitle(),
@@ -541,29 +710,30 @@ public class KnowledgeService {
         document == null ? 0 : document.getSchemaVersion(),
         migrationState,
         item.getNote(),
-        null,
+        item.getSummary(),
         item.getProcessingStatus(),
         item.getLifecycleState(),
         false,
         source,
-        null,
-        List.of(),
+        classification.category(),
+        classification.tags(),
         item.getVersion(),
         item.getCreatedAt(),
         item.getUpdatedAt());
   }
 
-  private static KnowledgeSummaryResponse summary(KnowledgeItemEntity item) {
+  private KnowledgeSummaryResponse summary(KnowledgeItemEntity item, SourceRecord source) {
+    ClassificationSet classification = classifications.read(item.getId());
     return new KnowledgeSummaryResponse(
         item.getId(),
         item.getTitle(),
         preview(item.getBody()),
-        null,
+        item.getSummary(),
         item.getProcessingStatus(),
         item.getLifecycleState(),
-        SourceSummary.manual(),
-        null,
-        List.of(),
+        source == null ? SourceSummary.manual() : source.summary(),
+        classification.category(),
+        classification.tags(),
         item.getVersion(),
         item.getCreatedAt(),
         item.getUpdatedAt());
@@ -575,6 +745,10 @@ public class KnowledgeService {
     }
     String clean = text.replaceAll("\\s+", " ").strip();
     return clean.length() <= 220 ? clean : clean.substring(0, 217) + "...";
+  }
+
+  private static String nullToEmpty(String value) {
+    return value == null ? "" : value;
   }
 
   static String effectiveMigrationState(String storedState, boolean documentPresent) {
@@ -622,4 +796,12 @@ public class KnowledgeService {
   private record ResolvedAsset(UUID attachmentId, long sizeBytes) {}
 
   private record SourceRecord(UUID id, SourceSummary summary) {}
+
+  private record SearchRow(
+      UUID id,
+      String titleText,
+      String bodyText,
+      String noteText,
+      String imageText,
+      boolean classificationMatch) {}
 }

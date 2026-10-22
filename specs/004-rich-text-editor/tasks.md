@@ -102,7 +102,7 @@ Vitest/Vue Test Utils，E2E 使用 Playwright，富文本 JSON 契约由 Vue 与
 - [x] T055 [P0] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/search/richtext/` 中验证正文、表格、代码、说明和替代文本可检索
 - [x] T056 [P0] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/search/richtext/` 中验证不匹配标签名、存储键、隐藏样式和脚本
 - [x] T057 [P0] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/ai/richtext/` 中验证 AI 只接收投影和明确授权的唯一图片
-- [ ] T058 [P0] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/billing/richtext/` 中验证唯一内容哈希、重复位置、失败不扣费和 002 报价
+- [x] T058 [P0] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/billing/richtext/` 中验证唯一内容哈希、重复位置、失败不扣费和 002 报价
 - [x] T059 [P1] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/conflict/` 中验证版本冲突、重载、另存和明确覆盖
 - [x] T060 [P1] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/migration/` 中验证旧文本、链接、换行、幂等、并发和来源
 - [x] T061 [P1] [P] [US5] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/richtext/lifecycle/` 中验证取消引用、回收站、恢复、purge、共享附件和孤儿清理
@@ -324,8 +324,23 @@ FR/SC 映射、风险和回滚。
 
 ### 未完成与外部阻塞
 
-- **T058**：004 已输出唯一 `imageAssetIds` 并完成内容哈希去重，但仓库尚不存在 002 的报价、
-  预留、结算和释放实现。不得用 mock 结果冒充真实计费验收。
 - **T075**：已在独立 PostgreSQL 新环境执行 V1→V4→V5、登录、富文本保存、刷新、来源、搜索
   和详情；真实 libvips/Tesseract、S3、SMTP/AI、Worker 与物理设备条件仍缺失。
 - **T078**：必须由 10 名真实参与者执行。当前仅提供协议和空白记录表，不伪造研究结果。
+
+### 完成记录：T058
+
+- 日期：2026-10-22
+- 状态：已完成
+- 执行子智能体：开发、测试
+- Git commit：未提交
+- 摘要：接通富文本唯一图片资产与 002 报价/预留门禁。
+- 详情：计费服务按账号读取 `imageAssetIds`，只接受 clean/redacted 的安全资产，并以规范化
+  `content_hash` 去重；`screenshot_ocr` 数量必须等于唯一图片数，重复正文位置不重复计费。
+  图片引用不足、任务操作不匹配或预检无效时 fail closed。
+- 验证：`BillingP0PolicyTest` 9 项通过，其中覆盖图片唯一数量、篡改数量和操作计费行替换；
+  后端全量测试与桥接测试通过。
+- 证据：`BillingService.java`、`BillingP0PolicyTest.java`、`RichImageAssetResolutionServiceTest`。
+- 覆盖：FR-037、FR-044、FR-051、SC-017。
+- 风险与回滚：真实资产扫描服务、真实扣费和并发图片任务仍需 PostgreSQL/Waffo 环境验收；
+  回滚会重新暴露唯一图片报价缺口。

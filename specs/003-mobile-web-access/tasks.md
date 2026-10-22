@@ -49,7 +49,7 @@
 - [ ] T024 [P1] [P] [US5] 在 `frontend/kb-web/tests/e2e/mobile-taste.spec.ts` 中执行完整 Taste 矩阵并保存截图
 - [ ] T025 [P1] [US5] 在 `deploy/nginx/kb.conf` 和 `frontend/kb-web/tests/e2e/mobile-nginx.spec.ts` 中验证生产构建、SPA fallback、`/kb/api`、Cookie Path 和 CSRF
 - [ ] T026 [P1] [US5] 在 `frontend/kb-web/tests/e2e/desktop-regression.spec.ts` 中验证移动适配未改变桌面搜索、编辑、计费和回收站
-- [ ] T027 [P1] 在 `artifacts/003/acceptance.md` 中映射 SC-001 至 SC-016 和证据
+- [x] T027 [P1] 在 `artifacts/003/acceptance.md` 中映射 SC-001 至 SC-016 和证据
 
 ## 阶段 7：P2 加固
 
@@ -57,9 +57,38 @@
 - [ ] T029 [P2] 在 `frontend/kb-web/tests/e2e/mobile-orientation.spec.ts` 中验证方向切换、软键盘和安全区
 - [ ] T030 [P2] 在 `artifacts/003/usability.md` 中执行真实手机和平板可用性研究
 
+## 阶段 8：2026-10-22 本地移动收口
+
+- [x] T031 [P0] 在 `AppShell.vue` 与 `prototype-theme.css` 中实现七项手机底部导航、安全区、
+  320–430 像素布局和每项不小于 44px 的触控目标。
+- [x] T032 [P0] 在 `HomeView.vue`、`LibraryView.vue`、`DetailView.vue` 和 `TrashView.vue`
+  中实现手机搜索、结果摘要、富文本详情、分类纠错和回收站恢复。
+- [x] T033 [P0] 在 `RichEditor.vue`、移动工具栏样式和富文本移动 E2E 中实现选区保留、
+  更多格式菜单、图片入口和软键盘可达布局。
+- [x] T034 [P0] 在 `BillingView.vue`、采集报价和详情重新分析中实现移动端余额、套餐、确认中、
+  自动扣点、订单和退款状态。
+- [x] T035 [P0] 在采集页实现截图文档入口边界、AI 授权记忆、错误保留和稳定重试键。
+- [ ] T036 [P1] 在真实 iOS Safari、Android Chrome、弱网、外部支付返回和屏幕阅读器上执行
+  发行验收；当前仅有桌面 Chrome 多视口夹具证据。
+
 ## 依赖关系
 
 - 001 的 Vue 外壳、搜索和 Spring 认证必须先完成。
 - 004 的编辑器基础完成后执行移动工具栏。
 - 002 的报价确认和测试 Waffo 完成后执行支付返回。
 - Taste 和 Nginx staging 是发布门禁。
+
+## Completion Log
+
+### 批量完成记录：2026-10-22 本地移动收口
+
+执行角色：产品、开发、测试子智能体。Git commit：未提交。
+
+| 任务 | 摘要与详情 | 验证与证据 | 风险与回滚 |
+|------|------------|------------|------------|
+| T031 | 手机底栏改为首页、知识库、采集、待处理、点数、回收站、设置七项；移动端按剩余宽度均分，每项最小 44px；桌面图标轨保持不变。 | `app.spec.ts` 390px 触控尺寸断言；Vite build；Playwright 37 项通过。 | 320px 下英文长标签可能压缩；回滚 CSS 可恢复六项布局。 |
+| T032 | 首页、知识库、详情、分类纠错和回收站完整接入真实 API 契约，长内容和来源 URL 可换行。 | 分类/回收站 Playwright、隐藏表格与 200% 字体测试、Vitest。 | 真实软键盘和物理刘海仍待 T036。 |
+| T033 | 移动工具栏保留选区、更多菜单、44px 控件、表格和图片说明；上传失败保留正文。 | 根视觉套件、app 富文本 E2E、无障碍 3 项通过。 | 真实物理键盘和屏幕阅读器未执行。 |
+| T034 | 计费页显示余额、三档套餐、订单、账本、自动扣点、退款状态；采集报价和详情重新分析提供移动确认。 | app 计费 E2E、详情报价代码、前端 typecheck/build。 | 真实 Waffo 跳转与返回仍待测试商户和生产验收。 |
+| T035 | 采集页读取账号级 AI 授权；文本、网页、文档、截图入口保留内容与错误；服务端幂等键在失败重试时复用。 | 五模式 E2E、AI 文字/网页/文档/截图 E2E、专项后端测试。 | 文件上传进度和取消仍是浏览器原生状态；回滚入口会降低可恢复性。 |
+| T027 | 新增移动端验收记录，列出本地自动化证据以及真实设备、弱网支付、屏幕阅读器和生产发布门禁。 | `artifacts/003/acceptance.md`；Playwright 39 项中 37 项通过、2 项 live 跳过；根视觉套件 19 项通过。 | 文档不把夹具结果冒充真实设备或生产验收。 |

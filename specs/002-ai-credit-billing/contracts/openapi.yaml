@@ -479,12 +479,12 @@ paths:
             schema:
               $ref: "#/components/schemas/ManualAdjustmentRequest"
       responses:
-        "201":
-          description: 已追加账本并保留审计事实。
+        "200":
+          description: 已追加账本并返回目标账号的最新点数投影。
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LedgerEntry"
+                $ref: "#/components/schemas/CreditAccount"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1337,11 +1337,15 @@ components:
     ManualAdjustmentRequest:
       type: object
       required:
+        - targetOwnerId
         - points
         - direction
         - reasonCode
         - referenceId
       properties:
+        targetOwnerId:
+          type: string
+          format: uuid
         points:
           type: integer
           minimum: 1

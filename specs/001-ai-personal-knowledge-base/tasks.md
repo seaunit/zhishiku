@@ -99,10 +99,11 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T050 [P1] [US3] 在 `frontend/kb-web/src/features/capture/` 中实现文档/图片入口、仅剪贴板截图入口、状态和回退
 - [ ] T051 [P1] [US3] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/contract/imports/` 中使用 RestAssured/OpenAPI Validator 验证上传组合、CSRF、415、413、422 和任务契约
 - [ ] T052 [P1] [US3] 在 `tests/e2e/us3-imports.spec.ts` 中验证文档、JPG/PNG/WebP/HEIC、剪贴板截图、拒绝和重试
-- [x] T088 [P1] [US3] 在采集页恢复手动录入、网页链接、文档和截图四个入口；实现单页 URL 收藏、TXT/Markdown 与图片文件入库、仅剪贴板截图上传，并对未接入的 PDF/Word 解析明确拒绝
+- [x] T088 [P1] [US3] 在采集页恢复手动录入、网页链接、文档和截图四个入口；网页链接改为单页截图 OCR 和 AI 拆分入库，TXT/Markdown 与图片文件入库，剪贴板截图后续由 008 改为 OCR 拆分；PDF/Word 解析后续由 007 接入
 - [x] T089 [P0] [US4] 在首页恢复“继续搜索互联网”，接入 DeepSeek Search/Fetch Provider、显式同意、短期候选、来源打开与收入知识库，并保持本地结果优先
 - [x] T090 [P0] [US1] 统一首页、知识库、待处理和详情页的分类占位与处理状态映射；无分类显示“未分类”，`not_requested` 显示“未整理”，未知状态不再默认显示“已整理”
 - [x] T091 [P0] [US4] 保持首页“继续搜索互联网”入口初始可见；未完成本地检索时禁用并提示，本地检索完成后启用，点击后才发送查询
+- [x] T092 [P0] [US3] [US4] 统一采集边界：手动录入唯一可直存，AI 文字、网页、文档、文档图片、截图和互联网候选全部在 AI 整理成功后入库；同步宪法、AGENTS、SDD、OpenAPI、前端、原型和测试
 
 ## 阶段 6：用户故事 4 — 互联网搜索与候选保存
 
@@ -143,6 +144,29 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [ ] T078 [P2] 在 `tests/performance/sustained/` 中执行持续搜索、导入和截图负载
 - [ ] T079 [P2] 在 `tests/usability/us1-knowledge.md` 中执行 10 人可用性研究
 - [ ] T080 [P2] 在 `artifacts/001/maintenance.md` 中记录 schema 演进、依赖升级、浏览器版本和回滚演练
+
+## 阶段 10：2026-10-22 需求缺口收口
+
+- [x] T093 [P0] 在 `V0010__knowledge_classification.sql`、分类服务、知识 API 和详情页中实现
+  AI 摘要、结构化分类/标签、用户纠正锁定、暂定与应用状态，并把分类标签纳入单框搜索和匹配原因。
+- [x] T094 [P0] 在知识控制器、`TrashView.vue` 和详情页中接通移入回收站、回收站列表、恢复、
+  永久清除、附件清理和移动端确认流程。
+- [x] T095 [P0] 在 `V0012__ai_processing_consent.sql`、授权 API、设置页和采集页中实现按账号、
+  服务和内容类型持久化 AI 外发授权，撤销后阻止后续外发。
+- [x] T096 [P0] 在 `V0013__api_idempotency.sql`、幂等服务和 AI 采集入口中实现请求哈希、
+  同键同体响应重放、同键异体冲突和前端稳定幂等键。
+- [x] T097 [P0] 在重新分析服务、计费报价和详情页中实现“报价→确认→重新分析→更新摘要/分类/标签”
+  的付费闭环，并保持用户锁定字段不被覆盖。
+- [x] T098 [P0] 在计费服务中强制服务端操作到计费项映射、预检账号/环境/类型/有效期校验、
+  唯一图片数量校验、有效签名和商品 ID 匹配，并移除失败释放的事务锁等待路径。
+- [x] T099 [P0] 修正退款实际回收结论、管理员目标账号与点数投影、财务日期过滤、异常对账状态、
+  过期收银台以及桥接买家标识/成功地址/未知订单语义。
+- [x] T100 [P1] 在部署脚本中增加 PostgreSQL 预部署备份、桥接 unit/Nginx snippet 回滚、
+  计费显式开关、管理员邮箱和邮件退款入口；桥接 systemd 权限收敛到只读运行目录。
+- [x] T101 [P1] 同步原型计费入口、七项移动导航、44px 触控、来源 URL、中文/英文页面标题与 ARIA，
+  并更新 OpenAPI、环境变量示例和部署说明。
+- [ ] T102 [P0] 在真实 Docker/PostgreSQL、真实 Waffo 测试商户、真实 DeepSeek/Tesseract 和生产
+  `seaunit.site` 上执行迁移、支付、AI、回滚与零影响验收。当前本机 Docker 引擎不可用，生产验收未执行。
 
 ## 依赖关系
 
@@ -438,8 +462,20 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   `62e69e39553a-20261021214427`；生产采集页显示四个入口，网页和文档控件可切换，截图入口
   文件输入数为 0，原应用和健康检查全部通过。
 - 覆盖：FR-017 至 FR-022、FR-031、FR-066、FR-067。
-- 风险与回滚：PDF/Word 内容解析、网页 AI 截图分析和 OCR 仍未接入，分别继续由 T048、
-  T049、T051-T052 承载。回滚前端可恢复单入口采集，不影响已保存知识、上传或来源记录。
+- 初次完成时的剩余风险：PDF/Word 内容解析仍由 T045、T051-T052 承载；当时网页 AI 截图分析
+  和 OCR 尚未接入。回滚前端可恢复单入口采集，不影响已保存知识、上传或来源记录。
+- 重新打开与完成（2026-10-22）：产品确认“网页链接收藏 URL”不符合需求。开发新增
+  Playwright 单页截图 worker、Tesseract OCR、DeepSeek 多知识拆分和同一事务入库；原始 URL
+  仅作为来源，正文不得等于 URL，失败时不创建占位知识。前端与原型同步为“AI截图拆分入库”，
+  部署脚本增加 Chromium 和 `chi_sim+eng` 依赖。验证命令与证据见
+  `specs/006-webpage-ai-import/tasks.md`；本次提交 SHA 未提交。
+- 再次重新打开与完成（2026-10-22）：文档入口的 PDF/Word “未接入”提示已由
+  `007-document-ai-import` 取代。后端新增 Apache Tika 内容检测与文字提取，PDF、DOCX、DOC、
+  RTF、TXT 和 Markdown 均通过 AI 拆分为多条知识；前端选择非图片文档后显示外部 AI 同意。
+  测试证据和未完成的生产验收见 `specs/007-document-ai-import/tasks.md`。本次提交 SHA 未提交。
+- 第三次重新打开与完成（2026-10-22）：剪贴板截图不再作为图片附件保存。开发新增独立截图
+  OCR API，复用 Tesseract、密钥脱敏、明确同意、AI 多知识拆分和 `succeeded` 状态；原截图只在
+  请求期临时存在。验证证据见 `specs/008-screenshot-ai-import/tasks.md`。本次提交 SHA 未提交。
 
 ### 完成记录：T089
 
@@ -503,3 +539,40 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   `0a7ff592520f-20261021225621`；生产浏览器检查 `visible=true`、`disabled=true`。
 - 覆盖：FR-047 至 FR-049；入口可发现性通过 E2E 与生产浏览器证据验证。
 - 风险与回滚：仅前端展示条件变化；回滚 release 会恢复为搜索后才显示入口。
+
+### 完成记录：T092
+
+- 日期：2026-10-22
+- 状态：已完成，本地自动化通过；生产真实 AI/OCR/计费验收未完成
+- 执行子智能体：产品、开发、测试
+- Git commit：未提交
+- 摘要：把“手动录入唯一可直存，其他采集全部 AI 整理”固化为跨功能服务端边界。
+- 详情：新增独立 AI 文字入口、`text` 来源和 `/api/v1/text-imports`；文档入口 JPG/PNG/WebP
+  改为安全检查、libvips 规范化、Tesseract OCR 和 AI 整理；互联网候选改为明确授权、Fetch、
+  脱敏和 AI 多知识事务入库；普通知识创建接口拒绝 `document`、`screenshot`、`internet_result`
+  和 `text` 来源。原型新增五种采集模式，宪法升级为 `3.1.0`。
+- 验证：`kb-core` 18 项、`kb-app` 175 项、worker 1 项通过；lint、typecheck、47 项 Vitest、
+  34 项 Playwright E2E、前端生产构建、Spotless、YAML、原型和部署脚本检查通过。Taste 五档场景
+  4 项通过，inspector 为 `0 FAIL / 1 WARN`。
+- 证据：`specs/009-ai-assisted-capture/`、`artifacts/009/verification.md`、
+  `tests/e2e/ai-capture-policy-taste.spec.ts`、`.taste-skill/inspect/`。
+- 覆盖：FR-016、FR-021、FR-024、FR-041、FR-058、FR-060、FR-067、FR-074。
+- 风险与回滚：生产真实 Tesseract、DeepSeek 和 002 点数门禁尚未验收；外部 AI 未计费时继续返回
+  `402 AI_BILLING_REQUIRED`。回滚需同时恢复前端路由、专用导入服务和来源白名单，不能只回滚文档。
+
+### 批量完成记录：2026-10-22 需求缺口收口
+
+执行角色：产品、开发、测试子智能体。Git commit：未提交。以下完成项均有代码、迁移、自动化测试
+或真实浏览器夹具验证；不包含真实 Waffo、真实 DeepSeek/Tesseract 和生产 PostgreSQL 验收。
+
+| 任务 | 摘要与详情 | 验证与证据 | 风险与回滚 |
+|------|------------|------------|------------|
+| T093 | 新增 `V0010`、AI 摘要列、账号隔离分类词表和条目分配表；导入时保存摘要/分类/标签，用户纠正后锁定；搜索覆盖标题、正文、备注、图片文本、分类和标签并返回命中字段。 | `KnowledgeLifecycleControllerTest`、五类导入服务测试、后端全量测试、前端 38 项 E2E 中的分类/回收站场景；`ClassificationService.java`、`V0010__knowledge_classification.sql`。 | 历史知识备注中的旧 AI 分类不会自动迁移为关系数据；真实 100k 搜索基准仍为 T065/T066。 |
+| T094 | 接通回收站列表、移入回收站、恢复和永久清除；活动搜索立即过滤，附件按引用进入清理队列；新增前端回收站和详情删除确认。 | `KnowledgeLifecycleControllerTest` 5 项、Playwright 分类/回收站用例、移动触控检查。 | 物理对象清理 worker 仍取决于部署任务；回滚 API 不自动恢复已 purge 数据。 |
+| T095 | 新增账号级 AI 外发授权表与 API；设置页分别授权文本、网页、文档、截图和搜索，采集页自动读取并撤销，服务端入口同时校验。 | `AiConsentControllerTest` 4 项、采集服务专项测试、前端 lint/typecheck；`V0012__ai_processing_consent.sql`。 | 授权历史只保留当前状态；如需完整审计历史应新增追加式规格。 |
+| T096 | 新增持久化 API 幂等表和统一服务；五类 AI 入口保存请求哈希与响应，同键同体重放、异体冲突；前端失败重试复用稳定键。 | 文档/截图/网页/文字/外部搜索专项测试、后端全量测试；`V0013__api_idempotency.sql`、`IdempotencyService.java`。 | 真实并发和进程重启恢复仍待真实 PostgreSQL 测试。 |
+| T097 | 新增付费重新分析 API 和详情页报价确认；DeepSeek 更新摘要、分类和标签，用户锁定字段不被覆盖，失败释放预留。 | `KnowledgeReanalysisControllerTest` 3 项、前后端 typecheck/build、详情页交互检查。 | 真实 DeepSeek 和真实扣费仍待生产验收；回滚 API 可保留已有摘要。 |
+| T098 | 计费操作由服务端强制计费项/数量；预检账号隔离和有效期；支付签名、商品、币种和订单状态 fail closed；AI 入口在外部调用前释放任务行锁。 | `BillingP0PolicyTest` 9 项、后端 226 项、桥接 3 项。 | 真实 Waffo 测试商户和物理数据库仍由 002 T078/T079 阻塞。 |
+| T099 | 退款使用实际可回收批次点数；管理员调整显式目标账号并维护投影；修复财务日期过滤和异常对账；买家标识改为不透明 UUID；桥接增加成功地址、未知订单和双向密钥约束。 | 计费专项、桥接 typecheck/test/build、部署脚本检查。 | 退款 held 批次和自动二次回收仍需真实任务结算演练。 |
+| T100 | 部署脚本增加 PostgreSQL 备份、桥接/片段回滚和显式计费开关；管理员邮箱与邮件退款入口写入环境；桥接 unit 去掉不必要写权限。 | `tests/deploy/verify-deploy-scripts.mjs`、Git Bash 语法检查、部署脚本 diff 审计。 | 未在生产主机执行本次新版脚本；必须先在 staging 演练数据库恢复和回滚。 |
+| T101 | 原型增加点数和七项移动导航；前端补英文套餐名、ARIA、页面标题、来源 URL、分类纠错和重新分析；OpenAPI 与示例环境变量同步。 | Vite build、39 项前端 E2E（37 通过/2 live 跳过）、原型 `node --check`、Taste lint 0 FAIL/0 WARN。 | 原型与前端仍需在同一固定 commit 完成截图对照归档。 |

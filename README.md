@@ -6,14 +6,24 @@ AI 个人知识库项目，采用规格驱动开发（Spec-Driven Development，
 
 当前已完成可运行的 MVP：带一次性图形验证码的多账号登录、邮箱验证码公开注册、
 头像账户菜单、个人显示名称编辑与确认退出、富文本知识录入与编辑、正文图片、知识列表、
-详情查看和 PostgreSQL 单框搜索。AI 自动分类、
-单页链接收藏、TXT/Markdown 与图片文件入口、剪贴板截图入口、DeepSeek 联网搜索和单页
-Fetch 保存已经可用；AI 网页截图分析、PDF/Word 内容解析、OCR、自动分类和 Waffo 点数计费
-仍在后续任务中，真实收费在 P0/P1 门禁通过前保持关闭。
+详情查看和 PostgreSQL 单框搜索。手动录入是唯一直接保存原文的入口；AI 文字入口会先脱敏，
+再由 DeepSeek 拆分、摘要、分类和打标签。网页链接入口会用 Playwright 只截图用户提交的一个公开
+页面，通过 Tesseract OCR 读取可见文字，再由 DeepSeek 拆分、摘要、分类和自动打标签，
+创建一条或多条正文可检索的知识；原始 URL 只作为来源，不会成为正文。TXT/Markdown 与图片
+文件入口、剪贴板截图入口、DeepSeek 联网搜索和单页 Fetch 保存已经可用。文档入口中的
+JPG、PNG、WebP 会先经过安全检查和 OCR，不直接保存为附件；普通文档通过
+Apache Tika 按文件内容解析 PDF、DOCX、DOC、RTF、TXT 和 Markdown，再由 AI 拆分为多条知识；
+原始文档不长期保存。剪贴板截图会经过图片安全检查、OCR 和 AI 拆分，创建多条文字知识；
+截图本身不长期保存，也不会成为附件。互联网候选只有在 Fetch、脱敏和 AI 整理成功后才入库，
+不会直接保存搜索摘要或抓取原文。独立分类标签表、Waffo 点数和 P2 文档/网页/截图加固
+仍在后续任务中，真实收费在 P0/P1 门禁通过前保持关闭。网页、文档和截图 AI 的解析、脱敏、
+同意和拆分代码已接入；生产环境默认
+`KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，在 002 点数门禁完成前会返回 `AI_BILLING_REQUIRED`，
+不会执行未计费的外部 AI 调用。扫描版 PDF 自动 OCR 和超长文档分块属于 P2。
 
 已批准的实现技术栈为 Vue 3 + TypeScript、Java 17 + Spring Boot 3.x、PostgreSQL 18
-和 S3 兼容对象存储。当前 MVP 的图片保存在服务器的本地持久目录；S3 适配器、Waffo
-桥接和 Playwright Java worker 尚未实现。
+和 S3 兼容对象存储。当前 MVP 的图片保存在服务器的本地持久目录；Playwright Java 单页
+截图 worker 已实现。S3 适配器和 Waffo 桥接仍待完成。
 
 ## 核心文档
 
@@ -46,6 +56,19 @@ Fetch 保存已经可用；AI 网页截图分析、PDF/Word 内容解析、OCR�
 - [账户资料实施计划](specs/005-account-profile/plan.md)
 - [账户资料数据模型](specs/005-account-profile/data-model.md)
 - [账户资料任务表](specs/005-account-profile/tasks.md)
+- [网页截图 AI 拆分规格](specs/006-webpage-ai-import/spec.md)
+- [网页截图 AI 拆分计划](specs/006-webpage-ai-import/plan.md)
+- [网页截图 AI 拆分任务表](specs/006-webpage-ai-import/tasks.md)
+- [网页截图 AI 拆分验证指南](specs/006-webpage-ai-import/quickstart.md)
+- [文档解析 AI 拆分规格](specs/007-document-ai-import/spec.md)
+- [文档解析 AI 拆分计划](specs/007-document-ai-import/plan.md)
+- [文档解析 AI 拆分任务表](specs/007-document-ai-import/tasks.md)
+- [文档解析 AI 拆分验证指南](specs/007-document-ai-import/quickstart.md)
+- [截图 OCR AI 拆分规格](specs/008-screenshot-ai-import/spec.md)
+- [截图 OCR AI 拆分计划](specs/008-screenshot-ai-import/plan.md)
+- [截图 OCR AI 拆分任务表](specs/008-screenshot-ai-import/tasks.md)
+- [截图 OCR AI 拆分验证指南](specs/008-screenshot-ai-import/quickstart.md)
+- [AI 辅助采集统一规则](specs/009-ai-assisted-capture/spec.md)
 
 ## 交互原型
 
@@ -144,6 +167,16 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 - 从 `https://github.com/seaunit/zhishiku.git` 拉取源码，不使用本地工作树。
 - 使用 Java 17、PostgreSQL 18、Vue 构建和 Nginx 静态文件。
 - 服务只监听 `127.0.0.1:8082`，公开入口为 `/kb/`。
+- 部署安装 Playwright Chromium 和 Tesseract `chi_sim+eng`，把 worker 放入 release，
+  并通过 `PLAYWRIGHT_BROWSERS_PATH=/opt/zhishiku/playwright` 隔离浏览器文件。
+- 网页链接只截图、OCR 和 AI 拆分一个公开页面；任何失败都不会创建 URL-only 知识。
+- AI 文字、网页、文档、文档图片、截图和互联网候选都只在 AI 整理成功后入库；手动录入保持在
+  AI 不可用时仍可保存。
+- 文档入口使用内嵌 Apache Tika 解析文档，并对 JPG/PNG/WebP 执行 OCR；所有内容脱敏后由 AI
+  整理，原始文件不长期保存，解析失败或超限时不创建部分知识。
+- 剪贴板截图只用于临时 OCR，AI 拆分后的文字才入库；截图模式不调用图片附件上传接口。
+- 生产网页 AI 必须等待 002 点数报价、预留、结算和释放接入；本地自动化可使用
+  `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=true`，该值不得用于生产绕过计费。
 - 静态门户安装到 `/opt/seaunit-portal/current`，根路径 `/` 同时提供拾题和识海入口。
 - 保留上一 release；健康检查失败时自动切回。
 - 只替换现有 Nginx 配置中精确的 `location = /`，增加独立的 `/seaunit-portal/` 静态资源

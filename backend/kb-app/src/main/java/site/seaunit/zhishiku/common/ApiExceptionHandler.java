@@ -1,6 +1,8 @@
 package site.seaunit.zhishiku.common;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,14 +19,47 @@ import site.seaunit.zhishiku.auth.registration.InvalidEmailAddressException;
 import site.seaunit.zhishiku.auth.registration.PasswordConfirmationMismatchException;
 import site.seaunit.zhishiku.auth.registration.RateLimitedException;
 import site.seaunit.zhishiku.auth.registration.RegistrationClosedException;
+import site.seaunit.zhishiku.billing.BillingException;
 import site.seaunit.zhishiku.core.richtext.RichTextException;
+import site.seaunit.zhishiku.documentimport.DocumentImportException;
+import site.seaunit.zhishiku.idempotency.IdempotencyException;
 import site.seaunit.zhishiku.knowledge.RichTextConflictException;
 import site.seaunit.zhishiku.richtext.image.ImageInspectionException;
+import site.seaunit.zhishiku.screenshotimport.ScreenshotImportException;
 import site.seaunit.zhishiku.search.external.ExternalSearchCandidateNotFoundException;
 import site.seaunit.zhishiku.search.external.ExternalSearchUnavailableException;
+import site.seaunit.zhishiku.textimport.TextImportException;
+import site.seaunit.zhishiku.webimport.WebImportBillingRequiredException;
+import site.seaunit.zhishiku.webimport.WebImportConsentRequiredException;
+import site.seaunit.zhishiku.webimport.WebImportUnavailableException;
+import site.seaunit.zhishiku.webimport.WebPageNoTextException;
+import site.seaunit.zhishiku.webimport.WebPageOrganizationException;
+import site.seaunit.zhishiku.webimport.WebPageUrlException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+  @ExceptionHandler(IdempotencyException.class)
+  ResponseEntity<ErrorResponse> idempotency(
+      IdempotencyException error, HttpServletRequest request) {
+    HttpStatus status =
+        "REQUEST_IN_PROGRESS".equals(error.getCode())
+                || "IDEMPOTENCY_CONFLICT".equals(error.getCode())
+            ? HttpStatus.CONFLICT
+            : HttpStatus.BAD_REQUEST;
+    return response(status, error.getCode(), error.getMessage(), request);
+  }
+
+  @ExceptionHandler(BillingException.class)
+  ResponseEntity<Map<String, Object>> billing(BillingException error, HttpServletRequest request) {
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("code", error.getCode());
+    body.put("message", error.getMessage());
+    body.put("requestId", String.valueOf(request.getAttribute(RequestIdFilter.ATTRIBUTE)));
+    body.put("retryable", error.getStatus().is5xxServerError());
+    body.putAll(error.getDetails());
+    return ResponseEntity.status(error.getStatus()).body(body);
+  }
+
   @ExceptionHandler(EmailAlreadyRegisteredException.class)
   ResponseEntity<ErrorResponse> emailAlreadyRegistered(
       EmailAlreadyRegisteredException error, HttpServletRequest request) {
@@ -150,6 +185,69 @@ public class ApiExceptionHandler {
       ExternalSearchCandidateNotFoundException error, HttpServletRequest request) {
     return response(
         HttpStatus.NOT_FOUND, "EXTERNAL_CANDIDATE_NOT_FOUND", error.getMessage(), request);
+  }
+
+  @ExceptionHandler(WebImportUnavailableException.class)
+  ResponseEntity<ErrorResponse> webImportUnavailable(
+      WebImportUnavailableException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.SERVICE_UNAVAILABLE, "WEB_IMPORT_UNAVAILABLE", error.getMessage(), request);
+  }
+
+  @ExceptionHandler(WebImportConsentRequiredException.class)
+  ResponseEntity<ErrorResponse> webImportConsent(
+      WebImportConsentRequiredException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        "AI_EXTERNAL_CONSENT_REQUIRED",
+        error.getMessage(),
+        request);
+  }
+
+  @ExceptionHandler(WebImportBillingRequiredException.class)
+  ResponseEntity<ErrorResponse> webImportBilling(
+      WebImportBillingRequiredException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.PAYMENT_REQUIRED, "AI_BILLING_REQUIRED", error.getMessage(), request);
+  }
+
+  @ExceptionHandler(DocumentImportException.class)
+  ResponseEntity<ErrorResponse> documentImport(
+      DocumentImportException error, HttpServletRequest request) {
+    return response(error.getStatus(), error.getCode(), error.getMessage(), request);
+  }
+
+  @ExceptionHandler(ScreenshotImportException.class)
+  ResponseEntity<ErrorResponse> screenshotImport(
+      ScreenshotImportException error, HttpServletRequest request) {
+    return response(error.getStatus(), error.getCode(), error.getMessage(), request);
+  }
+
+  @ExceptionHandler(TextImportException.class)
+  ResponseEntity<ErrorResponse> textImport(TextImportException error, HttpServletRequest request) {
+    return response(error.getStatus(), error.getCode(), error.getMessage(), request);
+  }
+
+  @ExceptionHandler(WebPageUrlException.class)
+  ResponseEntity<ErrorResponse> webPageUrl(WebPageUrlException error, HttpServletRequest request) {
+    return response(HttpStatus.BAD_REQUEST, "WEB_PAGE_INVALID_URL", error.getMessage(), request);
+  }
+
+  @ExceptionHandler(WebPageNoTextException.class)
+  ResponseEntity<ErrorResponse> webPageNoText(
+      WebPageNoTextException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.UNPROCESSABLE_ENTITY, "WEB_PAGE_NO_TEXT", error.getMessage(), request);
+  }
+
+  @ExceptionHandler(WebPageOrganizationException.class)
+  ResponseEntity<ErrorResponse> webPageOrganization(
+      WebPageOrganizationException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        "WEB_PAGE_ORGANIZATION_FAILED",
+        error.getMessage(),
+        request);
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

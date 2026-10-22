@@ -6,6 +6,7 @@ REF="${KB_REF:-main}"
 INSTALL_ROOT="${KB_INSTALL_ROOT:-/opt/zhishiku}"
 PORTAL_ROOT="${KB_PORTAL_ROOT:-/opt/seaunit-portal}"
 ENV_FILE="${KB_ENV_FILE:-/etc/zhishiku/kb.env}"
+WAFFO_ENV_FILE="${WAFFO_ENV_FILE:-/etc/zhishiku/waffo.env}"
 SERVICE_NAME="${KB_SERVICE_NAME:-zhishiku-api}"
 SERVICE_USER="${KB_SERVICE_USER:-zhishiku}"
 PORT="${KB_PORT:-8082}"
@@ -60,8 +61,12 @@ prompt_secret() {
   else
     printf '\n' > /dev/tty
   fi
-  value="$(printf '%s' "$value" | tr -d '[:space:]')"
-  value="${value//\'/}"
+  value="$(printf '%s' "$value" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  if [[ ${#value} -ge 2 && "${value:0:1}" == "'" && "${value: -1}" == "'" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ ${#value} -ge 2 && "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
   if [[ -z "$value" && -n "$current" ]]; then
     value="$current"
   fi
@@ -71,10 +76,12 @@ prompt_secret() {
 set_env_value() {
   local key="$1"
   local value="$2"
+  local escaped
   local env_tmp
   env_tmp="$(mktemp "${ENV_FILE}.XXXXXX")"
   awk -v key="$key" 'index($0, key "=") != 1' "$ENV_FILE" > "$env_tmp"
-  printf "%s='%s'\n" "$key" "$value" >> "$env_tmp"
+  escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+  printf '%s="%s"\n' "$key" "$escaped" >> "$env_tmp"
   chmod 0600 "$env_tmp"
   chown root:root "$env_tmp"
   mv "$env_tmp" "$ENV_FILE"
@@ -93,15 +100,6 @@ ensure_secrets() {
     fetch_key="$(prompt_secret "DeepSeek Fetch API Key（留空复用主 AI Key）" "$fetch_key")"
     smtp_password="$(prompt_secret "SMTP 密码/应用专用密钥" "$smtp_password")"
   fi
-
-  ai_key="$(printf '%s' "$ai_key" | tr -d '[:space:]')"
-  search_key="$(printf '%s' "$search_key" | tr -d '[:space:]')"
-  fetch_key="$(printf '%s' "$fetch_key" | tr -d '[:space:]')"
-  smtp_password="$(printf '%s' "$smtp_password" | tr -d '[:space:]')"
-  ai_key="${ai_key//\'/}"
-  search_key="${search_key//\'/}"
-  fetch_key="${fetch_key//\'/}"
-  smtp_password="${smtp_password//\'/}"
 
   if [[ -z "$search_key" ]]; then
     search_key="$ai_key"
@@ -153,12 +151,17 @@ if ((EUID != 0)); then
   exit 1
 fi
 
-for command in curl git java nginx node pnpm psql python3 systemctl vips; do
+for command in curl git gzip java nginx node pg_dump pnpm psql python3 systemctl tesseract vips; do
   if ! command -v "$command" >/dev/null 2>&1; then
     printf 'Missing required command: %s\n' "$command" >&2
     exit 1
   fi
 done
+tesseract_languages="$(tesseract --list-langs 2>/dev/null || true)"
+if [[ "$tesseract_languages" != *"chi_sim"* || "$tesseract_languages" != *"eng"* ]]; then
+  printf 'Tesseract chi_sim and eng language data are required.\n' >&2
+  exit 1
+fi
 if ! java -version 2>&1 | grep -q 'version "17\.'; then
   printf 'Java 17 is required.\n' >&2
   exit 1
@@ -166,6 +169,10 @@ fi
 if [[ ! -f "$ENV_FILE" ]]; then
   printf 'Environment file not found: %s\n' "$ENV_FILE" >&2
   printf 'Run provision-ubuntu.sh first.\n' >&2
+  exit 1
+fi
+if [[ "$(read_env_value BILLING_ENABLED)" == "true" && ! -f "$WAFFO_ENV_FILE" ]]; then
+  printf 'BILLING_ENABLED=true requires %s\n' "$WAFFO_ENV_FILE" >&2
   exit 1
 fi
 
@@ -180,6 +187,9 @@ PORTAL_PREVIOUS_RELEASE=""
 ROLLBACK_ACTIVE=0
 PORTAL_SWITCHED=0
 NGINX_BACKUP=""
+BRIDGE_UNIT_BACKUP=""
+NGINX_SNIPPET_BACKUP=""
+BRIDGE_WAS_ACTIVE=0
 
 cleanup() {
   status=$?
@@ -200,8 +210,18 @@ cleanup() {
     fi
     if [[ -n "$NGINX_BACKUP" && -f "$NGINX_BACKUP" ]]; then
       cp -a "$NGINX_BACKUP" "$NGINX_CONFIG"
-      nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
     fi
+    if [[ -n "$BRIDGE_UNIT_BACKUP" && -f "$BRIDGE_UNIT_BACKUP" ]]; then
+      cp -a "$BRIDGE_UNIT_BACKUP" "/etc/systemd/system/zhishiku-waffo-bridge.service"
+    fi
+    if [[ -n "$NGINX_SNIPPET_BACKUP" && -f "$NGINX_SNIPPET_BACKUP" ]]; then
+      cp -a "$NGINX_SNIPPET_BACKUP" "$NGINX_SNIPPET"
+    fi
+    systemctl daemon-reload || true
+    if ((BRIDGE_WAS_ACTIVE == 1)); then
+      systemctl restart zhishiku-waffo-bridge.service || true
+    fi
+    nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
   fi
   if [[ -n "$STAGE_DIR" && -d "$STAGE_DIR" ]]; then
     rm -rf "$STAGE_DIR"
@@ -240,10 +260,18 @@ bash "$SOURCE_DIR/deploy/scripts/check-image-normalizer.sh" \
 (
   cd "$SOURCE_DIR/backend"
   if [[ "$SKIP_TESTS" != "1" ]]; then
-    MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" bash ./mvnw -q -pl kb-app -am test
+    MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" bash ./mvnw -q -pl kb-app,kb-browser-worker -am test
   fi
-  MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" bash ./mvnw -q -pl kb-app -am package -DskipTests
+  MAVEN_OPTS="${MAVEN_OPTS:--Xmx512m}" bash ./mvnw -q -pl kb-app,kb-browser-worker -am package -DskipTests
 )
+
+BROWSERS_ROOT="/opt/zhishiku/playwright"
+install -d -m 0755 "$BROWSERS_ROOT"
+PLAYWRIGHT_BROWSERS_PATH="$BROWSERS_ROOT" \
+  java -Xms64m -Xmx512m \
+    -jar "$SOURCE_DIR/backend/kb-browser-worker/target/kb-browser-worker-0.1.0-SNAPSHOT.jar" \
+    --install-browser
+chown -R "$SERVICE_USER:$SERVICE_USER" "$BROWSERS_ROOT"
 
 (
   cd "$SOURCE_DIR/frontend/kb-web"
@@ -255,6 +283,16 @@ bash "$SOURCE_DIR/deploy/scripts/check-image-normalizer.sh" \
   NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=768}" pnpm build
 )
 
+(
+  cd "$SOURCE_DIR/bridges/waffo"
+  pnpm install --frozen-lockfile
+  if [[ "$SKIP_TESTS" != "1" ]]; then
+    pnpm lint
+    pnpm test
+  fi
+  pnpm build
+)
+
 RELEASE_ID="${SOURCE_SHA:0:12}-$(date -u +%Y%m%d%H%M%S)"
 RELEASE_DIR="$INSTALL_ROOT/releases/$RELEASE_ID"
 STAGE_DIR="$INSTALL_ROOT/.deploy-$RELEASE_ID"
@@ -262,6 +300,11 @@ install -d "$STAGE_DIR/frontend/kb"
 install -m 0644 \
   "$SOURCE_DIR/backend/kb-app/target/kb-app-0.1.0-SNAPSHOT.jar" \
   "$STAGE_DIR/kb-app.jar"
+install -m 0644 \
+  "$SOURCE_DIR/backend/kb-browser-worker/target/kb-browser-worker-0.1.0-SNAPSHOT.jar" \
+  "$STAGE_DIR/kb-browser-worker.jar"
+install -d "$STAGE_DIR/waffo-bridge"
+cp -a "$SOURCE_DIR/bridges/waffo/dist/." "$STAGE_DIR/waffo-bridge/"
 cp -a "$SOURCE_DIR/frontend/kb-web/dist/." "$STAGE_DIR/frontend/kb/"
 printf '%s\n' "$SOURCE_SHA" > "$STAGE_DIR/VERSION"
 chown -R "$SERVICE_USER:$SERVICE_USER" "$STAGE_DIR"
@@ -272,9 +315,41 @@ if [[ -L "$INSTALL_ROOT/current" ]]; then
   PREVIOUS_RELEASE="$(readlink -f "$INSTALL_ROOT/current")"
 fi
 
+BACKUP_ROOT="/var/backups/zhishiku"
+install -d -m 0700 "$BACKUP_ROOT"
+DATABASE_URL="$(read_env_value DATABASE_URL)"
+DATABASE_USERNAME="$(read_env_value DATABASE_USERNAME)"
+DATABASE_PASSWORD="$(read_env_value DATABASE_PASSWORD)"
+DB_PORT="$(printf '%s' "$DATABASE_URL" | sed -E 's#.*127\.0\.0\.1:([0-9]+)/.*#\1#')"
+DB_BACKUP="$BACKUP_ROOT/predeploy-$RELEASE_ID.sql.gz"
+PGPASSWORD="$DATABASE_PASSWORD" pg_dump \
+  -h 127.0.0.1 \
+  -p "$DB_PORT" \
+  -U "$DATABASE_USERNAME" \
+  -d zhishiku \
+  --no-owner \
+  --no-privileges | gzip -9 > "$DB_BACKUP"
+chmod 0600 "$DB_BACKUP"
+printf '[deploy] Database backup: %s\n' "$DB_BACKUP"
+
+if systemctl is-active --quiet zhishiku-waffo-bridge.service; then
+  BRIDGE_WAS_ACTIVE=1
+fi
+if [[ -f /etc/systemd/system/zhishiku-waffo-bridge.service ]]; then
+  BRIDGE_UNIT_BACKUP="/root/zhishiku-waffo-bridge.service.before-$RELEASE_ID"
+  cp -a /etc/systemd/system/zhishiku-waffo-bridge.service "$BRIDGE_UNIT_BACKUP"
+fi
+if [[ -f "$NGINX_SNIPPET" ]]; then
+  NGINX_SNIPPET_BACKUP="/root/zhishiku-kb.conf.before-$RELEASE_ID"
+  cp -a "$NGINX_SNIPPET" "$NGINX_SNIPPET_BACKUP"
+fi
+
 install -m 0644 \
   "$SOURCE_DIR/deploy/systemd/zhishiku-api.service" \
   "/etc/systemd/system/$SERVICE_NAME.service"
+install -m 0644 \
+  "$SOURCE_DIR/deploy/systemd/zhishiku-waffo-bridge.service" \
+  "/etc/systemd/system/zhishiku-waffo-bridge.service"
 install -d -m 0755 /etc/nginx/snippets
 install -m 0644 \
   "$SOURCE_DIR/deploy/nginx/zhishiku-kb.conf" \
@@ -291,6 +366,27 @@ if ! wait_for_health; then
   journalctl -u "$SERVICE_NAME" -n 100 --no-pager >&2 || true
   printf '[deploy] API health check failed.\n' >&2
   exit 1
+fi
+
+if [[ -f "$WAFFO_ENV_FILE" ]]; then
+  systemctl enable zhishiku-waffo-bridge.service
+  systemctl restart zhishiku-waffo-bridge.service
+  bridge_healthy=0
+  for attempt in $(seq 1 20); do
+    if curl -fsS --max-time 3 http://127.0.0.1:8091/health >/dev/null; then
+      bridge_healthy=1
+      break
+    fi
+    sleep 2
+  done
+  if ((bridge_healthy != 1)); then
+    journalctl -u zhishiku-waffo-bridge.service -n 80 --no-pager >&2 || true
+    printf '[deploy] Waffo bridge health check failed.\n' >&2
+    exit 1
+  fi
+else
+  printf '[deploy] Waffo bridge environment is missing; billing remains disabled.\n' >&2
+  systemctl disable --now zhishiku-waffo-bridge.service >/dev/null 2>&1 || true
 fi
 
 PORTAL_RELEASE_DIR="$PORTAL_ROOT/releases/$RELEASE_ID"
@@ -454,8 +550,11 @@ fi
 
 curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/kb/ >/dev/null
 curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/app >/dev/null
+curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/api/health >/dev/null || true
 curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/bank/1 >/dev/null
 curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/login >/dev/null
+curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/pay >/dev/null || true
+curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/apk >/dev/null || true
 portal_body="$(curl -fsS --resolve seaunit.site:443:127.0.0.1 https://seaunit.site/)"
 if [[ "$portal_body" != *"拾题与识海"* ]]; then
   printf '[deploy] Portal content check failed.\n' >&2

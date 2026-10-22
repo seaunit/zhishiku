@@ -1,10 +1,23 @@
 import { createIdempotencyKey } from '@/lib/id'
 import type {
   ApiErrorPayload,
+  AiConsent,
+  AiConsentScope,
+  BillingAccount,
+  BillingAutoChargePolicy,
+  BillingCatalog,
+  BillingLedgerPage,
+  BillingOrder,
+  BillingOrderPage,
+  BillingQuote,
+  BillingRefundCase,
+  BillingTask,
   CaptchaResponse,
   CreateKnowledgeItemRequest,
   CsrfResponse,
+  DocumentImportResponse,
   ExternalSearchResponse,
+  ExternalSearchSaveResponse,
   KnowledgeItem,
   KnowledgeItemPage,
   ProfileResponse,
@@ -13,10 +26,13 @@ import type {
   RegistrationResponse,
   RegistrationStatusResponse,
   RichImageUpload,
+  ScreenshotImportResponse,
   SearchResponse,
   SessionResponse,
+  TextImportResponse,
   UpdateKnowledgeItemRequest,
   UpdateProfileRequest,
+  WebPageImportResponse,
 } from '@/types/api'
 
 export const API_BASE = '/kb/api/v1'
@@ -196,6 +212,131 @@ export function getProfile(): Promise<ProfileResponse> {
   return request<ProfileResponse>('/profile')
 }
 
+export function getAiConsents(): Promise<AiConsent[]> {
+  return request<AiConsent[]>('/ai-consents')
+}
+
+export function updateAiConsent(
+  scope: AiConsentScope,
+  granted: boolean,
+  consentVersion = 'ai-consent-v1',
+): Promise<AiConsent> {
+  return request<AiConsent>(`/ai-consents/${encodeURIComponent(scope)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ granted, consentVersion }),
+  })
+}
+
+export function getBillingCatalog(): Promise<BillingCatalog> {
+  return request<BillingCatalog>('/billing/catalog')
+}
+
+export function getBillingAccount(): Promise<BillingAccount> {
+  return request<BillingAccount>('/billing/account')
+}
+
+export function getBillingLedger(limit = 20): Promise<BillingLedgerPage> {
+  return request<BillingLedgerPage>(`/billing/ledger?limit=${limit}`)
+}
+
+export function getBillingOrders(limit = 20): Promise<BillingOrderPage> {
+  return request<BillingOrderPage>(`/billing/orders?limit=${limit}`)
+}
+
+export function getBillingOrder(orderId: string): Promise<BillingOrder> {
+  return request<BillingOrder>(`/billing/orders/${encodeURIComponent(orderId)}`)
+}
+
+export function createBillingOrder(sku: string): Promise<BillingOrder> {
+  return request<BillingOrder>('/billing/orders', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': createIdempotencyKey(`billing-order-${sku}`) },
+    body: JSON.stringify({ sku }),
+  })
+}
+
+export function openBillingCheckout(
+  orderId: string,
+): Promise<{ orderId: string; checkoutUrl: string; expiresAt: string; environment: string }> {
+  return request(`/billing/orders/${encodeURIComponent(orderId)}/checkout`, {
+    method: 'POST',
+  })
+}
+
+export function getAutoChargePolicy(): Promise<BillingAutoChargePolicy> {
+  return request<BillingAutoChargePolicy>('/billing/auto-charge')
+}
+
+export function updateAutoChargePolicy(payload: {
+  enabled: boolean
+  maxPointsPerTask: number
+  maxPointsPerDay: number
+  consentTextVersion: string
+  expectedVersion: number
+}): Promise<BillingAutoChargePolicy> {
+  return request<BillingAutoChargePolicy>('/billing/auto-charge', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function createBillingPreflight(payload: {
+  kind: 'document' | 'screenshot' | 'webpage'
+  mediaType: string
+  sizeBytes: number
+  pageCount?: number | null
+  viewCount?: number
+}): Promise<{
+  preflightId: string
+  measuredCharactersUpperBound: number
+  viewCount: number
+  pricingBasis: string
+  expiresAt: string
+}> {
+  return request('/billing/preflights', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function createBillingQuote(payload: {
+  operation: string
+  itemId?: string | null
+  preflightId?: string | null
+  imageAssetIds?: string[]
+  lines: Array<{ feature: string; quantity: number }>
+  useAutoCharge?: boolean
+}): Promise<BillingQuote> {
+  return request<BillingQuote>('/billing/quotes', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function confirmBillingQuote(
+  quoteId: string,
+  expectedMaxPoints: number,
+): Promise<BillingTask> {
+  return request<BillingTask>(`/billing/quotes/${encodeURIComponent(quoteId)}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ expectedMaxPoints, explicitConsent: true }),
+  })
+}
+
+export function getBillingTask(taskId: string): Promise<BillingTask> {
+  return request<BillingTask>(`/billing/tasks/${encodeURIComponent(taskId)}`)
+}
+
+export function cancelBillingTask(taskId: string): Promise<BillingTask> {
+  return request<BillingTask>(`/billing/tasks/${encodeURIComponent(taskId)}/cancel`, {
+    method: 'POST',
+  })
+}
+
+export function getBillingRefunds(): Promise<BillingRefundCase[]> {
+  return request<BillingRefundCase[]>('/billing/refunds')
+}
+
 export function updateProfile(payload: UpdateProfileRequest): Promise<ProfileResponse> {
   return request<ProfileResponse>('/profile', {
     method: 'PATCH',
@@ -207,31 +348,133 @@ export function listKnowledgeItems(limit = 20): Promise<KnowledgeItemPage> {
   return request<KnowledgeItemPage>(`/knowledge-items?limit=${limit}`)
 }
 
+export function listTrash(limit = 100): Promise<KnowledgeItemPage> {
+  return request<KnowledgeItemPage>(`/knowledge-items/trash?limit=${limit}`)
+}
+
+export function recycleKnowledgeItem(id: string): Promise<void> {
+  return request<void>(`/knowledge-items/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+export function restoreKnowledgeItem(id: string): Promise<void> {
+  return request<void>(`/knowledge-items/${encodeURIComponent(id)}/restore`, {
+    method: 'POST',
+  })
+}
+
+export function purgeKnowledgeItem(id: string): Promise<void> {
+  return request<void>(`/knowledge-items/${encodeURIComponent(id)}/permanent`, {
+    method: 'DELETE',
+  })
+}
+
 export function searchKnowledge(query: string, limit = 20): Promise<SearchResponse> {
   const params = new URLSearchParams({ q: query, limit: String(limit) })
   return request<SearchResponse>(`/search?${params.toString()}`)
 }
 
-export function searchInternet(query: string): Promise<ExternalSearchResponse> {
+export function searchInternet(
+  query: string,
+  billingTaskId?: string,
+  includeAnswer = false,
+  idempotencyKey = createIdempotencyKey('internet-search'),
+): Promise<ExternalSearchResponse> {
   return request<ExternalSearchResponse>('/search/external', {
     method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
     body: JSON.stringify({
       query,
       explicitConsent: true,
-      includeAnswer: false,
+      includeAnswer,
+      billingTaskId,
     }),
   })
 }
 
-export function saveInternetCandidate(candidateId: string): Promise<KnowledgeItem> {
-  return request<KnowledgeItem>(
+export function saveInternetCandidate(
+  candidateId: string,
+  billingTaskId?: string,
+  idempotencyKey = createIdempotencyKey('external-save'),
+): Promise<ExternalSearchSaveResponse> {
+  return request<ExternalSearchSaveResponse>(
     `/search/external/${encodeURIComponent(candidateId)}/save`,
     {
       method: 'POST',
-      headers: { 'Idempotency-Key': createIdempotencyKey('external-save') },
-      body: JSON.stringify({}),
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({ externalAiConsent: true, billingTaskId }),
     },
   )
+}
+
+export function importText(
+  text: string,
+  externalAiConsent: boolean,
+  note: string,
+  billingTaskId?: string,
+  idempotencyKey = createIdempotencyKey('text-import'),
+): Promise<TextImportResponse> {
+  return request<TextImportResponse>('/text-imports', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({ text, externalAiConsent, note, billingTaskId }),
+  })
+}
+
+export function importWebPage(
+  url: string,
+  externalAiConsent: boolean,
+  billingTaskId?: string,
+  idempotencyKey = createIdempotencyKey('web-import'),
+): Promise<WebPageImportResponse> {
+  return request<WebPageImportResponse>('/web-imports', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({ url, externalAiConsent, billingTaskId }),
+  })
+}
+
+export function importDocument(
+  file: File,
+  externalAiConsent: boolean,
+  note: string,
+  billingTaskId?: string,
+  idempotencyKey = createIdempotencyKey('document-import'),
+): Promise<DocumentImportResponse> {
+  const form = new FormData()
+  form.append('file', file, file.name)
+  form.append('externalAiConsent', String(externalAiConsent))
+  if (note.trim()) {
+    form.append('note', note.trim())
+  }
+  if (billingTaskId) form.append('billingTaskId', billingTaskId)
+  return request<DocumentImportResponse>('/document-imports', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: form,
+  })
+}
+
+export function importScreenshot(
+  file: File,
+  externalAiConsent: boolean,
+  note: string,
+  billingTaskId?: string,
+  idempotencyKey = createIdempotencyKey('screenshot-import'),
+): Promise<ScreenshotImportResponse> {
+  const form = new FormData()
+  form.append('file', file, file.name || 'clipboard-screenshot.png')
+  form.append('externalAiConsent', String(externalAiConsent))
+  if (note.trim()) {
+    form.append('note', note.trim())
+  }
+  if (billingTaskId) form.append('billingTaskId', billingTaskId)
+  return request<ScreenshotImportResponse>('/screenshot-imports', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: form,
+  })
 }
 
 export function getKnowledgeItem(id: string): Promise<KnowledgeItem> {
@@ -255,6 +498,35 @@ export function updateKnowledgeItem(
     headers: { 'Idempotency-Key': createIdempotencyKey('update') },
     body: JSON.stringify(payload),
   })
+}
+
+export function updateKnowledgeClassification(
+  id: string,
+  category: string,
+  tags: string[],
+): Promise<KnowledgeItem> {
+  return request<KnowledgeItem>(
+    `/knowledge-items/${encodeURIComponent(id)}/classification`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ category, tags }),
+    },
+  )
+}
+
+export function reanalyzeKnowledgeItem(
+  id: string,
+  billingTaskId: string,
+  idempotencyKey: string,
+): Promise<KnowledgeItem> {
+  return request<KnowledgeItem>(
+    `/knowledge-items/${encodeURIComponent(id)}/reanalyze`,
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({ externalAiConsent: true, billingTaskId }),
+    },
+  )
 }
 
 export function uploadRichImage(file: File, itemId?: string): Promise<RichImageUpload> {

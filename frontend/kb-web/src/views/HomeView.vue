@@ -39,7 +39,7 @@
       <span>{{ t('home.searchHint') }}</span>
     </div>
 
-    <div class="stats-strip" aria-label="知识概况">
+    <div class="stats-strip" :aria-label="t('a11y.knowledgeStats')">
       <div class="stat-cell">
         <span>{{ t('home.statTotal') }}</span>
         <strong class="num">{{ allItems.length }}</strong>
@@ -118,6 +118,15 @@
                 <span>{{ item.category?.name || t('common.uncategorized') }}</span>
                 <span>{{ item.tags.slice(0, 2).map((tag) => tag.name).join(' / ') || '—' }}</span>
                 <span>{{ sourceLabel(item.source.kind) }}</span>
+                <span v-if="matchedFieldsByItem[item.id]?.length">
+                  {{
+                    t('home.matchedFields', {
+                      fields: matchedFieldsByItem[item.id]
+                        .map((field) => t(`home.match.${field}`))
+                        .join(t('common.listSeparator')),
+                    })
+                  }}
+                </span>
               </span>
             </span>
             <span class="status-pill" :class="statusClass(item.processingStatus)">
@@ -135,7 +144,14 @@
             @click="searchExternalInternet"
           >
             <span>
-              <strong><Globe2 :size="16" />{{ t('home.internetSearch') }}</strong>
+              <strong>
+                <Globe2 :size="16" />
+                {{
+                  externalQuote
+                    ? t('home.confirmSearchPoints', { points: externalQuote.maxPoints })
+                    : t('home.internetSearch')
+                }}
+              </strong>
               <small>
                 {{
                   searchedQuery
@@ -156,6 +172,27 @@
               </span>
               <span v-else>{{ externalItems.length }}</span>
             </header>
+
+            <div v-if="externalQuote" class="external-quote">
+              <span>
+                <strong>{{ t('home.externalQuoteTitle') }}</strong>
+                <small>{{ t('home.externalQuoteBalance', {
+                  available: externalQuote.availablePoints,
+                  remaining: externalQuote.projectedRemainingPoints,
+                }) }}</small>
+              </span>
+              <span class="external-quote-action">
+                <b class="num">{{ t('home.points', { points: externalQuote.maxPoints }) }}</b>
+                <button
+                  type="button"
+                  class="button secondary"
+                  :disabled="externalLoading"
+                  @click="searchExternalInternet"
+                >
+                  {{ t('home.confirmSearchPoints', { points: externalQuote.maxPoints }) }}
+                </button>
+              </span>
+            </div>
 
             <div v-if="externalError" class="inline-error external-error" role="alert">
               <CircleAlert :size="18" />
@@ -219,7 +256,10 @@
                     {{
                       savingCandidateId === candidate.candidateId
                         ? t('home.internetSaving')
-                        : t('home.internetSave')
+                        : candidateQuote &&
+                            candidateQuoteId === candidate.candidateId
+                          ? t('home.confirmImport', { points: candidateQuote.maxPoints })
+                          : t('home.internetSave')
                     }}
                   </button>
                 </div>
@@ -239,7 +279,7 @@
             <Layers :size="18" class="panel-icon" aria-hidden="true" />
           </header>
 
-          <div class="depth-map" aria-label="可交互知识分类海图">
+          <div class="depth-map" :aria-label="t('a11y.knowledgeMap')">
             <svg viewBox="0 0 320 216" aria-hidden="true">
               <path class="map-contour" d="M-8 70C46 27 92 30 136 61s79 36 129 8 66-11 76 5" />
               <path class="map-contour" d="M-10 126c48-33 95-33 143-1s83 31 126 1 60-24 82-6" />
@@ -321,13 +361,18 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
+  ApiError,
   listKnowledgeItems,
+  confirmBillingQuote,
+  createBillingQuote,
   saveInternetCandidate,
   searchInternet,
   searchKnowledge,
 } from '@/api/client'
 import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
+import { createIdempotencyKey } from '@/lib/id'
 import type { ExternalSearchCandidate, KnowledgeItemSummary } from '@/types/api'
+import type { BillingQuote } from '@/types/api'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -335,6 +380,7 @@ const query = ref('')
 const searchedQuery = ref('')
 const allItems = ref<KnowledgeItemSummary[]>([])
 const items = ref<KnowledgeItemSummary[]>([])
+const matchedFieldsByItem = ref<Record<string, string[]>>({})
 const loading = ref(false)
 const error = ref('')
 const degraded = ref(false)
@@ -343,6 +389,11 @@ const externalLoading = ref(false)
 const externalError = ref('')
 const externalItems = ref<ExternalSearchCandidate[]>([])
 const savingCandidateId = ref('')
+const externalQuote = ref<BillingQuote | null>(null)
+const candidateQuote = ref<BillingQuote | null>(null)
+const candidateQuoteId = ref('')
+const externalSearchKey = ref('')
+const candidateRequestKeys = ref<Record<string, string>>({})
 
 const displayedItems = computed(() => items.value.slice(0, 5))
 const queueItems = computed(() =>
@@ -387,10 +438,14 @@ function sourceIcon(kind: string) {
   if (kind === 'webpage') return Link2
   if (kind === 'document') return FileText
   if (kind === 'screenshot') return Image
+  if (kind === 'text') return FileText
+  if (kind === 'internet_result') return Globe2
   return PenLine
 }
 
 function sourceLabel(kind: string) {
+  if (kind === 'text') return t('library.text')
+  if (kind === 'internet_result') return t('library.internetResult')
   if (kind === 'webpage') return t('library.webpage')
   if (kind === 'document') return t('library.document')
   if (kind === 'screenshot') return t('library.screenshot')
@@ -414,12 +469,21 @@ async function load() {
   externalLoading.value = false
   externalError.value = ''
   externalItems.value = []
+  externalQuote.value = null
+  candidateQuote.value = null
+  candidateQuoteId.value = ''
+  externalSearchKey.value = ''
+  candidateRequestKeys.value = {}
+  matchedFieldsByItem.value = {}
   const normalized = query.value.trim()
   try {
     if (normalized) {
       const response = await searchKnowledge(normalized)
       searchedQuery.value = normalized
       items.value = response.items.map((hit) => hit.item)
+      matchedFieldsByItem.value = Object.fromEntries(
+        response.items.map((hit) => [hit.item.id, hit.matchedFields]),
+      )
       degraded.value = response.degraded
     } else {
       const response = await listKnowledgeItems(20)
@@ -447,14 +511,31 @@ async function searchCategory(name: string) {
 async function searchExternalInternet() {
   if (!searchedQuery.value) return
   externalVisible.value = true
-  externalLoading.value = true
   externalError.value = ''
-  externalItems.value = []
   try {
-    const response = await searchInternet(searchedQuery.value)
+    if (!externalQuote.value) {
+      externalQuote.value = await createBillingQuote({
+        operation: 'internet_search',
+        lines: [{ feature: 'internet_search', quantity: 1 }],
+      })
+      return
+    }
+    externalLoading.value = true
+    externalItems.value = []
+    const task = await confirmBillingQuote(
+      externalQuote.value.quoteId,
+      externalQuote.value.maxPoints,
+    )
+    const requestKey =
+      externalSearchKey.value ||
+      (externalSearchKey.value = createIdempotencyKey('internet-search'))
+    const response = await searchInternet(searchedQuery.value, task.id, false, requestKey)
+    externalQuote.value = null
+    externalSearchKey.value = ''
     externalItems.value = response.items
   } catch (caught) {
-    externalError.value = caught instanceof Error ? caught.message : t('errors.generic')
+    externalError.value = billingMessage(caught)
+    externalQuote.value = null
   } finally {
     externalLoading.value = false
   }
@@ -464,13 +545,48 @@ async function saveCandidate(candidate: ExternalSearchCandidate) {
   savingCandidateId.value = candidate.candidateId
   externalError.value = ''
   try {
-    const saved = await saveInternetCandidate(candidate.candidateId)
-    await router.push(`/library/${saved.id}`)
+    if (!candidateQuote.value || candidateQuoteId.value !== candidate.candidateId) {
+      candidateQuote.value = await createBillingQuote({
+        operation: 'internet_import',
+        lines: [{ feature: 'classify', quantity: 1 }],
+      })
+      candidateQuoteId.value = candidate.candidateId
+      return
+    }
+    const task = await confirmBillingQuote(
+      candidateQuote.value.quoteId,
+      candidateQuote.value.maxPoints,
+    )
+    const requestKey =
+      candidateRequestKeys.value[candidate.candidateId] ||
+      (candidateRequestKeys.value[candidate.candidateId] = createIdempotencyKey('candidate-save'))
+    const saved = await saveInternetCandidate(
+      candidate.candidateId,
+      task.id,
+      requestKey,
+    )
+    candidateQuote.value = null
+    candidateQuoteId.value = ''
+    await router.push(
+      saved.items.length === 1 ? `/library/${saved.items[0].id}` : '/library',
+    )
   } catch (caught) {
-    externalError.value = caught instanceof Error ? caught.message : t('errors.generic')
+    externalError.value = billingMessage(caught)
+    candidateQuote.value = null
+    candidateQuoteId.value = ''
   } finally {
     savingCandidateId.value = ''
   }
+}
+
+function billingMessage(caught: unknown) {
+  if (caught instanceof ApiError) {
+    if (caught.code === 'INSUFFICIENT_POINTS') return t('home.insufficientPoints')
+    if (caught.code === 'BILLING_DISABLED' || caught.code === 'BILLING_BRIDGE_UNAVAILABLE') {
+      return t('home.billingUnavailable')
+    }
+  }
+  return caught instanceof Error ? caught.message : t('errors.generic')
 }
 
 onMounted(load)

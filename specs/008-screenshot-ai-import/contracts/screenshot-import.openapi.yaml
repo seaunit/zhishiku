@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: 识海截图 OCR 与 AI 拆分 API
+  version: 1.0.0
+servers:
+  - url: /kb
+paths:
+  /api/v1/screenshot-imports:
+    post:
+      operationId: importScreenshot
+      summary: OCR 剪贴板截图并用 AI 拆分为多条知识
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file, externalAiConsent]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PNG 或 JPEG；最大 25 MiB。
+                externalAiConsent:
+                  type: boolean
+                  const: true
+                note:
+                  type: string
+                  maxLength: 20000
+      responses:
+        "201":
+          description: 截图已识别并创建一条或多条知识。
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    minItems: 1
+                    maxItems: 20
+                    items:
+                      type: object
+                      required: [id, title, body, source, processingStatus]
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        body:
+                          type: string
+                        source:
+                          type: object
+                          required: [kind, capturedAt]
+                          properties:
+                            kind:
+                              const: screenshot
+                            url:
+                              type: "null"
+                            capturedAt:
+                              type: string
+                              format: date-time
+                        processingStatus:
+                          const: succeeded
+        "402":
+          description: 点数门禁未满足。
+        "413":
+          description: 截图超过 25 MiB。
+        "415":
+          description: 截图不是支持的 PNG/JPEG。
+        "422":
+          description: 图片不安全、无文字、文字超长或 AI 整理失败。
+        "503":
+          description: OCR 或 AI 服务不可用。

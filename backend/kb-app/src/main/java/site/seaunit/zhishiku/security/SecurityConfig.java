@@ -17,7 +17,11 @@ public class SecurityConfig {
     CookieCsrfTokenRepository csrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
     csrf.setCookieCustomizer(builder -> builder.path("/kb").sameSite("Lax"));
 
-    http.csrf(config -> config.csrfTokenRepository(csrf))
+    http.csrf(
+            config ->
+                config
+                    .csrfTokenRepository(csrf)
+                    .ignoringRequestMatchers("/api/internal/billing/**"))
         .sessionManagement(
             session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
         .authorizeHttpRequests(
@@ -30,6 +34,7 @@ public class SecurityConfig {
                         "/api/v1/auth/register",
                         "/api/v1/auth/login",
                         "/api/v1/auth/setup",
+                        "/api/internal/billing/waffo-events",
                         "/api/actuator/health",
                         "/api/actuator/health/**",
                         "/v3/api-docs/**",

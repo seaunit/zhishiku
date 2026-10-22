@@ -1,0 +1,182 @@
+openapi: 3.1.0
+info:
+  title: 识海 AI 辅助采集规则契约增量
+  version: 1.0.0
+  description: >
+    本文件仅记录 009 对既有接口的契约增量。完整接口仍以
+    `specs/001-ai-personal-knowledge-base/contracts/openapi.yaml` 为权威。
+servers:
+  - url: /kb
+security:
+  - sessionCookie: []
+paths:
+  /api/v1/knowledge-items:
+    post:
+      summary: 手动录入知识
+      description: >
+        只允许手动录入。服务端拒绝 `document`、`screenshot`、`internet_result` 和 `text`
+        来源，防止绕过 AI 整理专用接口。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, bodyDocument]
+              properties:
+                title:
+                  type: string
+                  maxLength: 300
+                bodyDocument:
+                  type: object
+                note:
+                  type: string
+                  maxLength: 20000
+                bodySource:
+                  oneOf:
+                    - $ref: "#/components/schemas/ManualBodySource"
+                    - type: "null"
+      responses:
+        "201":
+          description: 按用户手动原文创建知识。
+        "400":
+          description: 请求携带非手动专用来源类型。
+  /api/v1/document-imports:
+    post:
+      summary: 解析文档或图片并交给 AI 整理
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, externalAiConsent]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: >
+                    PDF、DOC、DOCX、RTF、TXT、Markdown、JPG、PNG 或 WebP。
+                    图片必须经过 OCR 和 AI 整理，不能直接作为附件入库。
+                externalAiConsent:
+                  type: boolean
+                  const: true
+                note:
+                  type: string
+                  maxLength: 20000
+      responses:
+        "201":
+          description: 已创建一条或多条 AI 整理后的 `document` 知识。
+        "402":
+          description: 生产点数门禁未满足。
+        "415":
+          description: 文件格式不受支持。
+        "422":
+          description: 无文字、图片不安全、授权缺失、解析失败或 AI 整理失败。
+  /api/v1/text-imports:
+    post:
+      summary: 将用户粘贴或输入的文字交给 AI 拆分整理
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, externalAiConsent]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 30000
+                externalAiConsent:
+                  type: boolean
+                  const: true
+                note:
+                  type: string
+                  maxLength: 20000
+      responses:
+        "201":
+          description: 已创建一条或多条 AI 整理后的文字知识。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeListResponse"
+        "402":
+          description: 生产点数门禁未满足。
+        "422":
+          description: 无有效文字、授权缺失或 AI 整理失败。
+        "503":
+          description: AI 服务不可用。
+  /api/v1/search/external/{candidateId}/save:
+    post:
+      summary: 通过 Fetch 和 AI 整理互联网候选
+      parameters:
+        - name: candidateId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalAiConsent]
+              properties:
+                externalAiConsent:
+                  type: boolean
+                  const: true
+                billingTaskId:
+                  type: string
+                  format: uuid
+      responses:
+        "201":
+          description: 已创建一条或多条 AI 整理后的 `internet_result` 知识。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeListResponse"
+        "402":
+          description: 生产点数门禁未满足。
+        "404":
+          description: 候选不存在、已过期或不属于当前账号。
+        "422":
+          description: 未授权或 AI 整理失败。
+        "503":
+          description: Fetch 或 AI 服务不可用。
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: zhishiku_session
+  schemas:
+    ManualBodySource:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [native, clipboard, word, google_docs, webpage, legacy_text]
+        sourceUrl:
+          type:
+            - string
+            - "null"
+          format: uri
+        capturedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+    KnowledgeListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: object

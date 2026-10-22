@@ -72,4 +72,12 @@ class SourceProvenancePolicyTest {
     assertThat(source.host()).isNull();
     assertThat(source.capturedAt()).isNull();
   }
+
+  @Test
+  void permitsAiTextSourcesWithCaptureMetadata() {
+    SourceProvenance source = policy.authorize("text", null, Instant.parse("2026-10-22T01:00:00Z"));
+
+    assertThat(source.kind()).isEqualTo("text");
+    assertThat(source.capturedAt()).isEqualTo(Instant.parse("2026-10-22T01:00:00Z"));
+  }
 }

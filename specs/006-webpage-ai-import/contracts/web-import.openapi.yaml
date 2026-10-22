@@ -1,0 +1,167 @@
+openapi: 3.1.0
+info:
+  title: 识海网页截图 AI 拆分导入 API
+  version: 1.0.0
+  description: |
+    只处理用户明确提交的一个公开网页。服务端截图后 OCR，再由 AI 拆分整理为多条知识。
+    不跟随正文链接、不遍历站点、不创建 URL-only 知识。
+servers:
+  - url: /kb
+security:
+  - sessionCookie: []
+paths:
+  /api/v1/web-imports:
+    post:
+      operationId: importWebPage
+      summary: 截图、识别并拆分一个公开网页
+      description: |
+        同步执行单页渲染、截图 OCR 和 AI 整理。成功时返回本次创建的知识数组。
+        请求必须携带 Spring Security CSRF Token。
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+          description: 客户端生成的请求关联键；当前用于重试关联，不承诺服务端自动去重。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebPageImportRequest"
+      responses:
+        "201":
+          description: 页面已整理，至少创建一条知识。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebPageImportResponse"
+        "400":
+          description: URL 非法、含凭据或指向非公开地址。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未登录。
+        "402":
+          description: 生产点数报价、预留或计费门禁未满足；不得调用 DeepSeek。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 缺少或无效 CSRF Token。
+        "422":
+          description: 缺少外部 AI 明确同意、页面无足够可见文字，或 AI 未输出有效知识。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: 浏览器、Tesseract 或 DeepSeek 服务不可用。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: zhishiku_session
+  schemas:
+    WebPageImportRequest:
+      type: object
+      additionalProperties: false
+      required: [url, externalAiConsent]
+      properties:
+        url:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          format: uri
+          description: 公开 HTTP/HTTPS 单页 URL；不得包含登录凭据。
+        externalAiConsent:
+          type: boolean
+          const: true
+          description: 用户明确同意将脱敏后的截图 OCR 文本发送给 DeepSeek。
+    WebPageImportResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/KnowledgeItem"
+    KnowledgeItem:
+      type: object
+      additionalProperties: true
+      required:
+        - id
+        - title
+        - body
+        - bodyDocument
+        - bodySource
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        body:
+          type: string
+          description: 派生纯文本；不得等于来源 URL。
+        bodyDocument:
+          type: object
+          description: 现有受限 ProseMirror JSON 文档。
+        bodySource:
+          $ref: "#/components/schemas/BodySource"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    BodySource:
+      type: object
+      required: [kind, sourceUrl, capturedAt]
+      properties:
+        kind:
+          const: webpage
+        sourceUrl:
+          type: string
+          format: uri
+          description: 用户提交并清理后的原始 URL。
+        capturedAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      required: [code, message, requestId, retryable]
+      properties:
+        code:
+          type: string
+          examples:
+            - INVALID_REQUEST
+            - AI_EXTERNAL_CONSENT_REQUIRED
+            - WEB_PAGE_INVALID_URL
+            - WEB_PAGE_NO_TEXT
+            - WEB_PAGE_ORGANIZATION_FAILED
+            - WEB_IMPORT_UNAVAILABLE
+        message:
+          type: string
+          description: 安全错误说明；不得包含页面正文、OCR 内容或密钥。
+        requestId:
+          type: string
+        retryable:
+          type: boolean

@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+!.env.billing.example
+!.env.waffo.example
 *.pem
 *.key
 *.p12

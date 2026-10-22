@@ -700,3 +700,15 @@ verifying -> manual_review -> recovered/partially_recovered/rejected
 10. 支付、账本和退款证据不得包含真实密钥、签名原文或完整支付载荷。
 11. 所有订单、批次、预留、账本、退款和自动扣点授权只对所属账号可见和可操作；跨账号引用
     必须视为无效或安全拒绝。
+
+## 当前实现映射（2026-10-22）
+
+- 计费主迁移实际为 `V0009__billing.sql`，不是早期任务草案中的 `V0002__billing.sql`；任务表与
+  部署文档已同步到 V0009。
+- `V0013__api_idempotency.sql` 提供服务端请求哈希和安全响应重放，供 AI 导入与计费治理共用。
+- `V0014__billing_environment_guard.sql` 在物理数据库中写入唯一环境标识；应用启动时若
+  `APP_ENV` 与数据库标识不一致必须失败。
+- 管理员点数调整请求必须显式携带 `targetOwnerId`；信用调整新增 manual batch，扣减调整按
+  体验点优先、购买点最早批次顺序消费并逐批次写只追加账本。
+- 退款结论以实际可回收批次点数为准，客户端提交的 recovered/unrecovered 数值只作为请求
+  结构兼容字段，不作为账务权威。

@@ -287,6 +287,8 @@ paths:
                 $ref: "#/components/schemas/SearchResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
         "422":
           $ref: "#/components/responses/ValidationError"
         "429":
@@ -326,23 +328,23 @@ paths:
     post:
       tags: [搜索, 知识]
       operationId: saveExternalCandidate
-      summary: 将已确认的互联网候选保存为知识条目。
+      summary: 通过 Fetch 和 AI 整理互联网候选。
       parameters:
         - $ref: "#/components/parameters/CandidateId"
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/SaveExternalCandidateRequest"
       responses:
         "201":
-          description: 已基于该候选创建 active 知识条目；计费不可用时仍保存并标记待整理，不返回 402。
+          description: 已创建一条或多条 AI 整理后的 active 知识；不得直接保存搜索摘要或 Fetch 原文。
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/KnowledgeItem"
+                $ref: "#/components/schemas/KnowledgeItemsResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -351,6 +353,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "410":
           description: 短期候选结果已过期。
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
   /api/v1/knowledge-items:
     get:
       tags: [知识]
@@ -388,7 +392,10 @@ paths:
     post:
       tags: [知识]
       operationId: createKnowledgeItem
-      summary: 创建可立即搜索的 active 手动条目。
+      summary: 创建手动录入的 active 知识条目。
+      description: >
+        该接口只用于手动录入。`document`、`screenshot`、`internet_result` 和 `text`
+        来源必须使用各自的 AI 整理入口，不能通过本接口直存原文。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -406,10 +413,40 @@ paths:
                 $ref: "#/components/schemas/KnowledgeItem"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "400":
+          description: 请求携带非手动专用来源类型。
         "409":
           $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/text-imports:
+    post:
+      tags: [导入]
+      operationId: importText
+      summary: 将用户粘贴或输入的文字交给 AI 拆分整理。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TextImportRequest"
+      responses:
+        "201":
+          description: 已创建一条或多条 AI 整理后的文字知识。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItemsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          description: AI 服务不可用。
   /api/v1/knowledge-items/{itemId}:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -508,18 +545,31 @@ paths:
     post:
       tags: [知识, 任务]
       operationId: reanalyzeKnowledgeItem
-      summary: 使用新计费任务重新分析知识条目。
+      summary: 使用已确认的计费任务同步重新分析知识条目。
       parameters:
         - $ref: "#/components/parameters/ItemId"
         - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/BillingTaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [externalAiConsent, billingTaskId]
+              properties:
+                externalAiConsent:
+                  type: boolean
+                billingTaskId:
+                  type: string
+                  format: uuid
       responses:
-        "202":
-          description: 已接受重新分析请求。可能需要新的授权。
+        "200":
+          description: 已更新摘要、分类与标签；用户锁定字段保持不变。
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/JobAccepted"
+                $ref: "#/components/schemas/KnowledgeItem"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -528,6 +578,8 @@ paths:
           $ref: "#/components/responses/PaymentRequired"
         "409":
           $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/imports/text:
     post:
       tags: [导入]
@@ -552,11 +604,11 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "422":
           $ref: "#/components/responses/ValidationError"
-  /api/v1/imports/webpage:
+  /api/v1/web-imports:
     post:
       tags: [导入]
       operationId: importWebpage
-      summary: 采集用户明确提交的单个网页截图并创建条目。
+      summary: 截图、OCR 并由 AI 将用户提交的单个公开网页拆分为多条知识。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -566,23 +618,121 @@ paths:
             schema:
               $ref: "#/components/schemas/WebpageImportRequest"
       responses:
-        "202":
-          description: 已接受 active 条目和单页采集任务；计费不可用时仍保存 URL 并标记待整理。
+        "201":
+          description: 页面已完成单页截图、OCR 和 AI 整理，返回本次创建的知识。
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ImportAccepted"
+                $ref: "#/components/schemas/WebPageImportResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
         "422":
           $ref: "#/components/responses/ValidationError"
         "429":
           $ref: "#/components/responses/RateLimited"
+  /api/v1/document-imports:
+    post:
+      tags: [导入]
+      operationId: importDocument
+      summary: 解析文档或图片并用 AI 拆分为多条知识。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file, externalAiConsent]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: >
+                    PDF、DOC、DOCX、RTF、TXT、Markdown、JPG、PNG、WebP、HEIC 或 HEIF；最大 25 MiB。
+                    图片必须先经过安全检查、方向规范化和 OCR，不得直接作为附件入库。
+                externalAiConsent:
+                  type: boolean
+                note:
+                  type: string
+                  maxLength: 20000
+      responses:
+        "201":
+          description: 文档或图片已解析并创建一条或多条 AI 整理知识。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebPageImportResponse"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
+        "413":
+          description: 文档超过 25 MiB。
+        "415":
+          description: 文件内容不是受支持文档或图片。
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          description: 文档解析或 AI 服务不可用。
+  /api/v1/screenshot-imports:
+    post:
+      tags: [导入]
+      operationId: importScreenshot
+      summary: OCR 剪贴板截图并用 AI 拆分为多条文字知识。
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file, externalAiConsent]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 剪贴板 PNG 或 JPEG，最大 25 MiB。
+                externalAiConsent:
+                  type: boolean
+                note:
+                  type: string
+                  maxLength: 20000
+      responses:
+        "201":
+          description: 截图已识别并创建一条或多条文字知识。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebPageImportResponse"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
+        "413":
+          description: 截图超过 25 MiB。
+        "415":
+          description: 截图不是支持的 PNG/JPEG。
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          description: OCR 或 AI 服务不可用。
   /api/v1/imports/upload:
     post:
       tags: [导入]
       operationId: uploadKnowledgeAttachment
-      summary: 安全扫描并导入文档、图片文件或剪贴板截图。
+      summary: 旧版手动富文本正文图片附件暂存。
+      deprecated: true
+      description: >
+        仅保留为旧版手动富文本图片兼容入口。文档采集图片必须使用
+        `/api/v1/document-imports`，剪贴板截图必须使用 `/api/v1/screenshot-imports`。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -595,12 +745,6 @@ paths:
               oneOf:
                 - properties:
                     sourceType:
-                      const: screenshot
-                    inputMethod:
-                      const: clipboard
-                  required: [sourceType, inputMethod]
-                - properties:
-                    sourceType:
                       const: document
                     inputMethod:
                       const: file_upload
@@ -610,27 +754,26 @@ paths:
                   type: string
                   format: binary
                   description: >
-                    sourceType=screenshot 时必须是剪贴板图片（JPEG/PNG/WebP/HEIC 等）；
-                    sourceType=document 时允许受支持文档或 JPG/PNG/WebP/HEIC 图片。
+                    只允许手动富文本正文图片；非手动采集不得使用此端点。
                     服务端按文件内容检测 MIME，不信任扩展名或客户端 Content-Type。
                 sourceType:
                   type: string
-                  enum: [document, screenshot]
-                  description: document 表示文档入口文件，screenshot 表示截图入口粘贴的剪贴板图片。
+                  enum: [document]
+                  description: 仅表示旧版手动正文图片。
                 inputMethod:
                   type: string
-                  enum: [file_upload, clipboard]
-                  description: document 使用 file_upload；screenshot 只能使用 clipboard。
+                  enum: [file_upload]
+                  description: 仅允许文件上传。
                 note:
                   type: string
                   maxLength: 20000
                 billingTaskId:
                   type: string
                   format: uuid
-                  description: 付费文档、图片文字提取或 OCR 的有效计费任务；缺失时只保存并等待整理。
+                  description: 付费图片文字提取的有效计费任务；缺失时只保存附件并等待整理。
       responses:
         "202":
-          description: 仅在完整安全扫描通过后接受上传；计费不可用时仍保存并通过状态等待付费 AI。
+          description: 仅在完整安全扫描通过后接受图片附件；不适用于剪贴板截图 OCR。
           content:
             application/json:
               schema:
@@ -703,65 +846,60 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
-  /api/v1/ai-authorizations:
+  /api/v1/ai-consents:
     get:
       tags: [授权]
-      operationId: listAIAuthorizations
-      summary: 列出 active 与历史 AI 外发授权。
+      operationId: listAIConsents
+      summary: 列出当前账号在五个内容范围内的 AI 外发授权。
       responses:
         "200":
-          description: active 和已撤销的授权历史。
+          description: 文本、网页、文档、截图和搜索范围的当前授权。
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/AIAuthorization"
+                  $ref: "#/components/schemas/AIConsent"
         "401":
           $ref: "#/components/responses/Unauthorized"
-    post:
+  /api/v1/ai-consents/{scope}:
+    put:
       tags: [授权]
-      operationId: grantAIAuthorization
-      summary: 为指定服务和内容类型授予隐私授权。
+      operationId: updateAIConsent
+      summary: 授予或撤销单个范围的 AI 外发授权。
       parameters:
-        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: scope
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [text, webpage, document, screenshot, search]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AIAuthorizationRequest"
+              type: object
+              additionalProperties: false
+              required: [granted, consentVersion]
+              properties:
+                granted:
+                  type: boolean
+                consentVersion:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
       responses:
-        "201":
-          description: 已为单个服务和内容类型授予授权。
+        "200":
+          description: 已持久化的当前范围授权。
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AIAuthorization"
+                $ref: "#/components/schemas/AIConsent"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "422":
           $ref: "#/components/responses/ValidationError"
-  /api/v1/ai-authorizations/{authorizationId}:
-    delete:
-      tags: [授权]
-      operationId: revokeAIAuthorization
-      summary: 撤销指定范围未来的 AI 外发授权。
-      parameters:
-        - name: authorizationId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - $ref: "#/components/parameters/IdempotencyKey"
-      responses:
-        "204":
-          description: 此范围内后续传输已被禁用。
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
   /api/v1/trash:
     get:
       tags: [回收站]
@@ -797,12 +935,8 @@ paths:
         - $ref: "#/components/parameters/ItemId"
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
-        "200":
-          description: 已恢复的 active 条目。
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/KnowledgeItem"
+        "204":
+          description: 条目已恢复为 active 并重新进入检索。
         "401":
           $ref: "#/components/responses/Unauthorized"
         "409":
@@ -816,12 +950,8 @@ paths:
         - $ref: "#/components/parameters/ItemId"
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
-        "202":
-          description: 已接受永久清除请求，且该操作具有幂等性。
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/JobAccepted"
+        "204":
+          description: 条目与未共享附件已永久清除。
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1082,7 +1212,18 @@ components:
       enum: [active, recycled, purging]
     SourceKind:
       type: string
-      enum: [manual, pasted_text, webpage, document, screenshot, internet_search]
+      enum:
+        - native
+        - manual
+        - clipboard
+        - text
+        - word
+        - google_docs
+        - webpage
+        - document
+        - screenshot
+        - legacy_text
+        - internet_result
     ContentType:
       type: string
       enum: [text, document, image, webpage, internet_result]
@@ -1205,6 +1346,7 @@ components:
           enum:
             - native
             - clipboard
+            - text
             - word
             - google_docs
             - webpage
@@ -1223,7 +1365,7 @@ components:
             - string
             - "null"
           format: date-time
-          description: 外部粘贴、文档、截图和互联网结果类型必填；native/legacy_text 可为 null。
+          description: 外部粘贴、AI 文字、文档、截图和互联网结果类型必填；native/legacy_text 可为 null。
       allOf:
         - if:
             properties:
@@ -1709,11 +1851,29 @@ components:
             - type: "null"
     SaveExternalCandidateRequest:
       type: object
+      required: [externalAiConsent]
       properties:
+        externalAiConsent:
+          type: boolean
+          const: true
         billingTaskId:
           type: string
           format: uuid
-          description: 可选自动整理计费任务；缺失时保存为待整理。
+          description: 可选自动整理计费任务；生产缺少有效计费任务时不得调用 AI。
+    TextImportRequest:
+      type: object
+      required: [text, externalAiConsent]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 30000
+        externalAiConsent:
+          type: boolean
+          const: true
+        note:
+          type: string
+          maxLength: 20000
     AIAuthorizationRequest:
       type: object
       required: [serviceCode, contentType, purpose, consentTextVersion]
@@ -1732,6 +1892,26 @@ components:
           enum: [classify, search, fetch, vision]
         consentTextVersion:
           type: string
+    AIConsent:
+      type: object
+      required: [scope, service, contentType, granted, consentVersion]
+      properties:
+        scope:
+          type: string
+          enum: [text, webpage, document, screenshot, search]
+        service:
+          type: string
+        contentType:
+          type: string
+        granted:
+          type: boolean
+        consentVersion:
+          type: string
+        updatedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
     AIAuthorization:
       type: object
       required:
@@ -1777,19 +1957,38 @@ components:
           description: 可选自动整理计费任务；缺失时不执行付费 AI。
     WebpageImportRequest:
       type: object
-      required: [url]
+      additionalProperties: false
+      required: [url, externalAiConsent]
       properties:
         url:
           type: string
+          minLength: 1
+          maxLength: 2048
           format: uri
-        note:
-          type: string
-          maxLength: 20000
-        billingTaskId:
-          type: string
-          format: uuid
-          description: 单页截图分析和后续整理的有效计费任务；缺失时保存并等待整理。
-      description: 浏览器工作进程只能打开此单个 URL，并须经过 SSRF 检查。
+        externalAiConsent:
+          type: boolean
+          description: 用户明确同意将脱敏后的 OCR 文本发送给 DeepSeek。
+      description: 浏览器工作进程只能打开此单个公开 URL，并须经过 SSRF 和重定向校验。
+    WebPageImportResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/KnowledgeItem"
+    KnowledgeItemsResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/KnowledgeItem"
     ImportAccepted:
       type: object
       required: [itemId, jobId, status, inputMethod]

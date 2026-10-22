@@ -4,7 +4,9 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +21,7 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemPage;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeSummaryResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.UpdateClassificationRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.UpdateKnowledgeRequest;
 
 @RestController
@@ -45,11 +48,18 @@ public class KnowledgeController {
     return new KnowledgeItemPage(items, null);
   }
 
+  @GetMapping({"/knowledge-items/trash", "/trash"})
+  KnowledgeItemPage trash(
+      @RequestParam(name = "limit", defaultValue = "100") int limit,
+      Authentication authentication) {
+    return new KnowledgeItemPage(service.listTrash(limit, authentication), null);
+  }
+
   @PostMapping("/knowledge-items")
   @ResponseStatus(HttpStatus.CREATED)
   KnowledgeItemResponse create(
       @Valid @RequestBody CreateKnowledgeRequest request, Authentication authentication) {
-    return service.create(request, authentication);
+    return service.createManual(request, authentication);
   }
 
   @GetMapping("/knowledge-items/{itemId}")
@@ -63,5 +73,34 @@ public class KnowledgeController {
       @Valid @RequestBody UpdateKnowledgeRequest request,
       Authentication authentication) {
     return service.update(itemId, request, authentication);
+  }
+
+  @PatchMapping({
+    "/knowledge-items/{itemId}/classification",
+    "/knowledge-items/{itemId}/classifications"
+  })
+  KnowledgeItemResponse updateClassification(
+      @PathVariable UUID itemId,
+      @Valid @RequestBody UpdateClassificationRequest request,
+      Authentication authentication) {
+    return service.updateClassification(itemId, request, authentication);
+  }
+
+  @DeleteMapping("/knowledge-items/{itemId}")
+  ResponseEntity<Void> recycle(@PathVariable UUID itemId, Authentication authentication) {
+    service.recycle(itemId, authentication);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping({"/knowledge-items/{itemId}/restore", "/trash/{itemId}/restore"})
+  ResponseEntity<Void> restore(@PathVariable UUID itemId, Authentication authentication) {
+    service.restore(itemId, authentication);
+    return ResponseEntity.noContent().build();
+  }
+
+  @DeleteMapping({"/knowledge-items/{itemId}/permanent", "/trash/{itemId}"})
+  ResponseEntity<Void> purge(@PathVariable UUID itemId, Authentication authentication) {
+    service.purge(itemId, authentication);
+    return ResponseEntity.noContent().build();
   }
 }

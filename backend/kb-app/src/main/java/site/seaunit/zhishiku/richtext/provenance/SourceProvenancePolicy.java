@@ -21,6 +21,7 @@ public class SourceProvenancePolicy {
       Set.of(
           "native",
           "clipboard",
+          "text",
           "word",
           "google_docs",
           "webpage",
@@ -31,6 +32,7 @@ public class SourceProvenancePolicy {
   private static final Set<String> EXTERNAL_KINDS =
       Set.of(
           "clipboard",
+          "text",
           "word",
           "google_docs",
           "webpage",

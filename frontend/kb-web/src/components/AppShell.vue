@@ -1,6 +1,6 @@
 <template>
   <div class="app-shell">
-    <aside class="rail" aria-label="应用侧栏">
+    <aside class="rail" :aria-label="t('a11y.appSidebar')">
       <RouterLink class="rail-brand" to="/" :aria-label="t('nav.home')">
         <BrandMark compact />
       </RouterLink>
@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { Home, Inbox, Library, Plus, Settings, Trash2 } from 'lucide-vue-next'
+import { CreditCard, Home, Inbox, Library, Plus, Settings, Trash2 } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -105,6 +105,7 @@ const primaryItems = computed(() => [
   { name: 'library', to: '/library', label: t('nav.library'), icon: Library },
   { name: 'capture', to: '/capture', label: t('nav.capture'), icon: Plus },
   { name: 'processing', to: '/processing', label: t('nav.processing'), icon: Inbox },
+  { name: 'billing', to: '/billing', label: t('nav.billing'), icon: CreditCard },
   { name: 'trash', to: '/trash', label: t('nav.trash'), icon: Trash2 },
 ])
 

@@ -110,6 +110,7 @@ const filters = [
   { value: 'webpage', label: 'library.webpage' },
   { value: 'document', label: 'library.document' },
   { value: 'screenshot', label: 'library.screenshot' },
+  { value: 'text', label: 'library.text' },
   { value: 'manual', label: 'library.manual' },
 ]
 

@@ -4,6 +4,9 @@ import {
   API_BASE,
   getCaptcha,
   getRegistrationStatus,
+  importDocument,
+  importScreenshot,
+  importText,
   login,
   registerAccount,
   resetCsrfToken,
@@ -115,6 +118,75 @@ describe('CSRF handling', () => {
     expect(uploadCall[1].body).toBeInstanceOf(FormData)
     expect(uploadCall[1].headers.get('X-XSRF-TOKEN')).toBe('csrf-token')
     expect(uploadCall[1].headers.get('Idempotency-Key')).toBeTruthy()
+  })
+
+  it('sends document files, explicit consent, and note as multipart form data', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-document', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ items: [] }, 201))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await importDocument(
+      new File(['document'], 'brief.pdf', { type: 'application/pdf' }),
+      true,
+      '项目背景',
+    )
+
+    const request = fetchMock.mock.calls[1]
+    expect(request[0]).toBe(`${API_BASE}/document-imports`)
+    expect(request[1].headers.get('X-XSRF-TOKEN')).toBe('csrf-document')
+    const form = request[1].body as FormData
+    expect(form).toBeInstanceOf(FormData)
+    expect(form.get('externalAiConsent')).toBe('true')
+    expect(form.get('note')).toBe('项目背景')
+    expect((form.get('file') as File).name).toBe('brief.pdf')
+  })
+
+  it('sends clipboard screenshots as multipart form data', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-screenshot', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ items: [] }, 201))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await importScreenshot(
+      new File(['screenshot'], 'clipboard.png', { type: 'image/png' }),
+      true,
+      '截图背景',
+    )
+
+    const request = fetchMock.mock.calls[1]
+    expect(request[0]).toBe(`${API_BASE}/screenshot-imports`)
+    const form = request[1].body as FormData
+    expect(form).toBeInstanceOf(FormData)
+    expect(form.get('externalAiConsent')).toBe('true')
+    expect(form.get('note')).toBe('截图背景')
+    expect((form.get('file') as File).name).toBe('clipboard.png')
+  })
+
+  it('sends AI text with explicit consent and note', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-text', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ items: [] }, 201))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await importText('需要 AI 整理的文字内容', true, '文字备注')
+
+    const request = fetchMock.mock.calls[1]
+    expect(request[0]).toBe(`${API_BASE}/text-imports`)
+    expect(JSON.parse(request[1].body as string)).toEqual({
+      text: '需要 AI 整理的文字内容',
+      externalAiConsent: true,
+      note: '文字备注',
+    })
   })
 })
 

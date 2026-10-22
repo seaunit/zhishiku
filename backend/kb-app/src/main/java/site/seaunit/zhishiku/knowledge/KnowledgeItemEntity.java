@@ -25,6 +25,9 @@ public class KnowledgeItemEntity extends AuditedEntity {
   @Column(nullable = false)
   private String note;
 
+  @Column(name = "ai_summary")
+  private String summary;
+
   @Column(name = "processing_status", nullable = false)
   private String processingStatus;
 
@@ -44,13 +47,21 @@ public class KnowledgeItemEntity extends AuditedEntity {
   protected KnowledgeItemEntity() {}
 
   public static KnowledgeItemEntity create(UUID ownerId, String title, String body, String note) {
+    return create(ownerId, title, body, note, "not_requested");
+  }
+
+  public static KnowledgeItemEntity create(
+      UUID ownerId, String title, String body, String note, String processingStatus) {
+    if (!"not_requested".equals(processingStatus) && !"succeeded".equals(processingStatus)) {
+      throw new IllegalArgumentException("Unsupported knowledge processing status.");
+    }
     KnowledgeItemEntity item = new KnowledgeItemEntity();
     item.id = UUID.randomUUID();
     item.ownerId = ownerId;
     item.title = title.strip();
     item.body = body;
     item.note = note == null ? "" : note.strip();
-    item.processingStatus = "not_requested";
+    item.processingStatus = processingStatus;
     item.lifecycleState = "active";
     item.bodyMigrationState = "completed";
     item.searchRevision = 1;
@@ -62,6 +73,10 @@ public class KnowledgeItemEntity extends AuditedEntity {
     this.body = body;
     this.note = note == null ? "" : note.strip();
     this.searchRevision++;
+  }
+
+  public void updateGeneratedSummary(String summary) {
+    this.summary = summary == null || summary.isBlank() ? null : summary.strip();
   }
 
   public UUID getId() {
@@ -82,6 +97,10 @@ public class KnowledgeItemEntity extends AuditedEntity {
 
   public String getNote() {
     return note;
+  }
+
+  public String getSummary() {
+    return summary;
   }
 
   public String getProcessingStatus() {

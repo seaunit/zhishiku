@@ -2,9 +2,13 @@ package site.seaunit.zhishiku.search.external;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -16,19 +20,28 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
+import site.seaunit.zhishiku.billing.BillingService;
 import site.seaunit.zhishiku.config.AppProperties;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
 import site.seaunit.zhishiku.owner.CurrentOwnerService;
 import site.seaunit.zhishiku.owner.OwnerAccountEntity;
-import site.seaunit.zhishiku.richtext.migration.LegacyTextDocumentConverter;
 import site.seaunit.zhishiku.search.external.ExternalSearchDtos.ExternalSearchRequest;
+import site.seaunit.zhishiku.webimport.AiTextSecretRedactor;
+import site.seaunit.zhishiku.webimport.ImportedKnowledgeMapper;
+import site.seaunit.zhishiku.webimport.InternetResultOrganizer;
+import site.seaunit.zhishiku.webimport.OrganizedKnowledge;
+import site.seaunit.zhishiku.webimport.WebImportBillingRequiredException;
+import site.seaunit.zhishiku.webimport.WebImportConsentRequiredException;
 
 @ExtendWith(MockitoExtension.class)
 class ExternalSearchServiceTest {
   @Mock private DeepSeekWebProvider provider;
   @Mock private KnowledgeService knowledgeService;
+  @Mock private InternetResultOrganizer organizer;
+  @Mock private DeepSeekAnswerService answerService;
+  @Mock private BillingService billingService;
   @Mock private CurrentOwnerService currentOwnerService;
   @Mock private Authentication authentication;
 
@@ -38,20 +51,27 @@ class ExternalSearchServiceTest {
   @BeforeEach
   void setUp() {
     owner = OwnerAccountEntity.create("owner@example.com", "hash", "zh-CN");
-    when(currentOwnerService.require(authentication)).thenReturn(owner);
     Clock clock = Clock.fixed(Instant.parse("2026-10-22T00:00:00Z"), ZoneOffset.UTC);
     service =
         new ExternalSearchService(
             provider,
             knowledgeService,
-            new LegacyTextDocumentConverter(),
+            organizer,
+            answerService,
+            new AiTextSecretRedactor(),
+            new ImportedKnowledgeMapper(new ObjectMapper()),
             currentOwnerService,
             properties(),
+            true,
+            billingService,
+            org.mockito.Mockito.mock(site.seaunit.zhishiku.consent.AiConsentService.class),
+            org.mockito.Mockito.mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class),
             clock);
   }
 
   @Test
-  void cachesCandidatesByOwnerAndSavesFetchedContentAsInternetResult() {
+  void cachesCandidatesByOwnerAndOrganizesFetchedContentBeforeSaving() {
+    when(currentOwnerService.require(authentication)).thenReturn(owner);
     when(provider.search("DeepSeek", 5))
         .thenReturn(
             List.of(
@@ -71,18 +91,67 @@ class ExternalSearchServiceTest {
     when(provider.fetch("https://www.deepseek.com/"))
         .thenReturn(
             new DeepSeekWebProvider.FetchedPage(
-                "DeepSeek", "# DeepSeek\n\nOfficial page content."));
-    when(knowledgeService.create(any(), any())).thenReturn(savedResponse());
+                "DeepSeek",
+                "# DeepSeek\n\nOfficial page content.\napi_key=sk-test-1234567890abcdefghijklmnop"));
+    when(organizer.organize(
+            eq("internet search result"),
+            argThat(
+                text ->
+                    text.contains("[REDACTED]")
+                        && !text.contains("sk-test-1234567890abcdefghijklmnop"))))
+        .thenReturn(
+            List.of(
+                new OrganizedKnowledge(
+                    "DeepSeek", "Official page knowledge.", "摘要", "资料", List.of("搜索"))));
+    when(knowledgeService.createOrganized(any(), any(), any())).thenReturn(savedResponse());
 
-    service.save(search.items().get(0).candidateId(), authentication);
+    var saved = service.save(search.items().get(0).candidateId(), true, authentication);
 
     ArgumentCaptor<CreateKnowledgeRequest> request =
         ArgumentCaptor.forClass(CreateKnowledgeRequest.class);
-    verify(knowledgeService).create(request.capture(), any());
+    verify(knowledgeService).createOrganized(request.capture(), any(), any());
+    assertThat(saved.items()).hasSize(1);
     assertThat(request.getValue().title()).isEqualTo("DeepSeek");
     assertThat(request.getValue().bodySource().kind()).isEqualTo("internet_result");
     assertThat(request.getValue().bodySource().sourceUrl()).isEqualTo("https://www.deepseek.com/");
-    assertThat(request.getValue().bodyDocument().toString()).contains("Official page content");
+    assertThat(request.getValue().bodyDocument().toString()).contains("Official page knowledge");
+    assertThat(request.getValue().note()).contains("互联网搜索结果").contains("AI 分类：资料");
+  }
+
+  @Test
+  void refusesSavingWithoutExplicitAiConsent() {
+    try {
+      service.save(java.util.UUID.randomUUID(), false, authentication);
+    } catch (WebImportConsentRequiredException expected) {
+      assertThat(expected.getMessage()).contains("consent");
+    }
+    verify(provider, never()).fetch(any());
+    verify(organizer, never()).organize(any(), any());
+  }
+
+  @Test
+  void refusesUnbilledInternetResultOrganization() {
+    ExternalSearchService unbilled =
+        new ExternalSearchService(
+            provider,
+            knowledgeService,
+            organizer,
+            answerService,
+            new AiTextSecretRedactor(),
+            new ImportedKnowledgeMapper(new ObjectMapper()),
+            currentOwnerService,
+            properties(),
+            false,
+            billingService,
+            org.mockito.Mockito.mock(site.seaunit.zhishiku.consent.AiConsentService.class),
+            org.mockito.Mockito.mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class),
+            Clock.fixed(Instant.parse("2026-10-22T00:00:00Z"), ZoneOffset.UTC));
+    try {
+      unbilled.save(java.util.UUID.randomUUID(), true, authentication);
+    } catch (WebImportBillingRequiredException expected) {
+      assertThat(expected.getMessage()).contains("billing");
+    }
+    verify(provider, never()).fetch(any());
   }
 
   private static KnowledgeItemResponse savedResponse() {

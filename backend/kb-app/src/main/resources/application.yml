@@ -32,8 +32,8 @@ spring:
         same-site: lax
         secure: ${SESSION_COOKIE_SECURE:false}
     multipart:
-      max-file-size: 25MB
-      max-request-size: 26MB
+      max-file-size: 26214400B
+      max-request-size: 27262976B
   mail:
     host: ${SMTP_HOST:smtpdm.aliyun.com}
     port: ${SMTP_PORT:465}
@@ -82,6 +82,40 @@ app:
     timeout-seconds: ${DEEPSEEK_SEARCH_TIMEOUT_SECONDS:20}
     max-results: ${DEEPSEEK_SEARCH_MAX_RESULTS:8}
     candidate-ttl-seconds: ${DEEPSEEK_SEARCH_CANDIDATE_TTL_SECONDS:900}
+  ai:
+    endpoint: ${DEEPSEEK_AI_ENDPOINT:https://api.deepseek.com/chat/completions}
+    api-key: ${DEEPSEEK_API_KEY:}
+    model: ${DEEPSEEK_MODEL:deepseek-chat}
+    timeout-seconds: ${DEEPSEEK_AI_TIMEOUT_SECONDS:35}
+  web-import:
+    allow-unbilled-ai: ${KB_WEB_IMPORT_ALLOW_UNBILLED_AI:false}
+    worker-jar: ${KB_BROWSER_WORKER_JAR:/opt/zhishiku/current/kb-browser-worker.jar}
+    tesseract-command: ${TESSERACT_COMMAND:tesseract}
+    browser-timeout-seconds: ${KB_BROWSER_TIMEOUT_SECONDS:35}
+    ocr-timeout-seconds: ${KB_OCR_TIMEOUT_SECONDS:30}
+    max-text-chars: ${KB_WEB_IMPORT_MAX_TEXT_CHARS:30000}
+    max-items: ${KB_WEB_IMPORT_MAX_ITEMS:20}
+  document-import:
+    max-text-chars: ${KB_DOCUMENT_IMPORT_MAX_TEXT_CHARS:60000}
+    timeout-seconds: ${KB_DOCUMENT_IMPORT_TIMEOUT_SECONDS:25}
+  screenshot-import:
+    max-text-chars: ${KB_SCREENSHOT_IMPORT_MAX_TEXT_CHARS:30000}
+  billing:
+    environment: ${APP_ENV:test}
+    database-environment: ${BILLING_DB_ENV:test}
+    enabled: ${BILLING_ENABLED:false}
+    bridge-url: ${BILLING_BRIDGE_URL:http://127.0.0.1:8091}
+    app-to-bridge-secret: ${APP_TO_BRIDGE_SECRET:}
+    bridge-to-app-secret: ${BRIDGE_TO_APP_SECRET:}
+    catalog-version: ${BILLING_CATALOG_VERSION:2026-10-mvp}
+    checkout-success-url: ${CHECKOUT_SUCCESS_URL:http://127.0.0.1:4173/kb/billing/return}
+    webhook-url: ${BILLING_WEBHOOK_URL:http://127.0.0.1:8082/kb/api/internal/billing/waffo-events}
+    refund-support-url: ${REFUND_SUPPORT_URL:https://support.example.invalid/refund}
+    refund-response-target: ${REFUND_RESPONSE_TARGET:3 个工作日}
+    admin-emails: ${BILLING_ADMIN_EMAILS:}
+    idempotency-ttl-seconds: ${BILLING_IDEMPOTENCY_TTL_SECONDS:86400}
+    task-ttl-seconds: ${BILLING_TASK_TTL_SECONDS:1800}
+    trial-points: ${BILLING_TRIAL_POINTS:100}
 
 management:
   endpoints:
