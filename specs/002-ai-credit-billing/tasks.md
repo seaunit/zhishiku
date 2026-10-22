@@ -151,6 +151,8 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 
 ## 阶段 11：2026-10-22 正式 Waffo 支付接入
 
+实装提交：`990f4d8`。真实 Waffo 测试商户和物理 PostgreSQL 门禁仍未完成。
+
 - [x] T080 [P0] 按官方 `@waffo/pancake-ts@0.26.0` 修复支付事件字段、退款 ID、金额回退、
   自动环境验签、商品元数据和主动查询契约。
 - [x] T081 [P0] 为 Waffo Checkout 传 SDK 幂等键、商品/SKU/订单 metadata、价格快照和真实
@@ -197,7 +199,8 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 
 ### 正式 Waffo 支付接入：2026-10-22
 
-执行角色：产品、开发、测试子智能体。真实商户凭据未提供，`BILLING_ENABLED` 保持关闭。
+执行角色：产品、开发、测试子智能体。Git commit：`990f4d8`。真实商户凭据未提供，
+`BILLING_ENABLED` 保持关闭。
 
 | 任务 | 摘要与详情 | 验证与证据 | 风险与回滚 |
 |------|------------|------------|------------|
