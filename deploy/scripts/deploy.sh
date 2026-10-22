@@ -259,6 +259,23 @@ ensure_environment_consistency() {
   fi
 }
 
+ensure_checkout_success_url() {
+  local app_env success_url production_default
+  app_env="$(read_env_value SHIHAI_APP_ENV APP_ENV)"
+  success_url="$(read_env_value SHIHAI_CHECKOUT_SUCCESS_URL CHECKOUT_SUCCESS_URL)"
+  production_default="https://seaunit.site/kb/billing/return"
+
+  if [[ "$app_env" == "production" && -z "$success_url" ]]; then
+    set_env_value SHIHAI_CHECKOUT_SUCCESS_URL "$production_default"
+    success_url="$production_default"
+    printf '[部署] 已补齐生产 Waffo 支付回跳地址。\n'
+  fi
+  if [[ "$app_env" == "production" && "$success_url" != https://* ]]; then
+    printf 'SHIHAI_CHECKOUT_SUCCESS_URL must use HTTPS in production: %s\n' "$success_url" >&2
+    exit 1
+  fi
+}
+
 ensure_secrets() {
   local ai_key search_key fetch_key smtp_password
   ai_key="${SHIHAI_DEEPSEEK_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_API_KEY DEEPSEEK_API_KEY)}"
@@ -402,6 +419,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 ensure_environment_consistency
+ensure_checkout_success_url
 ensure_waffo
 if [[ "$(read_env_value SHIHAI_BILLING_ENABLED BILLING_ENABLED)" == "true" && ! -f "$WAFFO_ENV_FILE" ]]; then
   printf 'SHIHAI_BILLING_ENABLED=true requires %s\n' "$WAFFO_ENV_FILE" >&2

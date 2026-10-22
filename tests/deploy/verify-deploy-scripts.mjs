@@ -106,6 +106,14 @@ if (!provision.includes('set_env_pair SHIHAI_BILLING_ADMIN_EMAILS BILLING_ADMIN_
   failures.push('production provisioning must configure at least one billing administrator')
 }
 if (
+  !deploy.includes('ensure_checkout_success_url') ||
+  !deploy.includes('https://seaunit.site/kb/billing/return')
+) {
+  failures.push(
+    'deploy.sh must backfill and validate the production Waffo checkout success URL',
+  )
+}
+if (
   !provision.includes(
     'SHIHAI_APP_TO_BRIDGE_SECRET and SHIHAI_BRIDGE_TO_APP_SECRET must be different',
   )
