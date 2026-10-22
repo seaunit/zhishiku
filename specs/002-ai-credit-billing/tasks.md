@@ -188,6 +188,8 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
   预填收银台邮箱，并禁止写日志、桥接持久化文件或商品 metadata。
 - [x] T095 [P0] 将三档 Waffo 商品标题改为中文“识海 400 点”“识海 1,400 点”和
   “识海 5,000 点”，并让目录脚本同步更新已存在的线上商品。
+- [x] T096 [P0] 将退款客服入口统一为 `mailto:sealevel666@163.com`，同步部署脚本、示例环境
+  和 SDD，并完成生产环境更新与健康验证。
 
 ## 依赖关系
 
@@ -437,3 +439,24 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - 风险与回滚：Waffo 中仍存在店铺内其他历史商品版本或未映射商品，但识海 checkout 只使用
   `SHIHAI_WAFFO_PRODUCT_MAP` 中的三个 Product ID。旧收银台会话可能保留旧商品版本快照，重新
   发起收银台会话后会使用新发布版本。
+
+### 完成记录：T096
+
+- 日期：2026-10-22
+- 状态：实现、生产配置更新与验证完成，已归档
+- 执行主体：Codex
+- Git commit：`d942814`
+- 摘要：退款客服邮箱统一为 `sealevel666@163.com`。
+- 详情：`provision-ubuntu.sh` 初次安装和 `deploy.sh` 每次部署都会幂等写入
+  `SHIHAI_REFUND_SUPPORT_URL` 及兼容变量
+  `mailto:sealevel666@163.com?subject=%E8%AF%86%E6%B5%B7%E9%80%80%E6%AC%BE`。示例环境变量、
+  快速验证和部署说明同步。生产 `/etc/zhishiku/kb.env` 已备份并更新，识海 API 已重启。
+- 验证：部署脚本回归检查先按预期因旧客服地址 RED，修复后 GREEN；`deploy.sh` 和
+  `provision-ubuntu.sh` 的 Git Bash `bash -n` 通过；生产 API active、健康检查 `UP`，进程环境
+  精确加载新退款地址并返回 `REFUND_EMAIL_OK`。
+- 证据：`deploy/scripts/deploy.sh`、`deploy/scripts/provision-ubuntu.sh`、
+  `tests/deploy/verify-deploy-scripts.mjs`、`.env.billing.example`、
+  `/root/kb.env.before-refund-email-20261022115928`。
+- 覆盖：FR-007 至 FR-020、FR-068 至 FR-075。
+- 风险与回滚：邮箱地址属于公开客服信息，不含密钥。回滚可恢复上述环境备份并重启
+  `zhishiku-api`；恢复旧值会重新指向旧管理员地址，不推荐长期使用。
