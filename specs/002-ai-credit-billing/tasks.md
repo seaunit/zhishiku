@@ -184,6 +184,10 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
   结算显示为已扣，并同时展示可用与冻结余额快照。
 - [x] T093 [P0] 将 `V0015` 的 1 点互联网搜索价格等价应用到生产 active 计费目录，历史消费和
   既有账本保持不变。
+- [x] T094 [P0] 将当前登录账号邮箱作为独立 `buyerEmail` 从 Spring 传入 Waffo 桥接和 SDK，
+  预填收银台邮箱，并禁止写日志、桥接持久化文件或商品 metadata。
+- [x] T095 [P0] 将三档 Waffo 商品标题改为中文“识海 400 点”“识海 1,400 点”和
+  “识海 5,000 点”，并让目录脚本同步更新已存在的线上商品。
 
 ## 依赖关系
 
@@ -386,3 +390,50 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - 覆盖：FR-035、FR-038、FR-085、SC-026。
 - 风险与回滚：历史两次搜索仍按当时 3 点快照保留，共 6 点；若需补偿应通过受审计的人工点数调整
   单独执行。不得直接改写历史账本。
+
+### 完成记录：T094
+
+- 日期：2026-10-22
+- 状态：实现、自动化验收与生产部署完成
+- 执行主体：Codex
+- Git commit：`75296d1`
+- 摘要：当前登录账号邮箱通过独立 `buyerEmail` 字段传入 Waffo 收银台预填。
+- 详情：Spring `CheckoutBridgeRequest` 增加账号邮箱，订单归属仍使用账号 UUID；桥接校验邮箱格式
+  并把 `buyerEmail` 传给 SDK `checkout.authenticated.create()`，与 `buyerIdentity` 保持独立。
+  邮箱不写入订单、收银台会话、桥接日志或商品 metadata。冒烟脚本支持
+  `SHIHAI_SMOKE_BUYER_EMAIL`，默认使用 `operator-smoke@seaunit.site`。
+- 验证：后端 `BillingP0PolicyTest` 11 项通过，完整后端 227 项通过；桥接 44 项通过，其中
+  SDK 参数、缺失邮箱拒绝、中文商品目录和私钥归一化测试均通过；桥接 lint、typecheck、build
+  通过，Java Spotless 通过。
+- 证据：`BillingDtos.java`、`BillingService.java`、`BillingP0PolicyTest.java`、
+  `bridges/waffo/src/types.ts`、`waffo-gateway.ts`、`server.ts`、
+  `contracts/waffo-bridge.yaml`。
+- 覆盖：FR-079 至 FR-086、SC-010。
+- 生产验证：创建并切换到独立 release
+  `/opt/zhishiku/releases/75296d1-hotfix-202610221950`，API 和桥接均 active/healthy。使用生产
+  桥接创建真实收银台返回 200；Playwright 打开返回的 Waffo 页面后确认电子邮箱已预填
+  `operator-smoke@seaunit.site`，商品标题显示“识海 400 点”。临时 checkout token 文件已删除。
+- 风险与回滚：当前 release 为本地固定提交构建，尚未通过 GitHub 发布；GitHub 认证恢复后仍应
+  用 `75296d1` 重新走标准部署。回滚可将 `/opt/zhishiku/current` 恢复为
+  `407cc7e18707-20261022034657` 并重启 API、桥接，不涉及数据迁移。
+
+### 完成记录：T095
+
+- 日期：2026-10-22
+- 状态：本地实现和生产商品目录同步完成
+- 执行主体：Codex
+- Git commit：`75296d1`
+- 摘要：三档 Waffo 商品标题已改为中文并发布。
+- 详情：目录脚本现在会查询已有商品名称，名称不一致时调用官方 `onetimeProducts.update()` 生成
+  新版本并发布。生产商品同步结果：
+  `kb_pack_9=PROD_6J4MqSJQo7RezmJCmjRrST` 名称为“识海 400 点”，
+  `kb_pack_29=PROD_7I05KAVjEHbszCQaCecBQo` 名称为“识海 1,400 点”，
+  `kb_pack_99=PROD_4K7MOD30xdSJHtjZDaRZ2R` 名称为“识海 5,000 点”。
+- 验证：生产目录同步命令返回三项 `renamed-published`；再次 GraphQL 查询确认目标 Product ID
+  的中文标题与商品映射一致。
+- 证据：`bridges/waffo/scripts/catalog-sync.mjs`、`catalog-sync.test.mjs`、
+  `setup-catalog.mjs`。
+- 覆盖：FR-001 至 FR-006、FR-086。
+- 风险与回滚：Waffo 中仍存在店铺内其他历史商品版本或未映射商品，但识海 checkout 只使用
+  `SHIHAI_WAFFO_PRODUCT_MAP` 中的三个 Product ID。旧收银台会话可能保留旧商品版本快照，重新
+  发起收银台会话后会使用新发布版本。
