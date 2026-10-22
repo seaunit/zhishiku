@@ -14,6 +14,7 @@ $pids = Get-Content -LiteralPath $pidFile -Raw | ConvertFrom-Json
 $signatures = @{
     backend = "kb-app-0.1.0-SNAPSHOT.jar"
     bridge = "dist/server.js"
+    cloudflared = "cloudflared"
     frontend = "node_modules/vite/bin/vite.js"
 }
 foreach ($property in $pids.PSObject.Properties) {

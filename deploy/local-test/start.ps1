@@ -67,6 +67,33 @@ function Wait-Url {
     throw "Timed out waiting for $Url"
 }
 
+function Wait-CloudflareUrl {
+    param(
+        [string]$LogPath,
+        [int]$Attempts = 30
+    )
+
+    for ($attempt = 1; $attempt -le $Attempts; $attempt += 1) {
+        if (Test-Path -LiteralPath $LogPath) {
+            $match = Select-String `
+                -LiteralPath $LogPath `
+                -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' `
+                -AllMatches `
+                -ErrorAction SilentlyContinue |
+                ForEach-Object { $_.Matches.Value } |
+                Select-Object -Last 1
+            if ($match) {
+                return $match.TrimEnd("/")
+            }
+        }
+        Start-Sleep -Seconds 1
+    }
+    if (Test-Path -LiteralPath $LogPath) {
+        Get-Content -LiteralPath $LogPath -Tail 40
+    }
+    throw "Timed out waiting for the Cloudflare quick tunnel URL."
+}
+
 function Stop-StartedProcesses {
     param([int[]]$ProcessIds)
 
@@ -189,6 +216,48 @@ try {
 
     Wait-Url -Url "http://127.0.0.1:8091/health"
 
+    $cloudflared = $null
+    if ($env:SHIHAI_WAFFO_DRY_RUN -ne "true") {
+        if ($env:SHIHAI_WAFFO_ENV -ne "test") {
+            throw "Automatic callback setup is only supported for the Waffo test environment."
+        }
+        $cloudflaredCommand = Get-Command "cloudflared.exe" -ErrorAction SilentlyContinue
+        if (-not $cloudflaredCommand) {
+            throw "cloudflared is required for real Waffo test payments. Install it or keep SHIHAI_WAFFO_DRY_RUN=true."
+        }
+        $cloudflaredLog = Join-Path $logRoot "cloudflared.log"
+        Clear-Content -LiteralPath $cloudflaredLog -ErrorAction SilentlyContinue
+        $cloudflared = Start-Process `
+            -FilePath $cloudflaredCommand.Source `
+            -ArgumentList @(
+                "tunnel",
+                "--no-autoupdate",
+                "--url",
+                "http://127.0.0.1:8091",
+                "--logfile",
+                $cloudflaredLog,
+                "--loglevel",
+                "info"
+            ) `
+            -WindowStyle Hidden `
+            -RedirectStandardOutput (Join-Path $logRoot "cloudflared.out.log") `
+            -RedirectStandardError (Join-Path $logRoot "cloudflared.err.log") `
+            -PassThru
+        $started += $cloudflared.Id
+        $tunnelBaseUrl = Wait-CloudflareUrl -LogPath $cloudflaredLog
+        Wait-Url -Url "$tunnelBaseUrl/health"
+        $env:SHIHAI_WAFFO_TEST_WEBHOOK_URL = "$tunnelBaseUrl/webhooks/waffo"
+        Push-Location (Join-Path $repoRoot "bridges\waffo")
+        try {
+            & node "scripts/configure-test-webhook.mjs"
+            if ($LASTEXITCODE -ne 0) {
+                throw "Waffo test webhook configuration failed."
+            }
+        } finally {
+            Pop-Location
+        }
+    }
+
     $frontend = Start-Process `
         -FilePath "node" `
         -ArgumentList @("node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "4173") `
@@ -204,6 +273,7 @@ try {
     @{
         backend = $backend.Id
         bridge = $bridge.Id
+        cloudflared = if ($cloudflared) { $cloudflared.Id } else { $null }
         frontend = $frontend.Id
     } | ConvertTo-Json | Set-Content -LiteralPath $pidFile -Encoding utf8
 
@@ -213,6 +283,9 @@ try {
     Write-Host "Bridge: http://127.0.0.1:8091/health"
     Write-Host "Database: jdbc:postgresql://127.0.0.1:5432/zhishiku_test"
     Write-Host "Waffo: $($env:SHIHAI_WAFFO_DRY_RUN -eq 'true' ? 'dry-run' : 'test checkout')"
+    if ($env:SHIHAI_WAFFO_TEST_WEBHOOK_URL) {
+        Write-Host "Waffo test webhook: $env:SHIHAI_WAFFO_TEST_WEBHOOK_URL"
+    }
     Write-Host "Registration email: local mock; verification code is returned by the local API."
 } catch {
     Stop-StartedProcesses -ProcessIds $started
