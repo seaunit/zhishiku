@@ -675,3 +675,23 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-010、FR-012、FR-080。
 - 风险与回滚：Search 正文会增大单次搜索结果体积，但仍限制在服务端内存短期缓存；若 Search Provider
   不返回正文，候选会被过滤。回滚会恢复无正文过滤和必须依赖单页 Fetch 的行为。
+
+### 完成记录：T107
+
+- 日期：2026-10-23
+- 状态：本地实现与自动化验收完成
+- 执行主体：Codex
+- Git commit：`839e47a`
+- 摘要：知识库列表和本地搜索改为服务端分页，来源筛选计数覆盖完整结果集。
+- 详情：知识条目与搜索接口新增 `page`、`limit`、`source` 参数，响应返回页码、每页条数、总条数、
+  总页数和来源计数；默认每页 10 条，可切换 10/20/50。列表、搜索和来源筛选均使用同一分页元数据，
+  切换搜索、筛选或页大小时回到第 1 页，翻页时清空选择；删除成功后重新加载当前页，空页由服务端
+  自动夹取到最后一个有效页。原型同步增加分页控件。
+- 验证：后端完整 Maven 测试通过；真实账号验证普通列表 24 条为 3 页、每页 10 条，来源筛选返回
+  `internet_result=24`；搜索 `AI` 同样返回 10/10 条和 3 页；桌面第 2 页与 390px 手机截图检查通过，
+  手机横向溢出为 0。前端分页专项 Playwright、TypeScript 和 ESLint 通过。
+- 证据：`KnowledgeService.java`、`KnowledgeController.java`、`KnowledgeDtos.java`、
+  `LibraryView.vue`、`app.spec.ts`、`prototype/app.js`、`contracts/openapi.yaml`。
+- 覆盖：FR-006、FR-008、FR-035、FR-081。
+- 风险与回滚：当前使用页码限制和 `LIMIT/OFFSET`，超大数据量下后续可升级为稳定的
+  `updated_at + id` 键集游标；回滚会恢复单次最多 100 条的无分页列表。
