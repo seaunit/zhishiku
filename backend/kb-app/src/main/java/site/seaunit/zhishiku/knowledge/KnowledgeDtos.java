@@ -39,8 +39,7 @@ public final class KnowledgeDtos {
 
   public record ReanalyzeKnowledgeRequest(boolean externalAiConsent, UUID billingTaskId) {}
 
-  public record BulkRecycleRequest(
-      @NotNull @Size(min = 1, max = 100) List<@NotNull UUID> itemIds) {
+  public record BulkRecycleRequest(@NotNull @Size(min = 1, max = 100) List<@NotNull UUID> itemIds) {
     public BulkRecycleRequest {
       itemIds = itemIds == null ? null : List.copyOf(new LinkedHashSet<>(itemIds));
     }

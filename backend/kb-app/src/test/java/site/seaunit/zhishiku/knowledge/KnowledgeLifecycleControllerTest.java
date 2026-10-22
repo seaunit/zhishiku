@@ -89,8 +89,7 @@ class KnowledgeLifecycleControllerTest {
   @Test
   @WithMockUser(username = "alice@example.com")
   void bulkRecyclingDeduplicatesItemsBeforeCallingTheService() throws Exception {
-    when(service.bulkRecycle(
-            eq(List.of(ITEM_ID, SECOND_ITEM_ID)), eq(IDEMPOTENCY_KEY), any()))
+    when(service.bulkRecycle(eq(List.of(ITEM_ID, SECOND_ITEM_ID)), eq(IDEMPOTENCY_KEY), any()))
         .thenReturn(new BulkRecycleResponse(2));
 
     mvc.perform(
@@ -106,8 +105,7 @@ class KnowledgeLifecycleControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.recycled").value(2));
 
-    verify(service)
-        .bulkRecycle(eq(List.of(ITEM_ID, SECOND_ITEM_ID)), eq(IDEMPOTENCY_KEY), any());
+    verify(service).bulkRecycle(eq(List.of(ITEM_ID, SECOND_ITEM_ID)), eq(IDEMPOTENCY_KEY), any());
   }
 
   @Test

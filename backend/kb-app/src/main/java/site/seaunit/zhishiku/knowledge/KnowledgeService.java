@@ -302,8 +302,7 @@ public class KnowledgeService {
     }
     List<UUID> itemIds = uniqueIds.stream().sorted().toList();
     String requestHash =
-        IdempotencyService.hash(
-            String.join("\n", itemIds.stream().map(UUID::toString).toList()));
+        IdempotencyService.hash(String.join("\n", itemIds.stream().map(UUID::toString).toList()));
     Optional<BulkRecycleResponse> replay =
         idempotency.replay(
             authentication,

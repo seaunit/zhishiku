@@ -246,9 +246,7 @@ class BillingP0PolicyTest {
     assertThat(
             BillingService.checkoutSuccessUrl(
                 "https://seaunit.site/kb/billing/return?source=waffo", orderId))
-        .isEqualTo(
-            "https://seaunit.site/kb/billing/return?source=waffo&orderId="
-                + orderId);
+        .isEqualTo("https://seaunit.site/kb/billing/return?source=waffo&orderId=" + orderId);
   }
 
   @Test

@@ -38,8 +38,7 @@ import site.seaunit.zhishiku.search.richtext.SearchProjectionBuilder;
 
 @ExtendWith(MockitoExtension.class)
 class KnowledgeServiceBulkRecycleTest {
-  private static final UUID FIRST_ITEM_ID =
-      UUID.fromString("123e4567-e89b-42d3-a456-426614174711");
+  private static final UUID FIRST_ITEM_ID = UUID.fromString("123e4567-e89b-42d3-a456-426614174711");
   private static final UUID SECOND_ITEM_ID =
       UUID.fromString("123e4567-e89b-42d3-a456-426614174712");
   private static final String IDEMPOTENCY_KEY = "bulk-recycle-request-0001";
@@ -147,9 +146,7 @@ class KnowledgeServiceBulkRecycleTest {
                 "The idempotency key was already used for a different request."));
 
     assertThatThrownBy(
-            () ->
-                service.bulkRecycle(
-                    List.of(FIRST_ITEM_ID), IDEMPOTENCY_KEY, authentication))
+            () -> service.bulkRecycle(List.of(FIRST_ITEM_ID), IDEMPOTENCY_KEY, authentication))
         .isInstanceOf(IdempotencyException.class)
         .extracting("code")
         .isEqualTo("IDEMPOTENCY_CONFLICT");
@@ -183,15 +180,11 @@ class KnowledgeServiceBulkRecycleTest {
 
     assertThat(
             service.bulkRecycle(
-                List.of(FIRST_ITEM_ID, SECOND_ITEM_ID),
-                IDEMPOTENCY_KEY,
-                aliceAuthentication))
+                List.of(FIRST_ITEM_ID, SECOND_ITEM_ID), IDEMPOTENCY_KEY, aliceAuthentication))
         .isSameAs(aliceReplay);
     assertThat(
             service.bulkRecycle(
-                List.of(FIRST_ITEM_ID, SECOND_ITEM_ID),
-                IDEMPOTENCY_KEY,
-                bobAuthentication))
+                List.of(FIRST_ITEM_ID, SECOND_ITEM_ID), IDEMPOTENCY_KEY, bobAuthentication))
         .isEqualTo(new BulkRecycleResponse(2));
 
     verify(lifecycle).recycle(bob.getId(), FIRST_ITEM_ID);
@@ -223,9 +216,7 @@ class KnowledgeServiceBulkRecycleTest {
     assertThatThrownBy(
             () ->
                 service.bulkRecycle(
-                    List.of(FIRST_ITEM_ID, SECOND_ITEM_ID),
-                    IDEMPOTENCY_KEY,
-                    authentication))
+                    List.of(FIRST_ITEM_ID, SECOND_ITEM_ID), IDEMPOTENCY_KEY, authentication))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Knowledge item was not found.");
 
