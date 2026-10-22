@@ -544,6 +544,12 @@ test('searches from the prototype-aligned home screen', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: '识海' })).toBeVisible()
   await expect(page.getByText('深海检索笔记')).toBeVisible()
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(6, 21, 34)')
+  const resultsBox = await page.locator('.home-grid > .results-panel').boundingBox()
+  const railBox = await page.locator('.home-grid > .right-rail').boundingBox()
+  expect(resultsBox).not.toBeNull()
+  expect(railBox).not.toBeNull()
+  expect(Math.abs(resultsBox!.y - railBox!.y)).toBeLessThanOrEqual(1)
+
   const navigation = page.getByRole('navigation', { name: '主导航' })
   await expect(navigation).toBeVisible()
   for (const label of ['首页', '知识库', '采集', '待处理', '回收站', '设置']) {

@@ -850,6 +850,10 @@ h1 {
   margin-top: var(--gap);
 }
 
+.home-grid > .results-panel {
+  margin-top: 0;
+}
+
 .panel {
   min-width: 0;
   background: var(--surface);

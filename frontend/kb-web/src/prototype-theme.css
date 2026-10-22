@@ -764,6 +764,10 @@
   margin-top: var(--gap);
 }
 
+.home-grid > .results-panel {
+  margin-top: 0;
+}
+
 .panel,
 .results-panel,
 .detail-main,
