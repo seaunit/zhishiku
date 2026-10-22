@@ -207,6 +207,13 @@
                   </a>
                   <p>{{ candidate.snippet || candidate.provider }}</p>
                   <small>{{ candidate.provider }}</small>
+                  <p
+                    v-if="candidateErrors[candidate.candidateId]"
+                    class="candidate-error"
+                    role="alert"
+                  >
+                    {{ candidateErrors[candidate.candidateId] }}
+                  </p>
                 </div>
                 <div class="external-actions">
                   <a
@@ -363,6 +370,7 @@ const externalVisible = ref(false)
 const externalLoading = ref(false)
 const externalError = ref('')
 const externalItems = ref<ExternalSearchCandidate[]>([])
+const candidateErrors = ref<Record<string, string>>({})
 const savingCandidateId = ref('')
 const externalQuote = ref<BillingQuote | null>(null)
 const externalTaskId = ref('')
@@ -445,6 +453,7 @@ async function load() {
   externalLoading.value = false
   externalError.value = ''
   externalItems.value = []
+  candidateErrors.value = {}
   externalQuote.value = null
   externalTaskId.value = ''
   candidateQuote.value = null
@@ -491,6 +500,7 @@ async function searchExternalInternet() {
   externalError.value = ''
   externalLoading.value = true
   externalItems.value = []
+  candidateErrors.value = {}
   try {
     if (!externalQuote.value) {
       externalQuote.value = await createBillingQuote({
@@ -527,7 +537,9 @@ async function searchExternalInternet() {
 
 async function saveCandidate(candidate: ExternalSearchCandidate) {
   savingCandidateId.value = candidate.candidateId
-  externalError.value = ''
+  const nextCandidateErrors = { ...candidateErrors.value }
+  delete nextCandidateErrors[candidate.candidateId]
+  candidateErrors.value = nextCandidateErrors
   try {
     if (!candidateQuote.value || candidateQuoteId.value !== candidate.candidateId) {
       candidateQuote.value = await createBillingQuote({
@@ -555,12 +567,30 @@ async function saveCandidate(candidate: ExternalSearchCandidate) {
       saved.items.length === 1 ? `/library/${saved.items[0].id}` : '/library',
     )
   } catch (caught) {
-    externalError.value = billingMessage(caught)
+    candidateErrors.value = {
+      ...candidateErrors.value,
+      [candidate.candidateId]: candidateSaveMessage(caught),
+    }
     candidateQuote.value = null
     candidateQuoteId.value = ''
   } finally {
     savingCandidateId.value = ''
   }
+}
+
+function candidateSaveMessage(caught: unknown) {
+  if (caught instanceof ApiError) {
+    if (
+      caught.code === 'EXTERNAL_SOURCE_UNAVAILABLE' ||
+      caught.code === 'EXTERNAL_SEARCH_UNAVAILABLE'
+    ) {
+      return t('home.internetSourceUnavailable')
+    }
+    if (caught.code === 'WEB_PAGE_ORGANIZATION_FAILED') {
+      return t('home.internetCandidateOrganizeFailed')
+    }
+  }
+  return billingMessage(caught)
 }
 
 function billingMessage(caught: unknown) {

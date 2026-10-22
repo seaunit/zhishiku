@@ -1,6 +1,7 @@
 package site.seaunit.zhishiku.search.external;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -84,6 +85,28 @@ class DeepSeekWebProviderTest {
     }
   }
 
+  @Test
+  void distinguishesAnUnfetchableSourceFromSearchAuthenticationFailures() throws IOException {
+    HttpServer server =
+        server(
+            "/v1/tools/fetch",
+            """
+            {"error":{"message":"failed to fetch URL","type":"not_found_error"}}
+            """,
+            new AtomicReference<>(),
+            new AtomicReference<>(),
+            404);
+    try {
+      DeepSeekWebProvider provider = provider(server);
+
+      assertThatThrownBy(() -> provider.fetch("https://eu.36kr.com/zh/p/4035009546000259"))
+          .isInstanceOf(ExternalSourceUnavailableException.class)
+          .hasMessageContaining("selected source");
+    } finally {
+      server.stop(0);
+    }
+  }
+
   private static DeepSeekWebProvider provider(HttpServer server) {
     String base = "http://127.0.0.1:" + server.getAddress().getPort();
     return new DeepSeekWebProvider(
@@ -96,6 +119,16 @@ class DeepSeekWebProviderTest {
       AtomicReference<String> requestBody,
       AtomicReference<String> authorization)
       throws IOException {
+    return server(path, responseBody, requestBody, authorization, 200);
+  }
+
+  private static HttpServer server(
+      String path,
+      String responseBody,
+      AtomicReference<String> requestBody,
+      AtomicReference<String> authorization,
+      int status)
+      throws IOException {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext(
         path,
@@ -105,7 +138,7 @@ class DeepSeekWebProviderTest {
           authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
           byte[] response = responseBody.getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().set("Content-Type", "application/json");
-          exchange.sendResponseHeaders(200, response.length);
+          exchange.sendResponseHeaders(status, response.length);
           exchange.getResponseBody().write(response);
           exchange.close();
         });

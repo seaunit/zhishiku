@@ -1775,6 +1775,66 @@ test('continues to internet search only after explicit consent and saves a candi
   })
 })
 
+test('keeps other internet results available when one source cannot be fetched', async ({
+  page,
+}) => {
+  await page.route('**/kb/api/v1/search/external', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            candidateId: '123e4567-e89b-42d3-a456-426614174130',
+            title: 'Unsupported 36Kr result',
+            url: 'https://eu.36kr.com/zh/p/4035009546000259',
+            snippet: 'The provider cannot fetch this source.',
+            provider: '36Kr',
+            expiresAt: '2026-10-22T12:15:00Z',
+          },
+          {
+            candidateId: '123e4567-e89b-42d3-a456-426614174131',
+            title: 'Available Jiemian result',
+            url: 'https://www.jiemian.com/article/15211437.html',
+            snippet: 'This source can be fetched.',
+            provider: 'Jiemian',
+            expiresAt: '2026-10-22T12:15:00Z',
+          },
+        ],
+      }),
+    })
+  })
+  await page.route(
+    '**/kb/api/v1/search/external/123e4567-e89b-42d3-a456-426614174130/save',
+    async (route) => {
+      await route.fulfill({
+        status: 422,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 'EXTERNAL_SOURCE_UNAVAILABLE',
+          message: 'The selected source could not be fetched.',
+          requestId: 'source-unavailable',
+          retryable: false,
+        }),
+      })
+    },
+  )
+
+  await page.goto('/kb/')
+  await page.getByRole('searchbox', { name: '搜索全部知识' }).fill('梁文峰')
+  await page.getByRole('button', { name: '潜入检索' }).click()
+  await expect(page.getByRole('button', { name: '互联网搜索 · 1 点' })).toBeEnabled()
+  await page.getByRole('button', { name: '互联网搜索 · 1 点' }).click()
+
+  const firstCandidate = page.locator('.external-row').first()
+  await firstCandidate.getByRole('button', { name: 'AI 整理后收入' }).click()
+  await firstCandidate.getByRole('button', { name: /确认 \d+ 点并收入/ }).click()
+
+  await expect(firstCandidate.getByText('当前来源不支持正文抓取，请换一条搜索结果。')).toBeVisible()
+  await expect(page.getByText('Available Jiemian result')).toBeVisible()
+  await expect(page.getByText('互联网搜索暂时不可用，本地结果不受影响。')).toHaveCount(0)
+})
+
 test('searches the internet once with a one-point click and no second confirmation', async ({
   page,
 }) => {

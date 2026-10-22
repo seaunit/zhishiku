@@ -359,6 +359,8 @@ paths:
           $ref: "#/components/responses/Conflict"
         "410":
           description: 短期候选结果已过期。
+        "422":
+          description: 所选来源无法抓取或无法整理；其他候选结果应继续可用。
         "402":
           $ref: "#/components/responses/PaymentRequired"
   /api/v1/knowledge-items:

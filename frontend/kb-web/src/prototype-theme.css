@@ -1088,6 +1088,13 @@
   min-height: 26px;
 }
 
+.candidate-error {
+  margin: 7px 0 0;
+  color: var(--pill-negative-ink);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .right-rail {
   display: grid;
   gap: 0;

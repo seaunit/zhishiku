@@ -28,6 +28,7 @@ import site.seaunit.zhishiku.richtext.image.ImageInspectionException;
 import site.seaunit.zhishiku.screenshotimport.ScreenshotImportException;
 import site.seaunit.zhishiku.search.external.ExternalSearchCandidateNotFoundException;
 import site.seaunit.zhishiku.search.external.ExternalSearchUnavailableException;
+import site.seaunit.zhishiku.search.external.ExternalSourceUnavailableException;
 import site.seaunit.zhishiku.textimport.TextImportException;
 import site.seaunit.zhishiku.webimport.WebImportBillingRequiredException;
 import site.seaunit.zhishiku.webimport.WebImportConsentRequiredException;
@@ -185,6 +186,13 @@ public class ApiExceptionHandler {
       ExternalSearchCandidateNotFoundException error, HttpServletRequest request) {
     return response(
         HttpStatus.NOT_FOUND, "EXTERNAL_CANDIDATE_NOT_FOUND", error.getMessage(), request);
+  }
+
+  @ExceptionHandler(ExternalSourceUnavailableException.class)
+  ResponseEntity<ErrorResponse> externalSourceUnavailable(
+      ExternalSourceUnavailableException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.UNPROCESSABLE_ENTITY, "EXTERNAL_SOURCE_UNAVAILABLE", error.getMessage(), request);
   }
 
   @ExceptionHandler(WebImportUnavailableException.class)

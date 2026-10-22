@@ -65,11 +65,21 @@ public class DeepSeekWebProvider {
     if (!isHttpUrl(url)) {
       throw new IllegalArgumentException("Only HTTP and HTTPS URLs can be fetched.");
     }
-    JsonNode response = post(config.fetchEndpoint(), config.fetchApiKey(), Map.of("url", url));
+    JsonNode response;
+    try {
+      response = post(config.fetchEndpoint(), config.fetchApiKey(), Map.of("url", url));
+    } catch (ExternalSearchUnavailableException error) {
+      if (Integer.valueOf(404).equals(error.upstreamStatus())) {
+        throw new ExternalSourceUnavailableException(
+            "The selected source could not be fetched. Choose another search result.");
+      }
+      throw error;
+    }
     String title = response.path("title").asText("").strip();
     String content = response.path("content").asText("").strip();
     if (content.isBlank()) {
-      throw new ExternalSearchUnavailableException("Fetched page did not contain usable content.");
+      throw new ExternalSourceUnavailableException(
+          "The selected source did not contain usable content. Choose another search result.");
     }
     return new FetchedPage(title, content);
   }
@@ -92,7 +102,8 @@ public class DeepSeekWebProvider {
       return body;
     } catch (RestClientResponseException error) {
       throw new ExternalSearchUnavailableException(
-          "Search provider rejected the request with HTTP " + error.getStatusCode().value() + ".");
+          "Search provider rejected the request with HTTP " + error.getStatusCode().value() + ".",
+          error.getStatusCode().value());
     } catch (ExternalSearchUnavailableException error) {
       throw error;
     } catch (RuntimeException error) {
