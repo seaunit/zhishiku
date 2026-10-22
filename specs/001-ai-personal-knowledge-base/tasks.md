@@ -630,3 +630,24 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-009、FR-079、SC-021，以及 002 FR-035、FR-038、SC-026。
 - 风险与回滚：当前前端和后端实现尚未由本任务修改，部署验收前仍可能出现 3 点报价或二次确认；
   开发与测试任务必须按此规格补齐。文档回滚会恢复旧的 3 点和二次确认口径。
+
+### 完成记录：T105
+
+- 日期：2026-10-23
+- 状态：本地实现与自动化验收完成
+- 执行主体：Codex
+- Git commit：`30c5564`
+- 摘要：区分 DeepSeek 搜索服务故障与单个网页来源不可抓取，候选整理失败时保留其他搜索结果。
+- 详情：验证同一个 DeepSeek Key 调用 Chat 和 `/v1/tools/search` 均返回 200；故障来自
+  `/v1/tools/fetch` 对部分 36Kr/BBC 等来源返回 404。后端新增
+  `EXTERNAL_SOURCE_UNAVAILABLE`，只在 Fetch 上游 404 或正文为空时返回；认证、额度和搜索服务
+  错误继续使用原有服务不可用语义。前端把该错误显示在当前候选行内，不再用整块搜索错误覆盖结果，
+  用户可直接选择其他来源继续整理。
+- 验证：DeepSeek Provider 404 回归用例通过；后端完整 Maven 测试通过；前端 ESLint、TypeScript、
+  53 项 Vitest、51 项 Playwright 和生产构建通过；真实搜索的 8 个候选抽查中 4 个可抓取、4 个返回 404。
+- 证据：`DeepSeekWebProvider.java`、`ExternalSourceUnavailableException.java`、
+  `ApiExceptionHandler.java`、`DeepSeekWebProviderTest.java`、`HomeView.vue`、
+  `frontend/kb-web/e2e/app.spec.ts`、`specs/001-ai-personal-knowledge-base/contracts/openapi.yaml`。
+- 覆盖：FR-009、FR-079、SC-021。
+- 风险与回滚：来源可抓取性由 DeepSeek Fetch 动态决定，不能用静态域名白名单保证；回滚会恢复
+  全局错误展示，但不影响已保存知识或账本。
