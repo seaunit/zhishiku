@@ -27,7 +27,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemPage;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeSummaryResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.PageInfo;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SourceSummary;
 import site.seaunit.zhishiku.security.SecurityConfig;
 
@@ -43,6 +45,44 @@ class KnowledgeLifecycleControllerTest {
 
   @MockBean private KnowledgeService service;
   @MockBean private AuthenticationManager authenticationManager;
+
+  @Test
+  @WithMockUser(username = "alice@example.com")
+  void passesPageSizeAndSourceFilterToLibraryPagination() throws Exception {
+    Instant now = Instant.parse("2026-10-22T00:00:00Z");
+    when(service.list(eq(2), eq(10), eq("webpage"), any()))
+        .thenReturn(
+            new KnowledgeItemPage(
+                List.of(
+                    new KnowledgeSummaryResponse(
+                        ITEM_ID,
+                        "网页知识",
+                        "摘要",
+                        null,
+                        "succeeded",
+                        "active",
+                        new SourceSummary("webpage", "url", "https://example.com", now),
+                        null,
+                        List.of(),
+                        1,
+                        now,
+                        now)),
+                "3",
+                new PageInfo(2, 10, 24, 3, java.util.Map.of("all", 24L, "webpage", 12L))));
+
+    mvc.perform(
+            get("/api/v1/knowledge-items")
+                .param("page", "2")
+                .param("limit", "10")
+                .param("source", "webpage"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.pageInfo.page").value(2))
+        .andExpect(jsonPath("$.pageInfo.totalItems").value(24))
+        .andExpect(jsonPath("$.pageInfo.sourceCounts.webpage").value(12));
+
+    verify(service).list(eq(2), eq(10), eq("webpage"), any());
+  }
 
   @Test
   @WithMockUser(username = "alice@example.com")

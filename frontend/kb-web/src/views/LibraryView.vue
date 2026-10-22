@@ -57,7 +57,7 @@
         <button
           type="button"
           class="filter-chip mobile-select-all"
-          :disabled="filteredItems.length === 0"
+            :disabled="items.length === 0"
           @click="toggleAllVisible"
         >
           {{ allVisibleSelected ? t('library.clearSelection') : t('library.selectAllVisible') }}
@@ -99,7 +99,7 @@
         <button type="button" class="text-button" @click="load">{{ t('common.retry') }}</button>
       </div>
 
-      <div v-else-if="filteredItems.length === 0" class="empty-state">
+      <div v-else-if="items.length === 0" class="empty-state">
         <BookOpen :size="22" />
         <h3>{{ searchedQuery ? t('library.noResultsTitle') : t('library.emptyTitle') }}</h3>
         <p>{{ searchedQuery ? t('library.noResultsBody') : t('library.emptyBody') }}</p>
@@ -134,7 +134,7 @@
           <span class="row-action-head" aria-hidden="true" />
         </div>
         <div
-          v-for="item in filteredItems"
+          v-for="item in items"
           :key="item.id"
           class="knowledge-row"
           :class="{ 'is-selected': selectedIds.has(item.id) }"
@@ -184,6 +184,64 @@
           </button>
         </div>
       </div>
+
+      <footer
+        v-if="!loading && pageInfo.totalItems > 0"
+        class="library-pagination"
+        :aria-label="t('library.pagination')"
+      >
+        <span class="pagination-summary">
+          {{
+            t('library.pageSummary', {
+              page: pageInfo.page,
+              pages: pageInfo.totalPages,
+              total: pageInfo.totalItems,
+            })
+          }}
+        </span>
+        <div class="pagination-controls">
+          <label class="pagination-size">
+            <span>{{ t('library.perPage') }}</span>
+            <select v-model.number="pageSize" @change="changePageSize">
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            class="pagination-button"
+            :aria-label="t('library.previousPage')"
+            :disabled="pageInfo.page <= 1"
+            @click="goToPage(pageInfo.page - 1)"
+          >
+            <ChevronLeft :size="16" />
+          </button>
+          <template v-for="pageNumber in visiblePageNumbers" :key="pageNumber">
+            <span v-if="pageNumber === 'ellipsis'" class="pagination-ellipsis">…</span>
+            <button
+              v-else
+              type="button"
+              class="pagination-button num"
+              :class="{ 'is-active': pageNumber === pageInfo.page }"
+              :aria-label="t('library.pageNumber', { page: pageNumber })"
+              :aria-current="pageNumber === pageInfo.page ? 'page' : undefined"
+              @click="goToPage(pageNumber)"
+            >
+              {{ pageNumber }}
+            </button>
+          </template>
+          <button
+            type="button"
+            class="pagination-button"
+            :aria-label="t('library.nextPage')"
+            :disabled="pageInfo.page >= pageInfo.totalPages"
+            @click="goToPage(pageInfo.page + 1)"
+          >
+            <ChevronRight :size="16" />
+          </button>
+        </div>
+      </footer>
     </section>
 
     <ConfirmDialog
@@ -203,6 +261,8 @@
 <script setup lang="ts">
 import {
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
   CircleAlert,
   FileText,
   Globe2,
@@ -226,7 +286,7 @@ import {
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
 import { createIdempotencyKey } from '@/lib/id'
-import type { KnowledgeItemSummary } from '@/types/api'
+import type { KnowledgeItemSummary, KnowledgePageInfo } from '@/types/api'
 
 const { t, locale } = useI18n()
 const items = ref<KnowledgeItemSummary[]>([])
@@ -242,6 +302,15 @@ const selectedIds = ref(new Set<string>())
 const deleteTargets = ref<KnowledgeItemSummary[]>([])
 const deleting = ref(false)
 const bulkDeleteKey = ref('')
+const page = ref(1)
+const pageSize = ref(10)
+const pageInfo = ref<KnowledgePageInfo>({
+  page: 1,
+  pageSize: 10,
+  totalItems: 0,
+  totalPages: 1,
+  sourceCounts: {},
+})
 let loadSequence = 0
 
 const filters = [
@@ -253,19 +322,27 @@ const filters = [
   { value: 'manual', label: 'library.manual' },
 ]
 
-const filteredItems = computed(() => {
-  if (activeFilter.value === 'all') return items.value
-  return items.value.filter((item) => item.source.kind === activeFilter.value)
-})
-
 const allVisibleSelected = computed(
   () =>
-    filteredItems.value.length > 0 &&
-    filteredItems.value.every((item) => selectedIds.value.has(item.id)),
+    items.value.length > 0 &&
+    items.value.every((item) => selectedIds.value.has(item.id)),
 )
 const someVisibleSelected = computed(() =>
-  filteredItems.value.some((item) => selectedIds.value.has(item.id)),
+  items.value.some((item) => selectedIds.value.has(item.id)),
 )
+const visiblePageNumbers = computed<(number | 'ellipsis')[]>(() => {
+  const total = pageInfo.value.totalPages
+  const current = pageInfo.value.page
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1)
+  const pages: (number | 'ellipsis')[] = [1]
+  const start = Math.max(2, current - 1)
+  const end = Math.min(total - 1, current + 1)
+  if (start > 2) pages.push('ellipsis')
+  for (let value = start; value <= end; value += 1) pages.push(value)
+  if (end < total - 1) pages.push('ellipsis')
+  pages.push(total)
+  return pages
+})
 const deleteDialogTitle = computed(() =>
   deleteTargets.value.length > 1
     ? t('library.bulkDeleteTitle')
@@ -297,9 +374,7 @@ const freshness = computed(() => {
 })
 
 function countFor(filter: string) {
-  return filter === 'all'
-    ? items.value.length
-    : items.value.filter((item) => item.source.kind === filter).length
+  return pageInfo.value.sourceCounts[filter] ?? 0
 }
 
 function sourceIcon(kind: string) {
@@ -332,10 +407,12 @@ function clearSelection() {
   selectedIds.value = new Set()
 }
 
-function setFilter(filter: string) {
+async function setFilter(filter: string) {
   if (activeFilter.value === filter) return
   activeFilter.value = filter
+  page.value = 1
   clearSelection()
+  await load()
 }
 
 function toggleSelection(id: string, checked: boolean) {
@@ -356,7 +433,7 @@ function toggleAllVisible() {
 
 function setVisibleSelection(checked: boolean) {
   const next = new Set(selectedIds.value)
-  for (const item of filteredItems.value) {
+  for (const item of items.value) {
     if (checked) next.add(item.id)
     else next.delete(item.id)
   }
@@ -371,19 +448,21 @@ async function load() {
   const normalized = searchQuery.value.trim()
   try {
     if (normalized) {
-      const response = await searchKnowledge(normalized, 100)
+      const response = await searchKnowledge(normalized, pageSize.value, page.value, activeFilter.value)
       if (requestId !== loadSequence) return
       items.value = response.items.map((hit) => hit.item)
       matchedFieldsByItem.value = Object.fromEntries(
         response.items.map((hit) => [hit.item.id, hit.matchedFields]),
       )
       searchedQuery.value = normalized
+      applyPageInfo(response.pageInfo)
     } else {
-      const response = await listKnowledgeItems(100)
+      const response = await listKnowledgeItems(pageSize.value, page.value, activeFilter.value)
       if (requestId !== loadSequence) return
       items.value = response.items
       matchedFieldsByItem.value = {}
       searchedQuery.value = ''
+      applyPageInfo(response.pageInfo)
     }
     clearSelection()
   } catch (caught) {
@@ -397,12 +476,53 @@ async function load() {
 }
 
 async function submitSearch() {
+  page.value = 1
   await load()
 }
 
 async function clearSearch() {
   searchQuery.value = ''
   searchedQuery.value = ''
+  page.value = 1
+  await load()
+}
+
+function applyPageInfo(next?: KnowledgePageInfo) {
+  if (next) {
+    pageInfo.value = next
+    page.value = next.page
+    pageSize.value = next.pageSize
+    return
+  }
+  pageInfo.value = {
+    page: 1,
+    pageSize: pageSize.value,
+    totalItems: items.value.length,
+    totalPages: 1,
+    sourceCounts: {
+      all: items.value.length,
+      webpage: items.value.filter((item) => item.source.kind === 'webpage').length,
+      document: items.value.filter((item) => item.source.kind === 'document').length,
+      screenshot: items.value.filter((item) => item.source.kind === 'screenshot').length,
+      text: items.value.filter((item) => item.source.kind === 'text').length,
+      manual: items.value.filter((item) => item.source.kind === 'manual').length,
+    },
+  }
+}
+
+async function goToPage(nextPage: number) {
+  if (nextPage < 1 || nextPage > pageInfo.value.totalPages || nextPage === pageInfo.value.page) {
+    return
+  }
+  page.value = nextPage
+  clearSelection()
+  await load()
+  document.querySelector('.library-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+async function changePageSize() {
+  page.value = 1
+  clearSelection()
   await load()
 }
 
@@ -412,7 +532,7 @@ function requestDelete(item: KnowledgeItemSummary) {
 }
 
 function requestBulkDelete() {
-  const selected = filteredItems.value.filter((item) => selectedIds.value.has(item.id))
+  const selected = items.value.filter((item) => selectedIds.value.has(item.id))
   if (!selected.length) return
   actionError.value = ''
   deleteTargets.value = selected.slice(0, 100)
@@ -433,15 +553,15 @@ async function confirmDelete() {
         bulkDeleteKey.value,
       )
     }
-    const removed = new Set(targets.map((item) => item.id))
-    items.value = items.value.filter((item) => !removed.has(item.id))
     clearSelection()
     deleteTargets.value = []
     bulkDeleteKey.value = ''
-    notice.value =
+    const message =
       targets.length === 1
         ? t('library.deletedOne')
         : t('library.deletedMany', { count: targets.length })
+    await load()
+    notice.value = message
   } catch {
     actionError.value =
       targets.length === 1

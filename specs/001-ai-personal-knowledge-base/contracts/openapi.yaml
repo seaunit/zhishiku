@@ -280,6 +280,16 @@ paths:
           in: query
           schema:
             type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: source
+          in: query
+          schema:
+            $ref: "#/components/schemas/SourceKind"
       responses:
         "200":
           description: 仅返回个人知识结果。互联网搜索需通过单独调用完成。
@@ -391,6 +401,12 @@ paths:
           in: query
           schema:
             type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
       responses:
         "200":
           description: active 知识条目。
@@ -1716,9 +1732,31 @@ components:
         updatedAt:
           type: string
           format: date-time
+    PageInfo:
+      type: object
+      required: [page, pageSize, totalItems, totalPages, sourceCounts]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalItems:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 1
+        sourceCounts:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
     KnowledgeItemPage:
       type: object
-      required: [items, nextCursor]
+      required: [items, nextCursor, pageInfo]
       properties:
         items:
           type: array
@@ -1728,6 +1766,8 @@ components:
           type:
             - string
             - "null"
+        pageInfo:
+          $ref: "#/components/schemas/PageInfo"
     BulkRecycleKnowledgeRequest:
       type: object
       required: [itemIds]
@@ -1857,7 +1897,7 @@ components:
               type: string
     SearchResponse:
       type: object
-      required: [items, nextCursor, degraded]
+      required: [items, nextCursor, degraded, pageInfo]
       properties:
         items:
           type: array
@@ -1870,6 +1910,8 @@ components:
         degraded:
           type: boolean
           description: 当请求由有界 PostgreSQL 回退方案处理时为 true。
+        pageInfo:
+          $ref: "#/components/schemas/PageInfo"
     ExternalSearchRequest:
       type: object
       required: [query, explicitConsent]

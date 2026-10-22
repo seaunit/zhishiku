@@ -376,8 +376,17 @@ export function updateProfile(payload: UpdateProfileRequest): Promise<ProfileRes
   })
 }
 
-export function listKnowledgeItems(limit = 20): Promise<KnowledgeItemPage> {
-  return request<KnowledgeItemPage>(`/knowledge-items?limit=${limit}`)
+export function listKnowledgeItems(
+  limit = 20,
+  page = 1,
+  source = 'all',
+): Promise<KnowledgeItemPage> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    page: String(page),
+    source,
+  })
+  return request<KnowledgeItemPage>(`/knowledge-items?${params.toString()}`)
 }
 
 export function listTrash(limit = 100): Promise<KnowledgeItemPage> {
@@ -413,8 +422,18 @@ export function purgeKnowledgeItem(id: string): Promise<void> {
   })
 }
 
-export function searchKnowledge(query: string, limit = 20): Promise<SearchResponse> {
-  const params = new URLSearchParams({ q: query, limit: String(limit) })
+export function searchKnowledge(
+  query: string,
+  limit = 20,
+  page = 1,
+  source = 'all',
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({
+    q: query,
+    limit: String(limit),
+    page: String(page),
+    source,
+  })
   return request<SearchResponse>(`/search?${params.toString()}`)
 }
 

@@ -35,7 +35,9 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.ClassificationSummary;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemPage;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeSummaryResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.PageInfo;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchHit;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SourceSummary;
@@ -60,6 +62,8 @@ import site.seaunit.zhishiku.webimport.OrganizedKnowledge;
 public class KnowledgeService {
   private static final Set<String> MANUAL_SOURCE_KINDS =
       Set.of("native", "clipboard", "word", "google_docs", "webpage", "legacy_text");
+  private static final Set<String> FILTERABLE_SOURCE_KINDS =
+      Set.of("webpage", "document", "screenshot", "text", "internet_result");
   private static final long MAX_TOTAL_IMAGE_BYTES = 50L * 1024 * 1024;
   private static final String ACTIVE = "active";
   private static final String BULK_RECYCLE_OPERATION = "knowledge_bulk_recycle";
@@ -263,14 +267,67 @@ public class KnowledgeService {
   }
 
   @Transactional(readOnly = true)
-  public List<KnowledgeSummaryResponse> list(int limit, Authentication authentication) {
+  public KnowledgeItemPage list(
+      int page, int limit, String source, Authentication authentication) {
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
-    return items
-        .findByOwnerIdAndLifecycleStateOrderByUpdatedAtDesc(
-            owner.getId(), ACTIVE, PageRequest.of(0, Math.min(Math.max(limit, 1), 100)))
-        .stream()
-        .map(item -> summary(item, latestSource(item.getId())))
-        .toList();
+    int pageSize = Math.min(Math.max(limit, 1), 100);
+    String normalizedSource = normalizeSourceFilter(source);
+    String sourceFilter = sourceFilterSql(normalizedSource);
+    List<Object> filterArgs = new ArrayList<>();
+    filterArgs.add(owner.getId());
+    filterArgs.add(ACTIVE);
+    addSourceFilterArg(filterArgs, normalizedSource);
+    long totalItems =
+        jdbc.queryForObject(
+            """
+            WITH latest_source AS (
+              SELECT DISTINCT ON (item_id) item_id, source_kind
+              FROM rich_document_source
+              ORDER BY item_id, created_at DESC
+            )
+            SELECT count(*)
+            FROM knowledge_item k
+            LEFT JOIN latest_source src ON src.item_id = k.id
+            WHERE k.owner_id = ? AND k.lifecycle_state = ?
+            """
+                + sourceFilter,
+            Long.class,
+            filterArgs.toArray());
+    int totalPages = totalPages(totalItems, pageSize);
+    int currentPage = Math.min(Math.max(page, 1), totalPages);
+    List<Object> pageArgs = new ArrayList<>(filterArgs);
+    pageArgs.add(pageSize);
+    pageArgs.add((currentPage - 1) * pageSize);
+    List<UUID> ids =
+        jdbc.query(
+            """
+            WITH latest_source AS (
+              SELECT DISTINCT ON (item_id) item_id, source_kind
+              FROM rich_document_source
+              ORDER BY item_id, created_at DESC
+            )
+            SELECT k.id
+            FROM knowledge_item k
+            LEFT JOIN latest_source src ON src.item_id = k.id
+            WHERE k.owner_id = ? AND k.lifecycle_state = ?
+            """
+                + sourceFilter
+                + """
+            ORDER BY k.updated_at DESC, k.id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (result, row) -> result.getObject("id", UUID.class),
+            pageArgs.toArray());
+    List<KnowledgeSummaryResponse> pageItems = summariesInOrder(ids);
+    return new KnowledgeItemPage(
+        pageItems,
+        currentPage < totalPages ? Integer.toString(currentPage + 1) : null,
+        new PageInfo(
+            currentPage,
+            pageSize,
+            totalItems,
+            totalPages,
+            sourceCounts(owner.getId())));
   }
 
   @Transactional(readOnly = true)
@@ -339,26 +396,49 @@ public class KnowledgeService {
   }
 
   @Transactional(readOnly = true)
-  public SearchResponse search(String query, int limit, Authentication authentication) {
+  public SearchResponse search(
+      String query, int page, int limit, String source, Authentication authentication) {
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
     String safeQuery = query == null ? "" : query.strip();
+    int pageSize = Math.min(Math.max(limit, 1), 100);
     if (safeQuery.isBlank()) {
-      return new SearchResponse("", List.of(), null, false);
+      return new SearchResponse(
+          "",
+          List.of(),
+          null,
+          false,
+          new PageInfo(
+              1,
+              pageSize,
+              0,
+              1,
+              sourceCounts(owner.getId())));
     }
     String lowered = safeQuery.toLowerCase(Locale.ROOT);
     String pattern = "%" + lowered + "%";
-    List<SearchRow> rows =
-        jdbc.query(
+    String normalizedSource = normalizeSourceFilter(source);
+    String sourceFilter = sourceFilterSql(normalizedSource);
+    List<Object> countArgs = new ArrayList<>();
+    countArgs.add(owner.getId());
+    countArgs.add(pattern);
+    countArgs.add(pattern);
+    countArgs.add(pattern);
+    countArgs.add(pattern);
+    countArgs.add(pattern);
+    countArgs.add(safeQuery);
+    addSourceFilterArg(countArgs, normalizedSource);
+    long totalItems =
+        jdbc.queryForObject(
             """
-            SELECT k.id, s.title_text, s.body_text, s.note_text, s.image_text,
-                   EXISTS (
-                     SELECT 1
-                     FROM knowledge_classification_assignment a
-                     JOIN knowledge_classification_term t ON t.id = a.term_id
-                     WHERE a.item_id = k.id AND lower(t.name) LIKE ?
-                   ) AS classification_match
+            WITH latest_source AS (
+              SELECT DISTINCT ON (item_id) item_id, source_kind
+              FROM rich_document_source
+              ORDER BY item_id, created_at DESC
+            )
+            SELECT count(*)
             FROM knowledge_item k
             JOIN search_document s ON s.item_id = k.id
+            LEFT JOIN latest_source src ON src.item_id = k.id
             WHERE k.owner_id = ?
               AND k.lifecycle_state = 'active'
               AND (
@@ -374,6 +454,67 @@ public class KnowledgeService {
                 )
                 OR similarity(s.search_text, ?) > 0.12
               )
+            """
+                + sourceFilter,
+            Long.class,
+            countArgs.toArray());
+    int totalPages = totalPages(totalItems, pageSize);
+    int currentPage = Math.min(Math.max(page, 1), totalPages);
+    int offset = (currentPage - 1) * pageSize;
+    List<Object> pageArgs = new ArrayList<>();
+    pageArgs.add(pattern);
+    pageArgs.add(owner.getId());
+    pageArgs.add(pattern);
+    pageArgs.add(pattern);
+    pageArgs.add(pattern);
+    pageArgs.add(pattern);
+    pageArgs.add(pattern);
+    pageArgs.add(safeQuery);
+    pageArgs.add(lowered);
+    pageArgs.add(pattern);
+    pageArgs.add(pattern);
+    pageArgs.add(pattern);
+    pageArgs.add(pattern);
+    pageArgs.add(safeQuery);
+    addSourceFilterArg(pageArgs, normalizedSource);
+    pageArgs.add(pageSize);
+    pageArgs.add(offset);
+    List<SearchRow> rows =
+        jdbc.query(
+            """
+            WITH latest_source AS (
+              SELECT DISTINCT ON (item_id) item_id, source_kind
+              FROM rich_document_source
+              ORDER BY item_id, created_at DESC
+            )
+            SELECT k.id, s.title_text, s.body_text, s.note_text, s.image_text,
+                   EXISTS (
+                     SELECT 1
+                     FROM knowledge_classification_assignment a
+                     JOIN knowledge_classification_term t ON t.id = a.term_id
+                     WHERE a.item_id = k.id AND lower(t.name) LIKE ?
+                   ) AS classification_match
+            FROM knowledge_item k
+            JOIN search_document s ON s.item_id = k.id
+            LEFT JOIN latest_source src ON src.item_id = k.id
+            WHERE k.owner_id = ?
+              AND k.lifecycle_state = 'active'
+              AND (
+                lower(s.title_text) LIKE ?
+                OR lower(s.body_text) LIKE ?
+                OR lower(s.note_text) LIKE ?
+                OR lower(s.image_text) LIKE ?
+                OR EXISTS (
+                  SELECT 1
+                  FROM knowledge_classification_assignment a
+                  JOIN knowledge_classification_term t ON t.id = a.term_id
+                  WHERE a.item_id = k.id AND lower(t.name) LIKE ?
+                )
+                OR similarity(s.search_text, ?) > 0.12
+              )
+            """
+                + sourceFilter
+                + """
             ORDER BY
               CASE WHEN lower(k.title) = ? THEN 0
                    WHEN lower(s.title_text) LIKE ? THEN 1
@@ -383,7 +524,7 @@ public class KnowledgeService {
                    ELSE 5 END,
               similarity(s.search_text, ?) DESC,
               k.updated_at DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
             """,
             (rs, rowNum) ->
                 new SearchRow(
@@ -393,21 +534,7 @@ public class KnowledgeService {
                     nullToEmpty(rs.getString("note_text")),
                     nullToEmpty(rs.getString("image_text")),
                     rs.getBoolean("classification_match")),
-            pattern,
-            owner.getId(),
-            pattern,
-            pattern,
-            pattern,
-            pattern,
-            pattern,
-            safeQuery,
-            lowered,
-            pattern,
-            pattern,
-            pattern,
-            pattern,
-            safeQuery,
-            Math.min(Math.max(limit, 1), 100));
+            pageArgs.toArray());
     Map<UUID, KnowledgeItemEntity> entities = new LinkedHashMap<>();
     for (KnowledgeItemEntity item : items.findAllById(rows.stream().map(SearchRow::id).toList())) {
       entities.put(item.getId(), item);
@@ -443,7 +570,17 @@ public class KnowledgeService {
       }
       hits.add(new SearchHit(summary, List.copyOf(matchedFields), immutableHighlights(highlights)));
     }
-    return new SearchResponse(safeQuery, hits, null, false);
+    return new SearchResponse(
+        safeQuery,
+        hits,
+        currentPage < totalPages ? Integer.toString(currentPage + 1) : null,
+        false,
+        new PageInfo(
+            currentPage,
+            pageSize,
+            totalItems,
+            totalPages,
+            sourceCounts(owner.getId())));
   }
 
   private static void addMatch(
@@ -689,6 +826,97 @@ public class KnowledgeService {
                             : result.getTimestamp("captured_at").toInstant())),
             itemId);
     return sources.isEmpty() ? null : sources.get(0);
+  }
+
+  private List<KnowledgeSummaryResponse> summariesInOrder(List<UUID> ids) {
+    if (ids.isEmpty()) {
+      return List.of();
+    }
+    Map<UUID, KnowledgeItemEntity> entities = new LinkedHashMap<>();
+    for (KnowledgeItemEntity item : items.findAllById(ids)) {
+      entities.put(item.getId(), item);
+    }
+    List<KnowledgeSummaryResponse> summaries = new ArrayList<>(ids.size());
+    for (UUID id : ids) {
+      KnowledgeItemEntity item = entities.get(id);
+      if (item != null) {
+        summaries.add(summary(item, latestSource(item.getId())));
+      }
+    }
+    return summaries;
+  }
+
+  private Map<String, Long> sourceCounts(UUID ownerId) {
+    Map<String, Long> counts = new LinkedHashMap<>();
+    counts.put("all", 0L);
+    counts.put("webpage", 0L);
+    counts.put("document", 0L);
+    counts.put("screenshot", 0L);
+    counts.put("text", 0L);
+    counts.put("manual", 0L);
+    counts.put("internet_result", 0L);
+    jdbc.query(
+            """
+            WITH latest_source AS (
+              SELECT DISTINCT ON (item_id) item_id, source_kind
+              FROM rich_document_source
+              ORDER BY item_id, created_at DESC
+            )
+            SELECT COALESCE(src.source_kind, 'native') AS source_kind, count(*) AS total
+            FROM knowledge_item k
+            LEFT JOIN latest_source src ON src.item_id = k.id
+            WHERE k.owner_id = ? AND k.lifecycle_state = ?
+            GROUP BY COALESCE(src.source_kind, 'native')
+            """,
+            (result, row) ->
+                Map.entry(result.getString("source_kind"), result.getLong("total")),
+            ownerId,
+            ACTIVE)
+        .forEach(
+            row -> {
+              String kind = row.getKey();
+              long count = row.getValue();
+              counts.compute("all", (key, current) -> (current == null ? 0 : current) + count);
+              if (Set.of("native", "clipboard", "word", "google_docs", "legacy_text")
+                  .contains(kind)) {
+                counts.compute(
+                    "manual", (key, current) -> (current == null ? 0 : current) + count);
+              } else if (counts.containsKey(kind)) {
+                counts.put(kind, counts.get(kind) + count);
+              }
+            });
+    return counts;
+  }
+
+  private static String normalizeSourceFilter(String source) {
+    String normalized = source == null ? "all" : source.strip().toLowerCase(Locale.ROOT);
+    if ("manual".equals(normalized) || FILTERABLE_SOURCE_KINDS.contains(normalized)) {
+      return normalized;
+    }
+    return "all";
+  }
+
+  private static String sourceFilterSql(String source) {
+    if ("manual".equals(source)) {
+      return """
+         AND COALESCE(src.source_kind, 'native')
+             IN ('native', 'clipboard', 'word', 'google_docs', 'legacy_text')
+        """;
+    }
+    if (FILTERABLE_SOURCE_KINDS.contains(source)) {
+      return " AND src.source_kind = ?\n";
+    }
+    return "";
+  }
+
+  private static void addSourceFilterArg(List<Object> args, String source) {
+    if (FILTERABLE_SOURCE_KINDS.contains(source)) {
+      args.add(source);
+    }
+  }
+
+  private static int totalPages(long totalItems, int pageSize) {
+    return (int) Math.max(1, (totalItems + pageSize - 1) / pageSize);
   }
 
   private static String inputMethod(String kind) {

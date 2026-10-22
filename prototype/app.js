@@ -335,6 +335,11 @@ const translations = {
     clearSelection: "取消全选",
     selectItem: "选择 {title}",
     selectedCount: "已选择 {count} 条",
+    libraryPagination: "知识库分页",
+    pageSummary: "第 {page} / {pages} 页 · 共 {total} 条",
+    perPage: "每页",
+    previousPage: "上一页",
+    nextPage: "下一页",
     bulkDelete: "批量删除",
     deleteItem: "删除 {title}",
     deleteTitle: "移入回收站？",
@@ -558,6 +563,11 @@ const translations = {
     clearSelection: "Clear selection",
     selectItem: "Select {title}",
     selectedCount: "{count} selected",
+    libraryPagination: "Knowledge pagination",
+    pageSummary: "Page {page} of {pages} · {total} items",
+    perPage: "Per page",
+    previousPage: "Previous page",
+    nextPage: "Next page",
     bulkDelete: "Delete selected",
     deleteItem: "Delete {title}",
     deleteTitle: "Move to trash?",
@@ -754,6 +764,8 @@ const state = {
   query: "",
   libraryFilter: "all",
   libraryQuery: "",
+  libraryPage: 1,
+  libraryPageSize: 10,
   librarySelected: new Set(),
   pendingDeleteIds: [],
   captureMode: "manual",
@@ -1034,7 +1046,11 @@ function filteredItems() {
 }
 
 function visibleItems() {
-  return filteredItems();
+  const list = filteredItems();
+  const totalPages = Math.max(1, Math.ceil(list.length / state.libraryPageSize));
+  state.libraryPage = Math.min(Math.max(1, state.libraryPage), totalPages);
+  const start = (state.libraryPage - 1) * state.libraryPageSize;
+  return list.slice(start, start + state.libraryPageSize);
 }
 
 function allVisibleSelected() {
@@ -1096,7 +1112,9 @@ function confirmLibraryDelete() {
 }
 
 function renderKnowledgeTable() {
-  const list = filteredItems();
+  const allItems = filteredItems();
+  const list = visibleItems();
+  const totalPages = Math.max(1, Math.ceil(allItems.length / state.libraryPageSize));
   const container = $("#knowledgeTable");
   if (!list.length) {
     container.innerHTML = `<div class="empty-state">${state.libraryQuery ? t("noLibraryResults") : t("noResults")}</div>`;
@@ -1135,6 +1153,30 @@ function renderKnowledgeTable() {
         </button>
       </div>
     `).join("")}
+    <footer class="library-pagination" aria-label="${t("libraryPagination")}">
+      <span class="pagination-summary">${t("pageSummary", {
+        page: state.libraryPage,
+        pages: totalPages,
+        total: allItems.length,
+      })}</span>
+      <div class="pagination-controls">
+        <label class="pagination-size">
+          <span>${t("perPage")}</span>
+          <select id="libraryPageSize">
+            ${[10, 20, 50].map((size) => `<option value="${size}" ${size === state.libraryPageSize ? "selected" : ""}>${size}</option>`).join("")}
+          </select>
+        </label>
+        <button class="pagination-button" type="button" data-library-page="${state.libraryPage - 1}" aria-label="${t("previousPage")}" ${state.libraryPage <= 1 ? "disabled" : ""}>
+          <svg><use href="#icon-arrow"></use></svg>
+        </button>
+        ${Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => `
+          <button class="pagination-button num ${pageNumber === state.libraryPage ? "is-active" : ""}" type="button" data-library-page="${pageNumber}" ${pageNumber === state.libraryPage ? 'aria-current="page"' : ""}>${pageNumber}</button>
+        `).join("")}
+        <button class="pagination-button pagination-next" type="button" data-library-page="${state.libraryPage + 1}" aria-label="${t("nextPage")}" ${state.libraryPage >= totalPages ? "disabled" : ""}>
+          <svg><use href="#icon-arrow"></use></svg>
+        </button>
+      </div>
+    </footer>
   `;
   const selectAll = $("#librarySelectAll");
   if (selectAll) {
@@ -1155,6 +1197,19 @@ function renderKnowledgeTable() {
       }
     });
     $("[data-delete-id]", row).addEventListener("click", () => requestLibraryDelete([row.dataset.libraryItemId]));
+  });
+  $$("[data-library-page]", container).forEach((button) => {
+    button.addEventListener("click", () => {
+      state.libraryPage = Number(button.dataset.libraryPage);
+      state.librarySelected.clear();
+      renderKnowledgeTable();
+    });
+  });
+  $("#libraryPageSize", container)?.addEventListener("change", (event) => {
+    state.libraryPageSize = Number(event.target.value);
+    state.libraryPage = 1;
+    state.librarySelected.clear();
+    renderKnowledgeTable();
   });
   syncBulkActions();
 }
@@ -2039,7 +2094,7 @@ function setLanguage(lang) {
 }
 
 function updateStaticDynamicLabels() {
-  $$(".filter-chip").forEach((chip) => {
+  $$(".filter-chip[data-filter]").forEach((chip) => {
     const count = $("span", chip)?.textContent || "";
     const label = chip.dataset.filter === "all" ? t("all") : t(chip.dataset.filter);
     chip.childNodes[0].nodeValue = `${label} `;
@@ -2707,6 +2762,7 @@ function bindEvents() {
     const chip = event.target.closest("[data-filter]");
     if (!chip) return;
     state.libraryFilter = chip.dataset.filter;
+    state.libraryPage = 1;
     state.librarySelected.clear();
     $$(".filter-chip", $("#libraryFilters")).forEach((candidate) => candidate.classList.toggle("is-active", candidate === chip));
     renderKnowledgeTable();
@@ -2715,6 +2771,7 @@ function bindEvents() {
   $("#librarySearchForm").addEventListener("submit", (event) => {
     event.preventDefault();
     state.libraryQuery = $("#librarySearchInput").value.trim();
+    state.libraryPage = 1;
     $("#librarySearchClear").hidden = !state.libraryQuery;
     state.librarySelected.clear();
     renderKnowledgeTable();
@@ -2722,6 +2779,7 @@ function bindEvents() {
   $("#librarySearchClear").addEventListener("click", () => {
     $("#librarySearchInput").value = "";
     state.libraryQuery = "";
+    state.libraryPage = 1;
     $("#librarySearchClear").hidden = true;
     state.librarySelected.clear();
     renderKnowledgeTable();

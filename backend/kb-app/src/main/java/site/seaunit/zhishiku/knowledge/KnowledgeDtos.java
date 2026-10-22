@@ -80,7 +80,15 @@ public final class KnowledgeDtos {
       Instant createdAt,
       Instant updatedAt) {}
 
-  public record KnowledgeItemPage(List<KnowledgeSummaryResponse> items, String nextCursor) {}
+  public record PageInfo(
+      int page,
+      int pageSize,
+      long totalItems,
+      int totalPages,
+      Map<String, Long> sourceCounts) {}
+
+  public record KnowledgeItemPage(
+      List<KnowledgeSummaryResponse> items, String nextCursor, PageInfo pageInfo) {}
 
   public record SourceSummary(String kind, String inputMethod, String url, Instant capturedAt) {
     public static SourceSummary manual() {
@@ -97,5 +105,9 @@ public final class KnowledgeDtos {
       Map<String, List<String>> highlights) {}
 
   public record SearchResponse(
-      String query, List<SearchHit> items, String nextCursor, boolean degraded) {}
+      String query,
+      List<SearchHit> items,
+      String nextCursor,
+      boolean degraded,
+      PageInfo pageInfo) {}
 }

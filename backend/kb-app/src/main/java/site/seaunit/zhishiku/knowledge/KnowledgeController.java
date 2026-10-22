@@ -1,7 +1,6 @@
 package site.seaunit.zhishiku.knowledge;
 
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +21,6 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemPage;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
-import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeSummaryResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.UpdateClassificationRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.UpdateKnowledgeRequest;
@@ -40,22 +38,26 @@ public class KnowledgeController {
   SearchResponse search(
       @RequestParam(name = "q", required = false, defaultValue = "") String query,
       @RequestParam(name = "limit", defaultValue = "20") int limit,
+      @RequestParam(name = "page", defaultValue = "1") int page,
+      @RequestParam(name = "source", defaultValue = "all") String source,
       Authentication authentication) {
-    return service.search(query, limit, authentication);
+    return service.search(query, page, limit, source, authentication);
   }
 
   @GetMapping("/knowledge-items")
   KnowledgeItemPage list(
-      @RequestParam(name = "limit", defaultValue = "20") int limit, Authentication authentication) {
-    List<KnowledgeSummaryResponse> items = service.list(limit, authentication);
-    return new KnowledgeItemPage(items, null);
+      @RequestParam(name = "limit", defaultValue = "20") int limit,
+      @RequestParam(name = "page", defaultValue = "1") int page,
+      @RequestParam(name = "source", defaultValue = "all") String source,
+      Authentication authentication) {
+    return service.list(page, limit, source, authentication);
   }
 
   @GetMapping({"/knowledge-items/trash", "/trash"})
   KnowledgeItemPage trash(
       @RequestParam(name = "limit", defaultValue = "100") int limit,
       Authentication authentication) {
-    return new KnowledgeItemPage(service.listTrash(limit, authentication), null);
+    return new KnowledgeItemPage(service.listTrash(limit, authentication), null, null);
   }
 
   @PostMapping("/knowledge-items")

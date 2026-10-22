@@ -703,24 +703,31 @@ test('searches knowledge from the library and keeps source filters', async ({ pa
   await page.setViewportSize({ width: 1440, height: 900 })
   let searchQuery = ''
   await page.route('**/kb/api/v1/search?**', async (route) => {
-    searchQuery = new URL(route.request().url()).searchParams.get('q') || ''
+    const url = new URL(route.request().url())
+    searchQuery = url.searchParams.get('q') || ''
+    const source = url.searchParams.get('source') || 'all'
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        items: [
-          {
-            item: {
-              ...summary,
-              id: '123e4567-e89b-42d3-a456-426614174711',
-              title: '深海检索结果',
-              source: { kind: 'webpage', inputMethod: 'url' },
-              tags: [{ id: 'tag-search', name: '深海', status: 'applied', origin: 'ai' }],
-            },
-            matchedFields: ['title', 'tag'],
-            highlights: { title: ['深海检索结果'] },
-          },
-        ],
+        items:
+          source === 'manual'
+            ? []
+            : [
+                {
+                  item: {
+                    ...summary,
+                    id: '123e4567-e89b-42d3-a456-426614174711',
+                    title: '深海检索结果',
+                    source: { kind: 'webpage', inputMethod: 'url' },
+                    tags: [
+                      { id: 'tag-search', name: '深海', status: 'applied', origin: 'ai' },
+                    ],
+                  },
+                  matchedFields: ['title', 'tag'],
+                  highlights: { title: ['深海检索结果'] },
+                },
+              ],
         nextCursor: null,
         degraded: false,
       }),
@@ -744,16 +751,95 @@ test('searches knowledge from the library and keeps source filters', async ({ pa
   await page.screenshot({ path: 'test-results/library-tablet.png', fullPage: true })
 })
 
+test('paginates the knowledge library on the server and filters by source', async ({ page }) => {
+  const pageTwo = {
+    ...summary,
+    id: '123e4567-e89b-42d3-a456-426614174720',
+    title: '第二页知识',
+  }
+  const webpageOnly = {
+    ...summary,
+    id: '123e4567-e89b-42d3-a456-426614174721',
+    title: '网页筛选知识',
+    source: { kind: 'webpage', inputMethod: 'url' },
+  }
+  const requests: Array<{ page: number; source: string; limit: number }> = []
+  await page.route(
+    (url) => url.pathname === '/kb/api/v1/knowledge-items',
+    async (route) => {
+      const url = new URL(route.request().url())
+      const pageNumber = Number(url.searchParams.get('page') || '1')
+      const source = url.searchParams.get('source') || 'all'
+      const limit = Number(url.searchParams.get('limit') || '10')
+      requests.push({ page: pageNumber, source, limit })
+      const items =
+        source === 'webpage'
+          ? [webpageOnly]
+          : pageNumber === 2
+            ? [pageTwo]
+            : [summary]
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items,
+          nextCursor: pageNumber < 3 ? String(pageNumber + 1) : null,
+          pageInfo: {
+            page: pageNumber,
+            pageSize: 10,
+            totalItems: source === 'webpage' ? 12 : 24,
+            totalPages: source === 'webpage' ? 2 : 3,
+            sourceCounts: {
+              all: 24,
+              webpage: 12,
+              document: 4,
+              screenshot: 3,
+              text: 2,
+              manual: 3,
+            },
+          },
+        }),
+      })
+    },
+  )
+
+  await page.goto('/kb/library')
+  await expect(page.getByText('第 1 / 3 页 · 共 24 条')).toBeVisible()
+  await expect(page.getByRole('button', { name: /全部 24/ })).toBeVisible()
+
+  await page.getByRole('button', { name: '第 2 页' }).click()
+  await expect(page.getByText('第二页知识')).toBeVisible()
+  await expect(page.getByText('第 2 / 3 页 · 共 24 条')).toBeVisible()
+  expect(requests.at(-1)).toEqual({ page: 2, source: 'all', limit: 10 })
+
+  await page.getByRole('button', { name: /网页/ }).click()
+  await expect(page.getByText('网页筛选知识')).toBeVisible()
+  await expect(page.getByText('第 1 / 2 页 · 共 12 条')).toBeVisible()
+  expect(requests.at(-1)).toEqual({ page: 1, source: 'webpage', limit: 10 })
+})
+
 test('recycles one knowledge item from the library', async ({ page }) => {
   let deletedId = ''
+  let currentItems = [summary]
   await page.route('**/kb/api/v1/knowledge-items/*', async (route) => {
     if (route.request().method() === 'DELETE') {
       deletedId = new URL(route.request().url()).pathname.split('/').pop() || ''
+      currentItems = []
       await route.fulfill({ status: 204, body: '' })
       return
     }
     await route.fallback()
   })
+  await page.route(
+    (url) => url.pathname === '/kb/api/v1/knowledge-items',
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: currentItems, nextCursor: null }),
+      })
+    },
+  )
 
   await page.goto('/kb/library')
   await page.getByRole('button', { name: `删除 ${summary.title}` }).click()
@@ -772,9 +858,11 @@ test('selects and recycles multiple knowledge items in one request', async ({ pa
     title: '第二份知识',
   }
   let requestedIds: string[] = []
+  let currentItems = [summary, second]
   await page.route('**/kb/api/v1/knowledge-items**', async (route) => {
     if (route.request().method() === 'POST' && route.request().url().includes('/bulk-recycle')) {
       requestedIds = (route.request().postDataJSON() as { itemIds: string[] }).itemIds
+      currentItems = currentItems.filter((item) => !requestedIds.includes(item.id))
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -786,7 +874,7 @@ test('selects and recycles multiple knowledge items in one request', async ({ pa
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        items: [summary, second],
+        items: currentItems,
         nextCursor: null,
       }),
     })

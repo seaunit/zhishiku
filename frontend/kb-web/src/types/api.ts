@@ -108,6 +108,7 @@ export interface KnowledgeItem extends Omit<KnowledgeItemSummary, 'bodyPreview'>
 export interface KnowledgeItemPage {
   items: KnowledgeItemSummary[]
   nextCursor: string | null
+  pageInfo?: KnowledgePageInfo
 }
 
 export interface BulkRecycleResponse {
@@ -124,6 +125,15 @@ export interface SearchResponse {
   items: SearchHit[]
   nextCursor: string | null
   degraded: boolean
+  pageInfo?: KnowledgePageInfo
+}
+
+export interface KnowledgePageInfo {
+  page: number
+  pageSize: number
+  totalItems: number
+  totalPages: number
+  sourceCounts: Record<string, number>
 }
 
 export interface ExternalSearchCandidate {
