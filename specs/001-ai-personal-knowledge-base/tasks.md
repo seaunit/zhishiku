@@ -666,7 +666,9 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   正文为空时，仅在缓存正文足够时使用该候选正文继续脱敏和 AI 整理。系统不会为预检逐条调用 Fetch，
   也不遍历候选中的链接。
 - 验证：DeepSeek Provider 请求与响应测试、无正文过滤测试、Fetch 失败正文兜底测试通过；后端完整
-  Maven 测试通过；前端既有 53 项 Vitest 与 51 项 Playwright 通过。
+  Maven 测试通过；前端既有 53 项 Vitest 与 51 项 Playwright 通过。使用本地真实账号复测
+  “梁文峰”：8 条有正文候选保持可见，先前 Fetch 返回 404 的 36Kr 候选通过同次 Search 正文成功
+  整理并生成 6 条知识；本次搜索结算 1 点、整理成功结算 5 点，验证后已清理 6 条测试知识。
 - 证据：`DeepSeekWebProvider.java`、`ExternalSearchService.java`、
   `DeepSeekWebProviderTest.java`、`ExternalSearchServiceTest.java`、`AGENTS.md`、
   `contracts/openapi.yaml`。
