@@ -774,9 +774,10 @@
 }
 
 .panel-heading {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: flex-start;
-  justify-content: space-between;
+  min-height: 68px;
   gap: 16px;
   padding: 16px 18px 14px;
   border-bottom: 1px solid var(--rule);
@@ -792,15 +793,25 @@
   margin-top: 3px;
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.45;
 }
 
 .panel-heading.compact {
-  padding: 14px 14px 12px;
+  padding: 16px 18px 14px;
 }
 
 .panel-icon {
   flex: none;
   color: var(--faint);
+}
+
+.panel-heading > .text-link,
+.panel-heading > .panel-icon {
+  display: inline-flex;
+  min-height: 20px;
+  align-items: center;
+  align-self: start;
+  margin-top: 0;
 }
 
 .text-link {
