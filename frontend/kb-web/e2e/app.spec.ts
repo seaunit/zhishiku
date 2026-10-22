@@ -960,6 +960,68 @@ test('shows pricing, balance, and automatic charging controls', async ({ page })
   })
 })
 
+test('shows reservation and settlement without double-counting a charge', async ({ page }) => {
+  await page.route('**/kb/api/v1/billing/account', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        availablePoints: 94,
+        reservedPoints: 0,
+        trialPoints: 94,
+        purchasedPoints: 0,
+        updatedAt: new Date().toISOString(),
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/ledger**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: '5',
+            operationType: 'settle',
+            availableDelta: 0,
+            reservedDelta: -3,
+            consumedDelta: 3,
+            availableAfter: 94,
+            reservedAfter: 0,
+            referenceType: 'ai_task',
+            referenceId: 'task-2',
+            description: null,
+            createdAt: '2026-10-22T11:26:57Z',
+          },
+          {
+            id: '4',
+            operationType: 'reserve',
+            availableDelta: -3,
+            reservedDelta: 3,
+            consumedDelta: 0,
+            availableAfter: 94,
+            reservedAfter: 3,
+            referenceType: 'ai_task',
+            referenceId: 'task-2',
+            description: null,
+            createdAt: '2026-10-22T11:26:56Z',
+          },
+        ],
+        nextCursor: null,
+      }),
+    })
+  })
+
+  await page.goto('/kb/billing')
+
+  await expect(page.locator('.billing-balance-value')).toHaveText('94')
+  await expect(page.getByText('冻结 3', { exact: true })).toBeVisible()
+  await expect(page.getByText('已扣 3', { exact: true })).toBeVisible()
+  await expect(page.getByText('可用 94 · 冻结 3', { exact: true })).toBeVisible()
+  await expect(page.getByText('可用 94 · 冻结 0', { exact: true })).toBeVisible()
+  await expect(page.getByText('-3', { exact: true })).toHaveCount(0)
+})
+
 test('disables point purchases when the payment channel is unavailable', async ({ page }) => {
   await page.route('**/kb/api/v1/billing/catalog', async (route) => {
     await route.fulfill({

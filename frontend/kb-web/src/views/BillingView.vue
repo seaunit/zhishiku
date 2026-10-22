@@ -153,8 +153,10 @@
                 <small>{{ formatDate(entry.createdAt) }} · {{ entry.referenceType }}</small>
               </span>
               <span class="billing-row-side">
-                <b class="num" :class="{ negative: delta(entry) < 0 }">{{ signed(delta(entry)) }}</b>
-                <small>{{ tx('余额', 'Balance') }} {{ entry.availableAfter }}</small>
+                <b class="num" :class="{ negative: ledgerIsCharge(entry) }">
+                  {{ ledgerMovementLabel(entry, locale) }}
+                </b>
+                <small>{{ ledgerPositionLabel(entry, locale) }}</small>
               </span>
             </article>
             <p v-if="!ledger.length" class="empty-state">{{ tx('还没有点数变化。', 'No point activity yet.') }}</p>
@@ -242,6 +244,11 @@ import {
   openBillingCheckout,
   updateAutoChargePolicy,
 } from '@/api/client'
+import {
+  ledgerIsCharge,
+  ledgerMovementLabel,
+  ledgerPositionLabel,
+} from '@/lib/billing-ledger'
 import type {
   BillingAccount,
   BillingAutoChargePolicy,
@@ -286,16 +293,6 @@ function tx(zh: string, en: string) {
 
 function money(value: number) {
   return (value / 100).toFixed(2)
-}
-
-function signed(value: number) {
-  return value > 0 ? `+${value}` : String(value)
-}
-
-function delta(entry: BillingLedgerEntry) {
-  if (entry.availableDelta !== 0) return entry.availableDelta
-  if (entry.reservedDelta !== 0) return entry.reservedDelta
-  return entry.consumedDelta
 }
 
 function formatDate(value: string) {
