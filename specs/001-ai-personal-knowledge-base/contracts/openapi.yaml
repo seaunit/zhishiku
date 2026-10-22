@@ -6,6 +6,8 @@ info:
     面向多账号隔离式 AI 个人知识库的内部 HTTP 契约。每个账号只访问自己的知识、
     附件、搜索、会话和 AI 授权；兼容字段 ownerId 的语义是当前账号 ID。
     权威数据存储为私有资源；互联网搜索和 AI 调用需要用户显式操作并提供匹配的授权。
+    纯互联网搜索固定 1 点，入口点击即视为本次扣费同意；客户端自动创建并确认报价后调用，
+    不增加搜索二次确认。
     付费 AI 还必须引用 002 计费契约中的有效报价/计费任务；余额不足返回 402 且不启动 AI。
 servers:
   - url: http://127.0.0.1:8082/kb
@@ -297,7 +299,11 @@ paths:
     post:
       tags: [搜索]
       operationId: searchInternet
-      summary: 仅将查询发送给已授权的互联网搜索提供商。
+      summary: 在一次用户点击并自动确认 1 点报价后，将查询发送给已授权的互联网搜索提供商。
+      description: >-
+        调用方必须先为 operation=internet_search 创建并确认报价。界面入口显示“互联网搜索 · 1 点”；
+        用户点击一次即同意本次搜索和 1 点扣费，客户端在同一操作中自动完成报价确认并调用本端点，
+        不得再显示搜索本身的二次确认。余额不足或报价未确认时返回 402。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
         - $ref: "#/components/parameters/BillingTaskId"
@@ -1870,10 +1876,15 @@ components:
         explicitConsent:
           type: boolean
           const: true
+          description: >-
+            表示用户单击“互联网搜索 · 1 点”入口后的明确外部搜索及本次 1 点扣费同意；
+            该单击不要求额外的搜索确认步骤。
         includeAnswer:
           type: boolean
           default: false
-          description: false 为 3 点搜索；true 为搜索 3 点加单次回答 2 点。
+          description: >-
+            false 为纯搜索，固定 1 点；true 为搜索 1 点加单次回答 2 点，共 3 点。
+            组合价格也必须在唯一一次点击前展示。
     ExternalSearchCandidate:
       type: object
       required: [candidateId, title, url, snippet, provider]

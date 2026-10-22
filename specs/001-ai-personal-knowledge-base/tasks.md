@@ -102,12 +102,12 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [x] T088 [P1] [US3] 在采集页恢复手动录入、网页链接、文档和截图四个入口；网页链接改为单页截图 OCR 和 AI 拆分入库，TXT/Markdown 与图片文件入库，剪贴板截图后续由 008 改为 OCR 拆分；PDF/Word 解析后续由 007 接入
 - [x] T089 [P0] [US4] 在首页恢复“继续搜索互联网”，接入 DeepSeek Search/Fetch Provider、显式同意、短期候选、来源打开与收入知识库，并保持本地结果优先
 - [x] T090 [P0] [US1] 统一首页、知识库、待处理和详情页的分类占位与处理状态映射；无分类显示“未分类”，`not_requested` 显示“未整理”，未知状态不再默认显示“已整理”
-- [x] T091 [P0] [US4] 保持首页“继续搜索互联网”入口初始可见；未完成本地检索时禁用并提示，本地检索完成后启用，点击后才发送查询
+- [x] T091 [P0] [US4] 保持首页“继续搜索互联网”入口初始可见；未完成本地检索时禁用并提示，本地检索完成后启用，点击后才发送查询。该版本的二次点击流程已由 T104 取代
 - [x] T092 [P0] [US3] [US4] 统一采集边界：手动录入唯一可直存，AI 文字、网页、文档、文档图片、截图和互联网候选全部在 AI 整理成功后入库；同步宪法、AGENTS、SDD、OpenAPI、前端、原型和测试
 
 ## 阶段 6：用户故事 4 — 互联网搜索与候选保存
 
-- [ ] T053 [P1] [P] [US4] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/search/external/` 中验证显式同意、计费、候选 TTL 和保存幂等
+- [ ] T053 [P1] [P] [US4] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/search/external/` 中验证单击 1 点同意、自动报价确认、搜索扣点、候选 TTL 和保存幂等
 - [ ] T054 [P1] [US4] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/provider/deepseek/search/` 中实现 Search/Fetch Provider
 - [ ] T055 [P1] [US4] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/search/external/` 中实现短期候选、过期清理和保存事务
 - [ ] T056 [P1] [US4] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/api/search/` 中实现外部搜索和保存候选 API
@@ -170,6 +170,10 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [x] T103 [P0] 在知识库列表页实现服务端检索、命中字段、单条移入回收站、三态全选、原子批量回收、
   持久化幂等重试、失败保留和选择清理；同步 OpenAPI、数据模型、原型、中英文文案及桌面/平板/手机
   E2E，并验证 320–430px 触控与溢出。
+- [x] T104 [P0] 将纯互联网搜索统一为固定 1 点、入口点击一次即自动创建并确认报价后直接搜索，
+  取消搜索本身的二次确认；同步 001 规格、计划、数据模型、OpenAPI、快速验证、检查清单、原型说明，
+  并在 002 同步价格、报价事务和验收任务。本文档任务只记录 SDD 同步完成，代码、迁移和自动化测试
+  仍由后续开发/测试任务执行。
 
 ## 依赖关系
 
@@ -487,10 +491,12 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 执行子智能体：产品、开发、测试
 - Git commit：`bd9972e`
 - 摘要：恢复本地优先的联网搜索，并接入 DeepSeek Search 与单 URL Fetch。
-- 详情：首页在本地搜索完成后显示“继续搜索互联网”；用户再次点击且显式同意后，后端使用
+- 详情：首页在本地搜索完成后显示“继续搜索互联网”；该历史版本要求用户再次点击且显式同意，后端使用
   `SHIHAI_DEEPSEEK_SEARCH_API_KEY` 调用官方 Search API，只发送搜索词。候选绑定当前账号并短期缓存；
   用户选择“收入识海”后，后端使用 `SHIHAI_DEEPSEEK_FETCH_API_KEY` 获取单个 URL 的 Markdown，转换为
   富文本并以 `internet_result` 来源保存。
+- 后续变更：T104 已将交互调整为“互联网搜索 · 1 点”，入口单击即自动确认报价并直接搜索，
+  不再保留搜索本身的二次确认。
 - 验证：Provider Search/Fetch 协议、Bearer 认证和响应映射测试通过；候选归属与保存来源测试
   通过；前端 E2E 验证本地结果先显示、点击前不联网、显式同意字段和候选保存。生产
   `v0.1.19-mvp` 已确认前端入口存在，Search 返回 3 条真实结果，单 URL Fetch 返回 2866
@@ -533,7 +539,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - Git commit：`0a7ff59`
 - 摘要：恢复首页联网搜索入口的可发现性。
 - 详情：入口不再依赖 `searchedQuery` 才渲染；初始状态显示“继续搜索互联网”并禁用，提示先完成
-  本地检索。本地搜索完成后按钮启用，仍需再次点击才调用 DeepSeek Search；原型同步更新。
+  本地检索。本地搜索完成后按钮启用，该版本仍需再次点击才调用 DeepSeek Search；原型同步更新。
+  后续由 T104 改为入口显示 1 点，单击即自动确认报价并直接搜索。
 - 验证：Playwright 验证初始按钮可见且禁用、本地检索后启用、点击前外部请求为 0；Vitest 44 项、
   Playwright 32 项、lint、typecheck、build 和 Taste lint 通过。
 - 证据：`frontend/kb-web/src/views/HomeView.vue`、`frontend/kb-web/e2e/app.spec.ts`、
@@ -604,3 +611,22 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 风险与回滚：本机 Docker 不可用，Testcontainers PostgreSQL 用例执行 0 项；100 条以上结果尚无游标
   分页，来源计数可能不完整；真实 iOS Safari、Android Chrome、软键盘、物理安全区和屏幕阅读器仍由
   T073/T102/003 T036 承载。回滚接口和前端交互不需要数据库迁移，已回收数据仍可按既有流程恢复。
+
+### 完成记录：T104
+
+- 日期：2026-10-22
+- 状态：SDD 文档同步已完成；生产代码、数据库迁移和自动化验收未由本任务执行
+- 执行子智能体：产品
+- Git commit：未提交
+- 摘要：纯互联网搜索固定 1 点，入口单击即自动确认报价并直接搜索，取消搜索本身的二次确认。
+- 详情：001 规格明确入口文案“互联网搜索 · 1 点”、单击同意扣费、自动报价确认和直接搜索；
+  AI 回答仍按 2 点另计，选择回答时点击前显示 1 + 2 = 3 点。计划、数据模型、OpenAPI、
+  快速验证、检查清单和原型说明同步该流程。历史记录中的“继续搜索互联网”二次点击仅代表旧版本，
+  不再是当前验收口径。
+- 验证：检索相关文档中的旧“搜索每次 3 点”与搜索二次确认表述；检查标题、任务编号、相对路径和
+  中英文事实边界。未运行生产代码、数据库迁移或测试代码的自动化验证。
+- 证据：`specs/001-ai-personal-knowledge-base/`、`specs/002-ai-credit-billing/`、
+  `prototype/README.md`。
+- 覆盖：FR-009、FR-079、SC-021，以及 002 FR-035、FR-038、SC-026。
+- 风险与回滚：当前前端和后端实现尚未由本任务修改，部署验收前仍可能出现 3 点报价或二次确认；
+  开发与测试任务必须按此规格补齐。文档回滚会恢复旧的 3 点和二次确认口径。

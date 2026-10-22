@@ -76,14 +76,14 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 
 **目标**：所有付费 AI 使用服务端报价和任务级预留。
 
-- [ ] T033 [P0] [P] [US2] 在 `frontend/kb-web/src/features/billing/__tests__/quote-confirmation.spec.ts` 中验证分项、总上限、余额、有效期和确认
+- [ ] T033 [P0] [P] [US2] 在 `frontend/kb-web/src/features/billing/__tests__/quote-confirmation.spec.ts` 中验证分项、总上限、余额、有效期和确认；纯互联网搜索另验证单击自动确认 1 点报价且不出现二次确认
 - [ ] T034 [P0] [US2] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/billing/catalog/` 中实现版本化点率和套餐目录
 - [ ] T035 [P0] [US2] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/billing/quote/` 中实现报价 API、图片资源解析和唯一内容数量
 - [ ] T036 [P0] [US2] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/billing/task/` 中实现确认、余额检查、原子预留和计费任务
 - [ ] T037 [P0] [US2] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/billing/settlement/` 中实现成功步骤结算、失败释放和迟到结果忽略
-- [ ] T038 [P0] [US2] 在 `frontend/kb-web/src/features/billing/` 中实现报价确认、余额不足、预计剩余和自动扣点上限
+- [ ] T038 [P0] [US2] 在 `frontend/kb-web/src/features/billing/` 中实现报价确认、余额不足、预计剩余和自动扣点上限；纯互联网搜索入口显示 1 点，单击后自动确认报价并直接搜索，不显示搜索二次确认
 - [ ] T039 [P0] [US2] 在 `backend/kb-app/src/main/java/site/seaunit/zhishiku/billing/autocharge/` 中实现独立自动扣点授权、单次和每日上限
-- [ ] T040 [P0] [US2] 在 `tests/e2e/billing-ai-charge.spec.ts` 中验证网页、文档、OCR、搜索、回答和分类计费
+- [ ] T040 [P0] [US2] 在 `tests/e2e/billing-ai-charge.spec.ts` 中验证网页、文档、OCR、搜索、回答和分类计费，并验证纯搜索单击只扣 1 点、无二次确认
 - [ ] T041 [P0] [US2] 在 `backend/kb-app/src/test/java/site/seaunit/zhishiku/billing/idempotency/` 中验证同键同体、同键异体、并发结算和重放
 
 ## 阶段 5：用户故事 3 — 余额不足与内容保留
@@ -170,6 +170,14 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
   `node_modules`，避免部署后桥接缺少 SDK 或脚本不可执行。
 - [x] T087 [P0] 将识海专用环境变量统一为 `SHIHAI_` 前缀，在后端、Waffo 桥接和部署脚本中
   实现新名优先、旧名同值双写、冲突失败关闭，并同步示例、SDD、测试和设备文档。
+- [x] T088 [P0] 将纯互联网搜索同步为固定 1 点、入口单击即自动创建并确认报价后直接搜索，
+  取消搜索本身的二次确认；更新 002 规格、计划、研究、数据模型、OpenAPI、快速验证、检查清单和
+  任务表，并在 001 同步用户流程与原型说明。本文档任务只记录 SDD 同步完成，代码、迁移和自动化
+  测试由后续开发/测试任务执行。
+- [x] T089 [P0] 实现纯互联网搜索固定 1 点：新增 `V0015` 更新 active 计费目录，同步后端默认点率、
+  首页单次点击自动报价、确认和搜索、中英文成本文案及原型入口。
+- [x] T090 [P0] 通过公开报价集成测试和 Playwright E2E 验证 1 点报价、请求顺序、无搜索二次确认、
+  失败重试保留幂等状态，并执行前端与后端完整回归门禁。
 
 ## 依赖关系
 
@@ -237,3 +245,73 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - 风险与回滚：本机 Docker 不可用，Testcontainers PostgreSQL 用例执行 0 项；本机无
   `shellcheck`，部署脚本仅完成 `bash -n` 与函数级黑盒检查。旧别名至少保留一个稳定版本；
   回滚 release 可读取双写旧名，不得在回滚目标迁移前删除旧别名。
+
+### 完成记录：T088
+
+- 日期：2026-10-22
+- 状态：SDD 文档同步已完成；生产代码、数据库迁移和自动化验收未由本任务执行
+- 执行子智能体：产品
+- Git commit：未提交
+- 摘要：纯互联网搜索固定 1 点，入口单击即自动确认报价并直接搜索，取消搜索本身的二次确认。
+- 详情：002 规格、计划、研究、数据模型、OpenAPI、快速验证、需求和验收清单已统一为
+  `internet_search=1` 点；`ai_answer` 仍为 2 点，组合报价上限为 3 点。用户单击
+  “互联网搜索 · 1 点”即表示本次扣费同意，客户端自动串联创建报价、确认报价和搜索；
+  服务端仍保留报价、确认、预留、幂等和结算事实。生产价格调整必须新增后续迁移，不得改写
+  已应用的 `V0009__billing.sql`。
+- 验证：检索 001/002 中文 SDD、OpenAPI 和原型说明中的旧 3 点、5 点组合及搜索二次确认表述；
+  检查任务编号、文档层级和跨文档 1 + 2 = 3 组合口径。未运行生产代码、数据库迁移或测试代码的
+  自动化验证。
+- 证据：`specs/001-ai-personal-knowledge-base/`、`specs/002-ai-credit-billing/`、
+  `prototype/README.md`。
+- 覆盖：FR-023、FR-024、FR-035、FR-038、FR-085、SC-026。
+- 风险与回滚：当前后端计费种子和前端交互尚未由本任务修改，真实部署仍可能报价 3 点或显示
+  二次确认；开发需新增价格迁移并接入单击自动确认，测试需完成浏览器与账本验收。文档回滚会
+  恢复旧的 3 点及二次确认口径。
+
+### 完成记录：T089
+
+- 日期：2026-10-22
+- 状态：实现完成，等待本次提交归档
+- 执行子智能体：开发
+- Git commit：未提交
+- 摘要：纯互联网搜索固定 1 点，首页单击一次自动完成报价、确认和搜索。
+- 详情：新增 `V0015__internet_search_one_point.sql`，只更新 active 计费目录中的
+  `internet_search`，保留历史报价与任务快照；同步 `BillingModel` 默认点率。首页入口显示
+  “互联网搜索 · 1 点”，点击后自动创建并确认报价，随后立即搜索；失败重试复用未完成报价、
+  已确认任务和搜索幂等键，避免重复预留。移除搜索扣费确认条及不再使用的样式，中英文文案和
+  静态原型同步。候选“AI 整理后收入”的独立确认流程保持不变。
+- 验证：`pnpm lint`、`pnpm typecheck`、`pnpm test`（48 项）、`pnpm build` 通过；隔离
+  PostgreSQL 上 `BillingQuotePricingTest` 1 项通过；标准 `.\mvnw.cmd test` 中 kb-core 23 项、
+  kb-app 226 项、browser worker 1 项通过；`.\mvnw.cmd spotless:check` 和
+  `git diff --check` 通过。
+- 证据：`backend/kb-app/src/main/resources/db/migration/V0015__internet_search_one_point.sql`、
+  `backend/kb-core/src/main/java/site/seaunit/zhishiku/core/billing/BillingModel.java`、
+  `frontend/kb-web/src/views/HomeView.vue`、`frontend/kb-web/src/i18n.ts`、`prototype/app.js`、
+  `prototype/index.html`。
+- 覆盖：FR-023、FR-024、FR-035、FR-038、FR-085；SC-026 的 1 点、单击直接搜索和零二次确认部分。
+- 风险与回滚：本机 Docker 不可用，标准 Maven 套件无法直接执行 Testcontainers 用例；本次
+  公开报价测试另用隔离 PostgreSQL 执行。迁移只改 active 目录，未来新建目录必须继续写入 1 点；
+  回滚需部署包含 V0009 的上一 release，并保留 V0015 已执行记录，不得改写历史迁移。
+
+### 完成记录：T090
+
+- 日期：2026-10-22
+- 状态：自动化验收完成，等待本次提交归档
+- 执行子智能体：测试
+- Git commit：未提交
+- 摘要：纯搜索一次点击只产生一次报价、一次确认和一次搜索，页面不出现搜索扣费二次确认。
+- 详情：新增 Playwright 用例断言按钮点击前显示 1 点、请求严格依次为创建报价、确认报价和搜索、
+  确认请求上限为 1、搜索请求携带已确认计费任务 ID，并断言“互联网搜索点数”和
+  “确认 N 点并搜索”出现次数为 0。同步旧互联网搜索用例，保留候选 AI 整理入库的独立确认。
+- 验证：目标 Playwright 用例先按预期 RED（仅创建报价、显示 3 点二次确认），实现后 GREEN；
+  两条互联网搜索 E2E 均通过；完整 E2E 49 项通过、2 项真实环境用例跳过；原型在 390px
+  真实 Chrome 下显示 1 点并一次点击得到 3 条结果、二次确认数量为 0；Taste app lint 通过，
+  真实浏览器 1440/768/390 检查在保留既有 Public Sans 与 11–12px 辅助文本的前提下
+  为 0 FAIL、0 WARN。
+- 证据：`frontend/kb-web/e2e/app.spec.ts`、
+  `backend/kb-app/src/test/java/site/seaunit/zhishiku/billing/BillingQuotePricingTest.java`、
+  `.taste-skill/internet-search-one-point-final/report.json`。
+- 覆盖：SC-026；FR-085。
+- 风险与回滚：E2E 使用受控 API 夹具，不证明生产 DeepSeek 每次都能返回结果；失败不扣点依赖
+  既有计费释放逻辑，仍需在生产 API 回归中观察账本。视觉检查允许项为既有原型固定字体和
+  辅助文本字号，不属于本次交互改动。

@@ -38,7 +38,7 @@ public final class BillingModel {
     WEBPAGE_VISION("webpage_vision", Unit.VIEW, 10, "visible_text_extracted"),
     DOCUMENT_EXTRACT("document_extract", Unit.PER_10K_CHARS, 10, "document_text_extracted"),
     SCREENSHOT_OCR("screenshot_ocr", Unit.IMAGE, 10, "screenshot_text_extracted"),
-    INTERNET_SEARCH("internet_search", Unit.QUERY, 3, "search_completed"),
+    INTERNET_SEARCH("internet_search", Unit.QUERY, 1, "search_completed"),
     AI_ANSWER("ai_answer", Unit.ANSWER, 2, "answer_displayed");
 
     private final String wireValue;
@@ -158,7 +158,8 @@ public final class BillingModel {
       String descriptionZh,
       String descriptionEn) {}
 
-  public record QuoteLine(Feature feature, Unit unit, int quantity, int unitPoints, int maxPoints) {}
+  public record QuoteLine(
+      Feature feature, Unit unit, int quantity, int unitPoints, int maxPoints) {}
 
   public record CatalogSnapshot(
       java.util.UUID versionId,
@@ -208,12 +209,18 @@ public final class BillingModel {
   public static void transitionTask(TaskStatus from, TaskStatus to) {
     boolean allowed =
         switch (from) {
-          case QUOTED -> to == TaskStatus.CONFIRMED || to == TaskStatus.EXPIRED || to == TaskStatus.CANCELLED;
-          case CONFIRMED -> to == TaskStatus.RESERVED || to == TaskStatus.INSUFFICIENT || to == TaskStatus.EXPIRED;
-          case RESERVED -> to == TaskStatus.RUNNING || to == TaskStatus.RELEASED || to == TaskStatus.EXPIRED;
-          case RUNNING -> to == TaskStatus.SETTLED
-              || to == TaskStatus.RELEASED
-              || to == TaskStatus.MANUAL_REVIEW;
+          case QUOTED ->
+              to == TaskStatus.CONFIRMED || to == TaskStatus.EXPIRED || to == TaskStatus.CANCELLED;
+          case CONFIRMED ->
+              to == TaskStatus.RESERVED
+                  || to == TaskStatus.INSUFFICIENT
+                  || to == TaskStatus.EXPIRED;
+          case RESERVED ->
+              to == TaskStatus.RUNNING || to == TaskStatus.RELEASED || to == TaskStatus.EXPIRED;
+          case RUNNING ->
+              to == TaskStatus.SETTLED
+                  || to == TaskStatus.RELEASED
+                  || to == TaskStatus.MANUAL_REVIEW;
           case SETTLED, RELEASED, EXPIRED, INSUFFICIENT, CANCELLED, MANUAL_REVIEW -> false;
         };
     if (!allowed) {

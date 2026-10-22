@@ -260,6 +260,10 @@ paths:
       tags: [AI 报价]
       operationId: createBillingQuote
       summary: 根据服务端目录生成组合 AI 任务费用上限。
+      description: >-
+        operation=internet_search 时，服务端必须返回固定 1 点的纯搜索报价。界面入口显示
+        “互联网搜索 · 1 点”，用户单击一次即表示确认本次扣费；客户端随后自动调用确认端点
+        并立即搜索，不得在搜索前再请求一次用户确认。
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -286,6 +290,9 @@ paths:
       tags: [AI 报价]
       operationId: confirmBillingQuote
       summary: 确认费用上限并为 AI 任务原子预留点数。
+      description: >-
+        该端点仍保留服务端确认与幂等事实。纯互联网搜索由入口单击触发客户端自动确认 1 点报价，
+        不要求额外界面步骤；其他付费任务仍按各自确认或自动扣点授权规则执行。
       parameters:
         - $ref: "#/components/parameters/QuoteId"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -1158,6 +1165,9 @@ components:
         explicitConsent:
           type: boolean
           const: true
+          description: >-
+            用户对本次报价上限的确认。纯互联网搜索由“互联网搜索 · 1 点”入口的一次点击产生，
+            客户端自动提交，不得形成第二次搜索确认。
     BillingTask:
       type: object
       required:

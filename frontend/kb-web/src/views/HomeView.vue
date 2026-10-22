@@ -146,11 +146,7 @@
             <span>
               <strong>
                 <Globe2 :size="16" />
-                {{
-                  externalQuote
-                    ? t('home.confirmSearchPoints', { points: externalQuote.maxPoints })
-                    : t('home.internetSearch')
-                }}
+                {{ t('home.internetSearchWithPoints', { points: 1 }) }}
               </strong>
               <small>
                 {{
@@ -172,27 +168,6 @@
               </span>
               <span v-else>{{ externalItems.length }}</span>
             </header>
-
-            <div v-if="externalQuote" class="external-quote">
-              <span>
-                <strong>{{ t('home.externalQuoteTitle') }}</strong>
-                <small>{{ t('home.externalQuoteBalance', {
-                  available: externalQuote.availablePoints,
-                  remaining: externalQuote.projectedRemainingPoints,
-                }) }}</small>
-              </span>
-              <span class="external-quote-action">
-                <b class="num">{{ t('home.points', { points: externalQuote.maxPoints }) }}</b>
-                <button
-                  type="button"
-                  class="button secondary"
-                  :disabled="externalLoading"
-                  @click="searchExternalInternet"
-                >
-                  {{ t('home.confirmSearchPoints', { points: externalQuote.maxPoints }) }}
-                </button>
-              </span>
-            </div>
 
             <div v-if="externalError" class="inline-error external-error" role="alert">
               <CircleAlert :size="18" />
@@ -390,6 +365,7 @@ const externalError = ref('')
 const externalItems = ref<ExternalSearchCandidate[]>([])
 const savingCandidateId = ref('')
 const externalQuote = ref<BillingQuote | null>(null)
+const externalTaskId = ref('')
 const candidateQuote = ref<BillingQuote | null>(null)
 const candidateQuoteId = ref('')
 const externalSearchKey = ref('')
@@ -470,6 +446,7 @@ async function load() {
   externalError.value = ''
   externalItems.value = []
   externalQuote.value = null
+  externalTaskId.value = ''
   candidateQuote.value = null
   candidateQuoteId.value = ''
   externalSearchKey.value = ''
@@ -512,30 +489,37 @@ async function searchExternalInternet() {
   if (!searchedQuery.value) return
   externalVisible.value = true
   externalError.value = ''
+  externalLoading.value = true
+  externalItems.value = []
   try {
     if (!externalQuote.value) {
       externalQuote.value = await createBillingQuote({
         operation: 'internet_search',
         lines: [{ feature: 'internet_search', quantity: 1 }],
       })
-      return
     }
-    externalLoading.value = true
-    externalItems.value = []
-    const task = await confirmBillingQuote(
-      externalQuote.value.quoteId,
-      externalQuote.value.maxPoints,
-    )
+    if (!externalTaskId.value) {
+      const task = await confirmBillingQuote(
+        externalQuote.value.quoteId,
+        externalQuote.value.maxPoints,
+      )
+      externalTaskId.value = task.id
+    }
     const requestKey =
       externalSearchKey.value ||
       (externalSearchKey.value = createIdempotencyKey('internet-search'))
-    const response = await searchInternet(searchedQuery.value, task.id, false, requestKey)
+    const response = await searchInternet(
+      searchedQuery.value,
+      externalTaskId.value,
+      false,
+      requestKey,
+    )
     externalQuote.value = null
+    externalTaskId.value = ''
     externalSearchKey.value = ''
     externalItems.value = response.items
   } catch (caught) {
     externalError.value = billingMessage(caught)
-    externalQuote.value = null
   } finally {
     externalLoading.value = false
   }

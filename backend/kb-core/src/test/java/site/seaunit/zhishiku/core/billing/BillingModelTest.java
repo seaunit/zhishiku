@@ -13,6 +13,11 @@ import site.seaunit.zhishiku.core.billing.BillingModel.TaskStatus;
 
 class BillingModelTest {
   @Test
+  void internetSearchDefaultRateMatchesPublishedPrice() {
+    assertThat(Feature.INTERNET_SEARCH.defaultPoints()).isEqualTo(1);
+  }
+
+  @Test
   void roundsDocumentCharactersUpToTenThousandCharacterUnits() {
     assertThat(BillingModel.documentQuantity(0)).isEqualTo(1);
     assertThat(BillingModel.documentQuantity(1)).isEqualTo(1);
@@ -22,7 +27,8 @@ class BillingModelTest {
 
   @Test
   void calculatesQuoteLinesAndRejectsImpossibleQuantities() {
-    AiRate rate = new AiRate(Feature.SCREENSHOT_OCR, BillingModel.Unit.IMAGE, 10, "text", "截图", "Image");
+    AiRate rate =
+        new AiRate(Feature.SCREENSHOT_OCR, BillingModel.Unit.IMAGE, 10, "text", "截图", "Image");
     assertThat(BillingModel.quotePoints(rate, 3)).isEqualTo(30);
     assertThatThrownBy(() -> BillingModel.quotePoints(rate, 0))
         .isInstanceOf(IllegalArgumentException.class);
@@ -39,8 +45,7 @@ class BillingModelTest {
     BillingModel.transitionTask(TaskStatus.CONFIRMED, TaskStatus.RESERVED);
     BillingModel.transitionTask(TaskStatus.RESERVED, TaskStatus.RUNNING);
     BillingModel.transitionTask(TaskStatus.RUNNING, TaskStatus.SETTLED);
-    assertThatThrownBy(
-            () -> BillingModel.transitionTask(TaskStatus.SETTLED, TaskStatus.RUNNING))
+    assertThatThrownBy(() -> BillingModel.transitionTask(TaskStatus.SETTLED, TaskStatus.RUNNING))
         .isInstanceOf(IllegalStateException.class);
   }
 
@@ -52,11 +57,7 @@ class BillingModelTest {
         new AiRate(Feature.INTERNET_SEARCH, BillingModel.Unit.QUERY, 3, "query", "搜索", "Search"));
     BillingModel.CatalogSnapshot catalog =
         new BillingModel.CatalogSnapshot(
-            java.util.UUID.randomUUID(),
-            "v1",
-            BillingModel.Environment.TEST,
-            List.of(),
-            rates);
+            java.util.UUID.randomUUID(), "v1", BillingModel.Environment.TEST, List.of(), rates);
     rates.clear();
     assertThat(catalog.rates()).containsKey(Feature.INTERNET_SEARCH);
   }

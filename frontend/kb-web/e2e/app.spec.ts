@@ -296,7 +296,7 @@ test.beforeEach(async ({ page }) => {
       webpage_vision: 10,
       document_extract: 10,
       screenshot_ocr: 10,
-      internet_search: 3,
+      internet_search: 1,
       classify: 5,
     }
     const lines = payload.lines.map((line) => ({
@@ -1623,7 +1623,7 @@ test('continues to internet search only after explicit consent and saves a candi
   )
 
   await page.goto('/kb/')
-  const internetButton = page.getByRole('button', { name: '继续搜索互联网' })
+  const internetButton = page.getByRole('button', { name: '互联网搜索 · 1 点' })
   await expect(internetButton).toBeVisible()
   await expect(internetButton).toBeDisabled()
   await page.getByRole('searchbox', { name: '搜索全部知识' }).fill('DeepSeek')
@@ -1633,8 +1633,6 @@ test('continues to internet search only after explicit consent and saves a candi
 
   await expect(internetButton).toBeEnabled()
   await internetButton.click()
-  await expect(page.getByText('互联网搜索点数')).toBeVisible()
-  await page.getByRole('button', { name: /确认 \d+ 点并搜索/ }).click()
   await expect(page.getByText('DeepSeek Search result')).toBeVisible()
   expect(consentPayload).toMatchObject({
     query: 'DeepSeek',
@@ -1648,6 +1646,129 @@ test('continues to internet search only after explicit consent and saves a candi
   expect(savePayload).toEqual({
     externalAiConsent: true,
     billingTaskId: '123e4567-e89b-42d3-a456-426614174183',
+  })
+})
+
+test('searches the internet once with a one-point click and no second confirmation', async ({
+  page,
+}) => {
+  const requestOrder: string[] = []
+  let quotePayload: Record<string, unknown> | undefined
+  let confirmPayload: Record<string, unknown> | undefined
+  let searchPayload: Record<string, unknown> | undefined
+
+  await page.route('**/kb/api/v1/billing/quotes', async (route) => {
+    requestOrder.push('create quote')
+    quotePayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        quoteId: '123e4567-e89b-42d3-a456-426614174190',
+        status: 'QUOTED',
+        lines: [
+          {
+            feature: 'internet_search',
+            unit: 'entry',
+            quantity: 1,
+            pointsPerUnit: 1,
+            maxPoints: 1,
+            successRule: 'success',
+          },
+        ],
+        imageResources: [],
+        maxPoints: 1,
+        availablePoints: 100,
+        projectedRemainingPoints: 99,
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+        autoChargeEligible: false,
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/quotes/*/confirm', async (route) => {
+    requestOrder.push('confirm quote')
+    confirmPayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: '123e4567-e89b-42d3-a456-426614174191',
+        status: 'RESERVED',
+        lines: [],
+        maxPoints: 1,
+        settledPoints: 0,
+        reservedPoints: 1,
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+        autoChargeApplied: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/search/external', async (route) => {
+    requestOrder.push('search')
+    searchPayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            candidateId: '123e4567-e89b-42d3-a456-426614174192',
+            title: 'One-click internet result',
+            url: 'https://www.deepseek.com/',
+            snippet: 'Returned without a second confirmation.',
+            provider: 'DeepSeek',
+            expiresAt: '2026-10-22T12:15:00Z',
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/kb/')
+  await page.getByRole('searchbox', { name: '搜索全部知识' }).fill('DeepSeek')
+  await page.getByRole('button', { name: '潜入检索' }).click()
+  await expect(page.getByText('找到 1 条知识')).toBeVisible()
+
+  const internetButton = page.getByRole('button', { name: /互联网搜索 · 1 点/ })
+  await expect(internetButton).toBeEnabled()
+  const labelBeforeClick = (await internetButton.innerText()).replace(/\s+/g, ' ')
+  await internetButton.click()
+
+  await expect
+    .poll(
+      async () => {
+        if (requestOrder.length >= 3) return 'searched'
+        if (await page.getByText('互联网搜索点数').isVisible()) {
+          return 'awaiting confirmation'
+        }
+        return 'pending'
+      },
+      { timeout: 3_000 },
+    )
+    .not.toBe('pending')
+
+  expect.soft(labelBeforeClick).toContain('1 点')
+  expect.soft(requestOrder).toEqual(['create quote', 'confirm quote', 'search'])
+  await expect.soft(page.getByText('互联网搜索点数')).toHaveCount(0)
+  await expect
+    .soft(page.getByRole('button', { name: /确认 \d+ 点并搜索/ }))
+    .toHaveCount(0)
+  await expect.soft(page.getByText('One-click internet result')).toBeVisible()
+  expect.soft(quotePayload).toMatchObject({
+    operation: 'internet_search',
+    lines: [{ feature: 'internet_search', quantity: 1 }],
+  })
+  expect.soft(confirmPayload).toEqual({
+    expectedMaxPoints: 1,
+    explicitConsent: true,
+  })
+  expect.soft(searchPayload).toMatchObject({
+    query: 'DeepSeek',
+    explicitConsent: true,
+    includeAnswer: false,
+    billingTaskId: '123e4567-e89b-42d3-a456-426614174191',
   })
 })
 

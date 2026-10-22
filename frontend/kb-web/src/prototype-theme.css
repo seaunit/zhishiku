@@ -2911,36 +2911,6 @@
   background: var(--raised);
 }
 
-.external-quote {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
-  background: var(--raised);
-}
-
-.external-quote > span {
-  display: grid;
-  gap: 3px;
-}
-
-.external-quote small {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.external-quote b {
-  white-space: nowrap;
-}
-
-.external-quote-action {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .billing-quote header,
 .billing-quote footer,
 .billing-quote li {
@@ -2982,20 +2952,6 @@
 }
 
 @media (max-width: 560px) {
-  .external-quote,
-  .external-quote-action {
-    align-items: stretch;
-  }
-
-  .external-quote,
-  .external-quote-action {
-    display: grid;
-  }
-
-  .external-quote-action .button {
-    width: 100%;
-  }
-
   .billing-quote header,
   .billing-quote footer {
     align-items: flex-start;
