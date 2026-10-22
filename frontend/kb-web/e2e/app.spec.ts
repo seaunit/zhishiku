@@ -693,6 +693,234 @@ test('opens every prototype navigation destination', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: '设置' })).toBeVisible()
 })
 
+test('searches knowledge from the library and keeps source filters', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  let searchQuery = ''
+  await page.route('**/kb/api/v1/search?**', async (route) => {
+    searchQuery = new URL(route.request().url()).searchParams.get('q') || ''
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            item: {
+              ...summary,
+              id: '123e4567-e89b-42d3-a456-426614174711',
+              title: '深海检索结果',
+              source: { kind: 'webpage', inputMethod: 'url' },
+              tags: [{ id: 'tag-search', name: '深海', status: 'applied', origin: 'ai' }],
+            },
+            matchedFields: ['title', 'tag'],
+            highlights: { title: ['深海检索结果'] },
+          },
+        ],
+        nextCursor: null,
+        degraded: false,
+      }),
+    })
+  })
+
+  await page.goto('/kb/library')
+  await page.getByRole('searchbox', { name: '检索知识库' }).fill('深海')
+  await page.getByRole('button', { name: '检索', exact: true }).click()
+
+  await expect(page.getByText('深海检索结果')).toBeVisible()
+  expect(searchQuery).toBe('深海')
+  await page.screenshot({ path: 'test-results/library-desktop.png', fullPage: true })
+
+  await page.getByRole('button', { name: /网页/ }).click()
+  await expect(page.getByText('深海检索结果')).toBeVisible()
+
+  await page.getByRole('button', { name: /手动/ }).click()
+  await expect(page.getByText('没有找到匹配的知识。')).toBeVisible()
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await page.screenshot({ path: 'test-results/library-tablet.png', fullPage: true })
+})
+
+test('recycles one knowledge item from the library', async ({ page }) => {
+  let deletedId = ''
+  await page.route('**/kb/api/v1/knowledge-items/*', async (route) => {
+    if (route.request().method() === 'DELETE') {
+      deletedId = new URL(route.request().url()).pathname.split('/').pop() || ''
+      await route.fulfill({ status: 204, body: '' })
+      return
+    }
+    await route.fallback()
+  })
+
+  await page.goto('/kb/library')
+  await page.getByRole('button', { name: `删除 ${summary.title}` }).click()
+  await expect(page.getByRole('alertdialog')).toContainText('移入回收站？')
+  await page.getByRole('button', { name: '移入回收站' }).click()
+
+  expect(deletedId).toBe(summary.id)
+  await expect(page.getByText(summary.title)).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('已移入回收站')
+})
+
+test('selects and recycles multiple knowledge items in one request', async ({ page }) => {
+  const second = {
+    ...summary,
+    id: '123e4567-e89b-42d3-a456-426614174712',
+    title: '第二份知识',
+  }
+  let requestedIds: string[] = []
+  await page.route('**/kb/api/v1/knowledge-items**', async (route) => {
+    if (route.request().method() === 'POST' && route.request().url().includes('/bulk-recycle')) {
+      requestedIds = (route.request().postDataJSON() as { itemIds: string[] }).itemIds
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ recycled: requestedIds.length }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [summary, second],
+        nextCursor: null,
+      }),
+    })
+  })
+
+  await page.goto('/kb/library')
+  await page.getByRole('checkbox', { name: `选择 ${summary.title}` }).check()
+  await page.getByRole('checkbox', { name: `选择 ${second.title}` }).check()
+
+  await expect(page.getByText('已选择 2 条')).toBeVisible()
+  await page.getByRole('button', { name: '批量删除' }).click()
+  await expect(page.getByRole('alertdialog')).toContainText('批量移入回收站？')
+  await page.getByRole('button', { name: '移入回收站' }).click()
+
+  expect(requestedIds.sort()).toEqual([summary.id, second.id].sort())
+  await expect(page.getByText(summary.title)).toHaveCount(0)
+  await expect(page.getByText(second.title)).toHaveCount(0)
+})
+
+test('keeps library search and bulk selection usable on a phone', async ({ page }) => {
+  const second = {
+    ...summary,
+    id: '123e4567-e89b-42d3-a456-426614174713',
+    title: '移动端第二份知识',
+  }
+  await page.route('**/kb/api/v1/knowledge-items**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [summary, second],
+        nextCursor: null,
+      }),
+    })
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/kb/library')
+
+  const checkbox = page.getByRole('checkbox', { name: `选择 ${summary.title}` })
+  await expect(checkbox).toBeVisible()
+  const box = await checkbox.locator('..').boundingBox()
+  expect(box?.width || 0).toBeGreaterThanOrEqual(44)
+  expect(box?.height || 0).toBeGreaterThanOrEqual(44)
+
+  await page.getByRole('button', { name: '全选当前结果' }).click()
+  await expect(page.getByText('已选择 2 条')).toBeVisible()
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  )
+  expect(overflow).toBe(false)
+  await page.screenshot({ path: 'test-results/library-mobile.png', fullPage: true })
+})
+
+test('keeps selected items and reuses the bulk key after a failed delete', async ({ page }) => {
+  const second = {
+    ...summary,
+    id: '123e4567-e89b-42d3-a456-426614174714',
+    title: '失败重试知识',
+  }
+  const idempotencyKeys: string[] = []
+  let attempts = 0
+  await page.route('**/kb/api/v1/knowledge-items**', async (route) => {
+    if (route.request().method() === 'POST' && route.request().url().includes('/bulk-recycle')) {
+      attempts += 1
+      idempotencyKeys.push(route.request().headers()['idempotency-key'] || '')
+      if (attempts === 1) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ code: 'TEMPORARY', message: 'Try again' }),
+        })
+        return
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ recycled: 2 }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [summary, second], nextCursor: null }),
+    })
+  })
+
+  await page.goto('/kb/library')
+  await page.getByRole('checkbox', { name: `选择 ${summary.title}` }).check()
+  await page.getByRole('checkbox', { name: `选择 ${second.title}` }).check()
+  await page.getByRole('button', { name: '批量删除' }).click()
+  await page.getByRole('button', { name: '移入回收站' }).click()
+
+  await expect(page.getByRole('alert')).toHaveText(
+    '批量删除失败，知识未发生变化。',
+  )
+  await expect(page.getByText('已选择 2 条')).toBeVisible()
+
+  await page.getByRole('button', { name: '移入回收站' }).click()
+  await expect(page.getByText('已将 2 条知识移入回收站。')).toBeVisible()
+  expect(idempotencyKeys).toHaveLength(2)
+  expect(idempotencyKeys[0]).toBeTruthy()
+  expect(idempotencyKeys[1]).toBe(idempotencyKeys[0])
+})
+
+test('keeps only the latest library search response', async ({ page }) => {
+  await page.route('**/kb/api/v1/search?**', async (route) => {
+    const query = new URL(route.request().url()).searchParams.get('q')
+    if (query === '旧查询') {
+      await new Promise((resolve) => setTimeout(resolve, 700))
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            item: { ...summary, title: query === '旧查询' ? '旧查询结果' : '新查询结果' },
+            matchedFields: ['title'],
+            highlights: {},
+          },
+        ],
+        nextCursor: null,
+        degraded: false,
+      }),
+    })
+  })
+
+  await page.goto('/kb/library')
+  const search = page.getByRole('searchbox', { name: '检索知识库' })
+  await search.fill('旧查询')
+  await page.getByRole('button', { name: '检索', exact: true }).click()
+  await search.fill('新查询')
+  await page.getByRole('button', { name: '检索', exact: true }).click()
+
+  await expect(page.getByText('新查询结果')).toBeVisible()
+  await expect(page.getByText('旧查询结果')).toHaveCount(0)
+})
+
 test('shows pricing, balance, and automatic charging controls', async ({ page }) => {
   let savedAutoCharge: Record<string, unknown> | undefined
   await page.route('**/kb/api/v1/billing/auto-charge', async (route) => {

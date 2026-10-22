@@ -110,6 +110,10 @@ export interface KnowledgeItemPage {
   nextCursor: string | null
 }
 
+export interface BulkRecycleResponse {
+  recycled: number
+}
+
 export interface SearchHit {
   item: KnowledgeItemSummary
   matchedFields: string[]

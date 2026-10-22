@@ -12,6 +12,7 @@ import type {
   BillingQuote,
   BillingRefundCase,
   BillingTask,
+  BulkRecycleResponse,
   CaptchaResponse,
   CreateKnowledgeItemRequest,
   CsrfResponse,
@@ -386,6 +387,17 @@ export function listTrash(limit = 100): Promise<KnowledgeItemPage> {
 export function recycleKnowledgeItem(id: string): Promise<void> {
   return request<void>(`/knowledge-items/${encodeURIComponent(id)}`, {
     method: 'DELETE',
+  })
+}
+
+export function bulkRecycleKnowledgeItems(
+  itemIds: string[],
+  idempotencyKey = createIdempotencyKey('bulk-recycle'),
+): Promise<BulkRecycleResponse> {
+  return request<BulkRecycleResponse>('/knowledge-items/bulk-recycle', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({ itemIds }),
   })
 }
 

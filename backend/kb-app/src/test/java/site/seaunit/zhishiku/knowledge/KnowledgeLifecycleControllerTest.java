@@ -2,6 +2,7 @@ package site.seaunit.zhishiku.knowledge;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -24,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeSummaryResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SourceSummary;
 import site.seaunit.zhishiku.security.SecurityConfig;
@@ -32,6 +35,9 @@ import site.seaunit.zhishiku.security.SecurityConfig;
 @Import({SecurityConfig.class, site.seaunit.zhishiku.common.ApiExceptionHandler.class})
 class KnowledgeLifecycleControllerTest {
   private static final UUID ITEM_ID = UUID.fromString("123e4567-e89b-42d3-a456-426614174701");
+  private static final UUID SECOND_ITEM_ID =
+      UUID.fromString("123e4567-e89b-42d3-a456-426614174702");
+  private static final String IDEMPOTENCY_KEY = "bulk-recycle-controller-0001";
 
   @Autowired private MockMvc mvc;
 
@@ -78,6 +84,123 @@ class KnowledgeLifecycleControllerTest {
     verify(service).recycle(eq(ITEM_ID), any());
     verify(service).restore(eq(ITEM_ID), any());
     verify(service).purge(eq(ITEM_ID), any());
+  }
+
+  @Test
+  @WithMockUser(username = "alice@example.com")
+  void bulkRecyclingDeduplicatesItemsBeforeCallingTheService() throws Exception {
+    when(service.bulkRecycle(
+            eq(List.of(ITEM_ID, SECOND_ITEM_ID)), eq(IDEMPOTENCY_KEY), any()))
+        .thenReturn(new BulkRecycleResponse(2));
+
+    mvc.perform(
+            post("/api/v1/knowledge-items/bulk-recycle")
+                .with(csrf())
+                .header("Idempotency-Key", IDEMPOTENCY_KEY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"itemIds":["%s","%s","%s"]}
+                    """
+                        .formatted(ITEM_ID, SECOND_ITEM_ID, ITEM_ID)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.recycled").value(2));
+
+    verify(service)
+        .bulkRecycle(eq(List.of(ITEM_ID, SECOND_ITEM_ID)), eq(IDEMPOTENCY_KEY), any());
+  }
+
+  @Test
+  @WithMockUser(username = "alice@example.com")
+  void appliesTheSizeLimitAfterDeduplicatingItemIds() throws Exception {
+    when(service.bulkRecycle(eq(List.of(ITEM_ID)), eq(IDEMPOTENCY_KEY), any()))
+        .thenReturn(new BulkRecycleResponse(1));
+
+    mvc.perform(
+            post("/api/v1/knowledge-items/bulk-recycle")
+                .with(csrf())
+                .header("Idempotency-Key", IDEMPOTENCY_KEY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"itemIds":[%s]}
+                    """
+                        .formatted(("\"" + ITEM_ID + "\",").repeat(101).replaceFirst(",$", ""))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.recycled").value(1));
+
+    verify(service).bulkRecycle(eq(List.of(ITEM_ID)), eq(IDEMPOTENCY_KEY), any());
+  }
+
+  @Test
+  @WithMockUser(username = "alice@example.com")
+  void rejectsBulkRecyclingWithoutCsrf() throws Exception {
+    mvc.perform(
+            post("/api/v1/knowledge-items/bulk-recycle")
+                .header("Idempotency-Key", IDEMPOTENCY_KEY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"itemIds":["%s"]}
+                    """
+                        .formatted(ITEM_ID)))
+        .andExpect(status().isForbidden());
+
+    verify(service, never()).bulkRecycle(any(), any(), any());
+  }
+
+  @Test
+  @WithMockUser(username = "alice@example.com")
+  void rejectsBulkRecyclingWithoutIdempotencyKey() throws Exception {
+    mvc.perform(
+            post("/api/v1/knowledge-items/bulk-recycle")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"itemIds":["%s"]}
+                    """
+                        .formatted(ITEM_ID)))
+        .andExpect(status().isBadRequest());
+
+    verify(service, never()).bulkRecycle(any(), any(), any());
+  }
+
+  @Test
+  @WithMockUser(username = "alice@example.com")
+  void rejectsAnEmptyBulkRecycleRequest() throws Exception {
+    mvc.perform(
+            post("/api/v1/knowledge-items/bulk-recycle")
+                .with(csrf())
+                .header("Idempotency-Key", IDEMPOTENCY_KEY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"itemIds":[]}
+                    """))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+    verify(service, never()).bulkRecycle(any(), any(), any());
+  }
+
+  @Test
+  @WithMockUser(username = "alice@example.com")
+  void rejectsBulkRecyclingMoreThanOneHundredDistinctItems() throws Exception {
+    List<String> itemIds = new ArrayList<>();
+    for (int index = 0; index < 101; index++) {
+      itemIds.add("\"" + UUID.randomUUID() + "\"");
+    }
+
+    mvc.perform(
+            post("/api/v1/knowledge-items/bulk-recycle")
+                .with(csrf())
+                .header("Idempotency-Key", IDEMPOTENCY_KEY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"itemIds\":[" + String.join(",", itemIds) + "]}"))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+    verify(service, never()).bulkRecycle(any(), any(), any());
   }
 
   @Test

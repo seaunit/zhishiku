@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,8 +28,10 @@ import site.seaunit.zhishiku.attachment.AttachmentEntity;
 import site.seaunit.zhishiku.attachment.AttachmentRepository;
 import site.seaunit.zhishiku.core.richtext.PlainTextProjector;
 import site.seaunit.zhishiku.core.richtext.RichTextValidator;
+import site.seaunit.zhishiku.idempotency.IdempotencyService;
 import site.seaunit.zhishiku.knowledge.ClassificationService.ClassificationSet;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BodySourceRequest;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.ClassificationSummary;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
@@ -59,6 +62,7 @@ public class KnowledgeService {
       Set.of("native", "clipboard", "word", "google_docs", "webpage", "legacy_text");
   private static final long MAX_TOTAL_IMAGE_BYTES = 50L * 1024 * 1024;
   private static final String ACTIVE = "active";
+  private static final String BULK_RECYCLE_OPERATION = "knowledge_bulk_recycle";
 
   private final CurrentOwnerService currentOwnerService;
   private final KnowledgeItemRepository items;
@@ -74,6 +78,7 @@ public class KnowledgeService {
   private final SearchProjectionBuilder searchProjections;
   private final RichTextLifecycleService lifecycle;
   private final ClassificationService classifications;
+  private final IdempotencyService idempotency;
 
   public KnowledgeService(
       CurrentOwnerService currentOwnerService,
@@ -87,7 +92,8 @@ public class KnowledgeService {
       SourceProvenancePolicy sourcePolicy,
       SearchProjectionBuilder searchProjections,
       RichTextLifecycleService lifecycle,
-      ClassificationService classifications) {
+      ClassificationService classifications,
+      IdempotencyService idempotency) {
     this.currentOwnerService = currentOwnerService;
     this.items = items;
     this.documents = documents;
@@ -102,6 +108,7 @@ public class KnowledgeService {
     this.searchProjections = searchProjections;
     this.lifecycle = lifecycle;
     this.classifications = classifications;
+    this.idempotency = idempotency;
   }
 
   @Transactional
@@ -281,6 +288,43 @@ public class KnowledgeService {
   public void recycle(UUID itemId, Authentication authentication) {
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
     lifecycle.recycle(owner.getId(), itemId);
+  }
+
+  @Transactional
+  public BulkRecycleResponse bulkRecycle(
+      List<UUID> requestedIds, String idempotencyKey, Authentication authentication) {
+    if (requestedIds == null) {
+      throw new IllegalArgumentException("Select between 1 and 100 knowledge items.");
+    }
+    LinkedHashSet<UUID> uniqueIds = new LinkedHashSet<>(requestedIds);
+    if (uniqueIds.contains(null) || uniqueIds.isEmpty() || uniqueIds.size() > 100) {
+      throw new IllegalArgumentException("Select between 1 and 100 knowledge items.");
+    }
+    List<UUID> itemIds = uniqueIds.stream().sorted().toList();
+    String requestHash =
+        IdempotencyService.hash(
+            String.join("\n", itemIds.stream().map(UUID::toString).toList()));
+    Optional<BulkRecycleResponse> replay =
+        idempotency.replay(
+            authentication,
+            BULK_RECYCLE_OPERATION,
+            idempotencyKey,
+            requestHash,
+            BulkRecycleResponse.class);
+    if (replay.isPresent()) {
+      return replay.get();
+    }
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    if (items.countByIdInAndOwnerId(itemIds, owner.getId()) != itemIds.size()) {
+      throw new IllegalArgumentException("Knowledge item was not found.");
+    }
+    for (UUID itemId : itemIds) {
+      lifecycle.recycle(owner.getId(), itemId);
+    }
+    BulkRecycleResponse response = new BulkRecycleResponse(itemIds.size());
+    idempotency.record(
+        authentication, BULK_RECYCLE_OPERATION, idempotencyKey, requestHash, response, 200);
+    return response;
   }
 
   @Transactional

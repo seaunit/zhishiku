@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +38,15 @@ public final class KnowledgeDtos {
       @NotNull @Size(max = 8) List<@NotBlank @Size(max = 100) String> tags) {}
 
   public record ReanalyzeKnowledgeRequest(boolean externalAiConsent, UUID billingTaskId) {}
+
+  public record BulkRecycleRequest(
+      @NotNull @Size(min = 1, max = 100) List<@NotNull UUID> itemIds) {
+    public BulkRecycleRequest {
+      itemIds = itemIds == null ? null : List.copyOf(new LinkedHashSet<>(itemIds));
+    }
+  }
+
+  public record BulkRecycleResponse(int recycled) {}
 
   public record KnowledgeItemResponse(
       UUID id,

@@ -11,6 +11,34 @@
       </RouterLink>
     </header>
 
+    <form class="search-shell library-search-shell" role="search" @submit.prevent="submitSearch">
+      <div class="search-field">
+        <Search :size="19" aria-hidden="true" />
+        <input
+          v-model="searchQuery"
+          type="search"
+          maxlength="300"
+          autocomplete="off"
+          :aria-label="t('library.searchLabel')"
+          :placeholder="t('library.searchPlaceholder')"
+        />
+        <button
+          v-if="searchQuery || searchedQuery"
+          type="button"
+          class="search-clear"
+          :aria-label="t('library.clearSearch')"
+          @click="clearSearch"
+        >
+          <X :size="15" />
+        </button>
+      </div>
+      <button class="button primary library-search-submit" type="submit">
+        <LoaderCircle v-if="loading" class="spin" :size="17" />
+        <Search v-else :size="17" />
+        <span>{{ t('library.searchAction') }}</span>
+      </button>
+    </form>
+
     <div class="view-toolbar">
       <div class="filter-row" role="group" :aria-label="t('library.source')">
         <button
@@ -19,13 +47,42 @@
           type="button"
           class="filter-chip"
           :class="{ 'is-active': activeFilter === filter.value }"
-          @click="activeFilter = filter.value"
+          @click="setFilter(filter.value)"
         >
           {{ t(filter.label) }}
           <span class="num">{{ countFor(filter.value) }}</span>
         </button>
       </div>
-      <span class="freshness">{{ t('library.freshness', { time: freshness }) }}</span>
+      <div class="library-toolbar-meta">
+        <button
+          type="button"
+          class="filter-chip mobile-select-all"
+          :disabled="filteredItems.length === 0"
+          @click="toggleAllVisible"
+        >
+          {{ allVisibleSelected ? t('library.clearSelection') : t('library.selectAllVisible') }}
+        </button>
+        <span class="freshness">{{ t('library.freshness', { time: freshness }) }}</span>
+      </div>
+    </div>
+
+    <div v-if="selectedIds.size" class="bulk-actions" role="status" aria-live="polite">
+      <span>{{ t('library.selectedCount', { count: selectedIds.size }) }}</span>
+      <button type="button" class="button secondary danger" @click="requestBulkDelete">
+        <Trash2 :size="16" />
+        <span>{{ t('library.bulkDelete') }}</span>
+      </button>
+    </div>
+
+    <p v-if="notice" class="billing-notice" role="status">{{ notice }}</p>
+
+    <div v-if="error && items.length" class="inline-error library-load-error" role="alert">
+      <CircleAlert :size="20" />
+      <div>
+        <strong>{{ t('home.loadFailed') }}</strong>
+        <p>{{ error }}</p>
+      </div>
+      <button type="button" class="text-button" @click="load">{{ t('common.retry') }}</button>
     </div>
 
     <section class="panel library-panel" :aria-busy="loading">
@@ -33,7 +90,7 @@
         <span v-for="index in 6" :key="index" class="skeleton" />
       </div>
 
-      <div v-else-if="error" class="inline-error" role="alert">
+      <div v-else-if="error && !items.length" class="inline-error" role="alert">
         <CircleAlert :size="20" />
         <div>
           <strong>{{ t('home.loadFailed') }}</strong>
@@ -44,42 +101,102 @@
 
       <div v-else-if="filteredItems.length === 0" class="empty-state">
         <BookOpen :size="22" />
-        <h3>{{ t('library.emptyTitle') }}</h3>
-        <p>{{ t('library.emptyBody') }}</p>
+        <h3>{{ searchedQuery ? t('library.noResultsTitle') : t('library.emptyTitle') }}</h3>
+        <p>{{ searchedQuery ? t('library.noResultsBody') : t('library.emptyBody') }}</p>
+        <button
+          v-if="searchedQuery"
+          type="button"
+          class="button secondary"
+          @click="clearSearch"
+        >
+          <X :size="16" />
+          <span>{{ t('library.clearSearch') }}</span>
+        </button>
       </div>
 
       <div v-else class="knowledge-table">
-        <div class="knowledge-table-head" aria-hidden="true">
-          <span>{{ t('library.title') }}</span>
-          <span>{{ t('library.category') }}</span>
-          <span>{{ t('library.updated') }}</span>
-          <span>{{ t('library.status') }}</span>
+        <div class="knowledge-table-head">
+          <label class="row-checkbox">
+            <input
+              type="checkbox"
+              :checked="allVisibleSelected"
+              :indeterminate="someVisibleSelected && !allVisibleSelected"
+              :aria-label="t('library.selectVisible')"
+              @change="toggleVisibleSelection"
+            />
+          </label>
+          <div class="knowledge-head-grid" aria-hidden="true">
+            <span>{{ t('library.knowledge') }}</span>
+            <span>{{ t('library.category') }}</span>
+            <span>{{ t('library.updated') }}</span>
+            <span>{{ t('library.status') }}</span>
+          </div>
+          <span class="row-action-head" aria-hidden="true" />
         </div>
-        <RouterLink
+        <div
           v-for="item in filteredItems"
           :key="item.id"
           class="knowledge-row"
-          :to="`/library/${item.id}`"
+          :class="{ 'is-selected': selectedIds.has(item.id) }"
         >
-          <span class="knowledge-main">
-            <span class="source-icon">
-              <component :is="sourceIcon(item.source.kind)" :size="15" />
+          <label class="row-checkbox">
+            <input
+              type="checkbox"
+              :checked="selectedIds.has(item.id)"
+              :aria-label="t('library.selectItem', { title: item.title })"
+              @change="toggleSelection(item.id, ($event.target as HTMLInputElement).checked)"
+            />
+          </label>
+          <RouterLink class="knowledge-row-link" :to="`/library/${item.id}`">
+            <span class="knowledge-main">
+              <span class="source-icon">
+                <component :is="sourceIcon(item.source.kind)" :size="15" />
+              </span>
+              <span>
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.summary || item.bodyPreview || '—' }}</small>
+                <span v-if="matchedFieldsByItem[item.id]?.length" class="match-fields">
+                  {{
+                    t('library.matchedFields', {
+                      fields: matchedFieldsByItem[item.id]
+                        .map((field) => t(`home.match.${field}`))
+                        .join(t('common.listSeparator')),
+                    })
+                  }}
+                </span>
+              </span>
             </span>
-            <span>
-              <strong>{{ item.title }}</strong>
-              <small>{{ item.summary || item.bodyPreview || '—' }}</small>
+            <span class="table-label">{{ item.category?.name || t('common.uncategorized') }}</span>
+            <span class="table-date">{{ formatDate(item.updatedAt) }}</span>
+            <span class="table-source">
+              <span class="status-pill" :class="statusClass(item.processingStatus)">
+                {{ statusLabel(item.processingStatus) }}
+              </span>
             </span>
-          </span>
-          <span class="table-label">{{ item.category?.name || t('common.uncategorized') }}</span>
-          <span class="table-date">{{ formatDate(item.updatedAt) }}</span>
-          <span class="table-source">
-            <span class="status-pill" :class="statusClass(item.processingStatus)">
-              {{ statusLabel(item.processingStatus) }}
-            </span>
-          </span>
-        </RouterLink>
+          </RouterLink>
+          <button
+            type="button"
+            class="row-delete"
+            :aria-label="t('library.deleteItem', { title: item.title })"
+            @click="requestDelete(item)"
+          >
+            <Trash2 :size="16" />
+          </button>
+        </div>
       </div>
     </section>
+
+    <ConfirmDialog
+      v-if="deleteTargets.length"
+      :title="deleteDialogTitle"
+      :body="deleteDialogBody"
+      :cancel-label="t('common.cancel')"
+      :confirm-label="t('library.confirmDelete')"
+      :busy="deleting"
+      :error="actionError"
+      @cancel="closeDeleteDialog"
+      @confirm="confirmDelete"
+    />
   </section>
 </template>
 
@@ -88,22 +205,44 @@ import {
   BookOpen,
   CircleAlert,
   FileText,
+  Globe2,
   Image,
   Link2,
+  LoaderCircle,
   PenLine,
   Plus,
+  Search,
+  Trash2,
+  X,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { listKnowledgeItems } from '@/api/client'
+import {
+  bulkRecycleKnowledgeItems,
+  listKnowledgeItems,
+  recycleKnowledgeItem,
+  searchKnowledge,
+} from '@/api/client'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
+import { createIdempotencyKey } from '@/lib/id'
 import type { KnowledgeItemSummary } from '@/types/api'
 
 const { t, locale } = useI18n()
 const items = ref<KnowledgeItemSummary[]>([])
 const loading = ref(true)
 const error = ref('')
+const actionError = ref('')
+const notice = ref('')
 const activeFilter = ref('all')
+const searchQuery = ref('')
+const searchedQuery = ref('')
+const matchedFieldsByItem = ref<Record<string, string[]>>({})
+const selectedIds = ref(new Set<string>())
+const deleteTargets = ref<KnowledgeItemSummary[]>([])
+const deleting = ref(false)
+const bulkDeleteKey = ref('')
+let loadSequence = 0
 
 const filters = [
   { value: 'all', label: 'library.all' },
@@ -117,6 +256,33 @@ const filters = [
 const filteredItems = computed(() => {
   if (activeFilter.value === 'all') return items.value
   return items.value.filter((item) => item.source.kind === activeFilter.value)
+})
+
+const allVisibleSelected = computed(
+  () =>
+    filteredItems.value.length > 0 &&
+    filteredItems.value.every((item) => selectedIds.value.has(item.id)),
+)
+const someVisibleSelected = computed(() =>
+  filteredItems.value.some((item) => selectedIds.value.has(item.id)),
+)
+const deleteDialogTitle = computed(() =>
+  deleteTargets.value.length > 1
+    ? t('library.bulkDeleteTitle')
+    : t('library.deleteTitle'),
+)
+const deleteDialogBody = computed(() => {
+  if (deleteTargets.value.length > 1) {
+    const titles = deleteTargets.value
+      .slice(0, 3)
+      .map((item) => item.title)
+      .join(t('common.listSeparator'))
+    return t('library.bulkDeleteBody', {
+      count: deleteTargets.value.length,
+      titles,
+    })
+  }
+  return t('library.deleteBody', { title: deleteTargets.value[0]?.title || '' })
 })
 
 const freshness = computed(() => {
@@ -140,6 +306,8 @@ function sourceIcon(kind: string) {
   if (kind === 'webpage') return Link2
   if (kind === 'document') return FileText
   if (kind === 'screenshot') return Image
+  if (kind === 'internet_result') return Globe2
+  if (kind === 'text') return FileText
   return PenLine
 }
 
@@ -160,18 +328,135 @@ function formatDate(value: string) {
   }).format(date)
 }
 
+function clearSelection() {
+  selectedIds.value = new Set()
+}
+
+function setFilter(filter: string) {
+  if (activeFilter.value === filter) return
+  activeFilter.value = filter
+  clearSelection()
+}
+
+function toggleSelection(id: string, checked: boolean) {
+  const next = new Set(selectedIds.value)
+  if (checked) next.add(id)
+  else next.delete(id)
+  selectedIds.value = next
+}
+
+function toggleVisibleSelection(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked
+  setVisibleSelection(checked)
+}
+
+function toggleAllVisible() {
+  setVisibleSelection(!allVisibleSelected.value)
+}
+
+function setVisibleSelection(checked: boolean) {
+  const next = new Set(selectedIds.value)
+  for (const item of filteredItems.value) {
+    if (checked) next.add(item.id)
+    else next.delete(item.id)
+  }
+  selectedIds.value = next
+}
+
 async function load() {
+  const requestId = ++loadSequence
   loading.value = true
   error.value = ''
+  notice.value = ''
+  const normalized = searchQuery.value.trim()
   try {
-    const response = await listKnowledgeItems(100)
-    items.value = response.items
+    if (normalized) {
+      const response = await searchKnowledge(normalized, 100)
+      if (requestId !== loadSequence) return
+      items.value = response.items.map((hit) => hit.item)
+      matchedFieldsByItem.value = Object.fromEntries(
+        response.items.map((hit) => [hit.item.id, hit.matchedFields]),
+      )
+      searchedQuery.value = normalized
+    } else {
+      const response = await listKnowledgeItems(100)
+      if (requestId !== loadSequence) return
+      items.value = response.items
+      matchedFieldsByItem.value = {}
+      searchedQuery.value = ''
+    }
+    clearSelection()
   } catch (caught) {
-    items.value = []
+    if (requestId !== loadSequence) return
     error.value = caught instanceof Error ? caught.message : t('errors.generic')
   } finally {
-    loading.value = false
+    if (requestId === loadSequence) {
+      loading.value = false
+    }
   }
+}
+
+async function submitSearch() {
+  await load()
+}
+
+async function clearSearch() {
+  searchQuery.value = ''
+  searchedQuery.value = ''
+  await load()
+}
+
+function requestDelete(item: KnowledgeItemSummary) {
+  actionError.value = ''
+  deleteTargets.value = [item]
+}
+
+function requestBulkDelete() {
+  const selected = filteredItems.value.filter((item) => selectedIds.value.has(item.id))
+  if (!selected.length) return
+  actionError.value = ''
+  deleteTargets.value = selected.slice(0, 100)
+  bulkDeleteKey.value = createIdempotencyKey('bulk-recycle')
+}
+
+async function confirmDelete() {
+  if (!deleteTargets.value.length || deleting.value) return
+  deleting.value = true
+  actionError.value = ''
+  const targets = [...deleteTargets.value]
+  try {
+    if (targets.length === 1) {
+      await recycleKnowledgeItem(targets[0].id)
+    } else {
+      await bulkRecycleKnowledgeItems(
+        targets.map((item) => item.id),
+        bulkDeleteKey.value,
+      )
+    }
+    const removed = new Set(targets.map((item) => item.id))
+    items.value = items.value.filter((item) => !removed.has(item.id))
+    clearSelection()
+    deleteTargets.value = []
+    bulkDeleteKey.value = ''
+    notice.value =
+      targets.length === 1
+        ? t('library.deletedOne')
+        : t('library.deletedMany', { count: targets.length })
+  } catch {
+    actionError.value =
+      targets.length === 1
+        ? t('library.deleteFailed')
+        : t('library.bulkDeleteFailed')
+  } finally {
+    deleting.value = false
+  }
+}
+
+function closeDeleteDialog() {
+  if (deleting.value) return
+  deleteTargets.value = []
+  actionError.value = ''
+  bulkDeleteKey.value = ''
 }
 
 onMounted(load)

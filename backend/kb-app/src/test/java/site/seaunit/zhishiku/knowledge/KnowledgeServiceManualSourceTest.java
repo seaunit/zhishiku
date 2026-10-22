@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
 import site.seaunit.zhishiku.attachment.AttachmentRepository;
+import site.seaunit.zhishiku.idempotency.IdempotencyService;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BodySourceRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.UpdateKnowledgeRequest;
@@ -33,7 +34,8 @@ class KnowledgeServiceManualSourceTest {
           new SourceProvenancePolicy(),
           mock(SearchProjectionBuilder.class),
           mock(RichTextLifecycleService.class),
-          mock(ClassificationService.class));
+          mock(ClassificationService.class),
+          mock(IdempotencyService.class));
 
   @Test
   void rejectsNonManualSourcesAtTheOrdinaryCreationBoundary() {

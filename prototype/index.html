@@ -327,6 +327,28 @@
                 <span data-i18n="capture">采集知识</span>
               </button>
             </div>
+            <form class="search-shell library-search-shell" id="librarySearchForm" role="search">
+              <div class="search-field">
+                <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+                <label class="visually-hidden" for="librarySearchInput" data-i18n="librarySearchLabel">检索知识库</label>
+                <input
+                  id="librarySearchInput"
+                  type="search"
+                  maxlength="300"
+                  autocomplete="off"
+                  data-i18n-placeholder="librarySearchPlaceholder"
+                  placeholder="搜索标题、正文、标签或分类"
+                />
+                <button class="icon-button search-clear" id="librarySearchClear" type="button" hidden>
+                  <svg><use href="#icon-x"></use></svg>
+                  <span class="visually-hidden" data-i18n="clearSearch">清除检索</span>
+                </button>
+              </div>
+              <button class="primary-button library-search-submit" type="submit">
+                <svg><use href="#icon-search"></use></svg>
+                <span data-i18n="librarySearchAction">检索</span>
+              </button>
+            </form>
             <div class="view-toolbar">
               <div class="filter-row" id="libraryFilters">
                 <button class="filter-chip is-active" data-filter="all">全部 <span id="filterAllCount">12</span></button>
@@ -336,7 +358,19 @@
                 <button class="filter-chip" data-filter="text">AI 文字 <span id="filterTextCount">0</span></button>
                 <button class="filter-chip" data-filter="manual">手动 <span id="filterManualCount">3</span></button>
               </div>
-              <span class="freshness" id="libraryFreshness">最后整理：刚刚</span>
+              <div class="library-toolbar-meta">
+                <button class="filter-chip mobile-select-all" id="libraryMobileSelectAll" type="button">
+                  全选当前结果
+                </button>
+                <span class="freshness" id="libraryFreshness">最后整理：刚刚</span>
+              </div>
+            </div>
+            <div class="bulk-actions" id="libraryBulkActions" hidden>
+              <span id="librarySelectedCount">已选择 0 条</span>
+              <button class="danger-button" id="libraryBulkDelete" type="button">
+                <svg><use href="#icon-trash"></use></svg>
+                <span data-i18n="bulkDelete">批量删除</span>
+              </button>
             </div>
             <section class="panel library-panel">
               <div class="knowledge-table" id="knowledgeTable"></div>
@@ -645,6 +679,17 @@
       <div class="confirm-actions">
         <button class="ghost-button" id="cancelLogout" type="button" data-i18n="cancel">取消</button>
         <button class="danger-button" id="confirmLogout" type="button" data-i18n="accountConfirmLogout">确认退出</button>
+      </div>
+    </dialog>
+
+    <dialog class="confirm-dialog-prototype" id="libraryDeleteDialog" aria-labelledby="libraryDeleteTitle">
+      <h2 id="libraryDeleteTitle">移入回收站？</h2>
+      <p id="libraryDeleteBody"></p>
+      <div class="confirm-actions">
+        <button class="ghost-button" id="libraryDeleteCancel" type="button" data-i18n="cancel">取消</button>
+        <button class="danger-button" id="libraryDeleteConfirm" type="button" data-i18n="confirmDelete">
+          移入回收站
+        </button>
       </div>
     </dialog>
 

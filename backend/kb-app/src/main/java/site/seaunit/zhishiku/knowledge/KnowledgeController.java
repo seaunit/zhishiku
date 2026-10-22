@@ -12,10 +12,13 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleRequest;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemPage;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
@@ -84,6 +87,14 @@ public class KnowledgeController {
       @Valid @RequestBody UpdateClassificationRequest request,
       Authentication authentication) {
     return service.updateClassification(itemId, request, authentication);
+  }
+
+  @PostMapping("/knowledge-items/bulk-recycle")
+  BulkRecycleResponse bulkRecycle(
+      @Valid @RequestBody BulkRecycleRequest request,
+      @RequestHeader("Idempotency-Key") String idempotencyKey,
+      Authentication authentication) {
+    return service.bulkRecycle(request.itemIds(), idempotencyKey, authentication);
   }
 
   @DeleteMapping("/knowledge-items/{itemId}")

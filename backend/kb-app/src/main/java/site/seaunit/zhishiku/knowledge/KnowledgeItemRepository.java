@@ -1,6 +1,7 @@
 package site.seaunit.zhishiku.knowledge;
 
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,4 +31,6 @@ public interface KnowledgeItemRepository extends JpaRepository<KnowledgeItemEnti
 
   List<KnowledgeItemEntity> findByOwnerIdAndLifecycleStateOrderByUpdatedAtDesc(
       UUID ownerId, String lifecycleState, Pageable pageable);
+
+  long countByIdInAndOwnerId(Collection<UUID> ids, UUID ownerId);
 }

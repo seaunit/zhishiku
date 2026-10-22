@@ -326,6 +326,25 @@ const translations = {
     libraryKicker: "所有收藏",
     libraryTitle: "知识库",
     librarySubtitle: "分类与标签由系统自动生成，你只需要纠正结果。",
+    librarySearchLabel: "检索知识库",
+    librarySearchPlaceholder: "搜索标题、正文、标签或分类",
+    librarySearchAction: "检索",
+    clearSearch: "清除检索",
+    selectVisible: "选择当前可见知识",
+    selectAllVisible: "全选当前结果",
+    clearSelection: "取消全选",
+    selectItem: "选择 {title}",
+    selectedCount: "已选择 {count} 条",
+    bulkDelete: "批量删除",
+    deleteItem: "删除 {title}",
+    deleteTitle: "移入回收站？",
+    deleteBody: "“{title}”会立即退出检索，并在回收站中保留 30 天。",
+    bulkDeleteTitle: "批量移入回收站？",
+    bulkDeleteBody: "选中的 {count} 条知识会立即退出检索，并在回收站中保留 30 天。{titles}",
+    confirmDelete: "移入回收站",
+    deletedOne: "已移入回收站。",
+    deletedMany: "已将 {count} 条知识移入回收站。",
+    noLibraryResults: "没有找到匹配的知识。换个关键词，或清除检索返回全部知识。",
     captureKicker: "新的知识流",
     captureTitle: "采集",
     captureSubtitle: "手动原文与 AI 整理结果。",
@@ -523,6 +542,25 @@ const translations = {
     libraryKicker: "All saved knowledge",
     libraryTitle: "Library",
     librarySubtitle: "Categories and tags are automatic. You only correct what matters.",
+    librarySearchLabel: "Search library",
+    librarySearchPlaceholder: "Search titles, body, tags, or categories",
+    librarySearchAction: "Search",
+    clearSearch: "Clear search",
+    selectVisible: "Select visible knowledge",
+    selectAllVisible: "Select all results",
+    clearSelection: "Clear selection",
+    selectItem: "Select {title}",
+    selectedCount: "{count} selected",
+    bulkDelete: "Delete selected",
+    deleteItem: "Delete {title}",
+    deleteTitle: "Move to trash?",
+    deleteBody: "“{title}” will leave search immediately and remain in the trash for 30 days.",
+    bulkDeleteTitle: "Move selected items to trash?",
+    bulkDeleteBody: "{count} selected items will leave search immediately and remain in the trash for 30 days. {titles}",
+    confirmDelete: "Move to trash",
+    deletedOne: "Moved to trash.",
+    deletedMany: "Moved {count} items to trash.",
+    noLibraryResults: "No matching knowledge found. Try another keyword, or clear the search to show everything.",
     captureKicker: "New knowledge stream",
     captureTitle: "Capture",
     captureSubtitle: "Source text and organized knowledge.",
@@ -701,6 +739,9 @@ const state = {
   view: "home",
   query: "",
   libraryFilter: "all",
+  libraryQuery: "",
+  librarySelected: new Set(),
+  pendingDeleteIds: [],
   captureMode: "manual",
   dialogMode: "manual",
   pastedScreenshots: { dialog: null, page: null },
@@ -960,42 +1001,148 @@ function renderDepthMap() {
 }
 
 function filteredItems() {
-  if (state.libraryFilter === "all") return items;
-  return items.filter((item) => item.source === state.libraryFilter);
+  const query = state.libraryQuery.trim().toLocaleLowerCase();
+  return items.filter((item) => {
+    if (state.libraryFilter !== "all" && item.source !== state.libraryFilter) return false;
+    if (!query) return true;
+    const searchable = [
+      item.title,
+      item.summary,
+      ...(item.body || []),
+      item.category,
+      ...(item.tags || []),
+      item.sourceLabel,
+    ]
+      .join(" ")
+      .toLocaleLowerCase();
+    return searchable.includes(query);
+  });
+}
+
+function visibleItems() {
+  return filteredItems();
+}
+
+function allVisibleSelected() {
+  const list = visibleItems();
+  return list.length > 0 && list.every((item) => state.librarySelected.has(item.id));
+}
+
+function syncBulkActions() {
+  const bulk = $("#libraryBulkActions");
+  const selectAll = $("#libraryMobileSelectAll");
+  if (!bulk || !selectAll) return;
+  const count = state.librarySelected.size;
+  bulk.hidden = count === 0;
+  $("#librarySelectedCount").textContent = t("selectedCount", { count });
+  selectAll.textContent = allVisibleSelected() ? t("clearSelection") : t("selectAllVisible");
+  selectAll.disabled = visibleItems().length === 0;
+}
+
+function toggleVisibleSelection() {
+  const list = visibleItems();
+  if (allVisibleSelected()) {
+    list.forEach((item) => state.librarySelected.delete(item.id));
+  } else {
+    list.slice(0, 100).forEach((item) => state.librarySelected.add(item.id));
+  }
+  renderKnowledgeTable();
+}
+
+function requestLibraryDelete(ids) {
+  state.pendingDeleteIds = [...new Set(ids)].filter((id) => items.some((item) => item.id === id));
+  if (!state.pendingDeleteIds.length) return;
+  const titles = items
+    .filter((item) => state.pendingDeleteIds.includes(item.id))
+    .slice(0, 3)
+    .map((item) => item.title)
+    .join(", ");
+  $("#libraryDeleteTitle").textContent =
+    state.pendingDeleteIds.length > 1 ? t("bulkDeleteTitle") : t("deleteTitle");
+  $("#libraryDeleteBody").textContent =
+    state.pendingDeleteIds.length > 1
+      ? t("bulkDeleteBody", { count: state.pendingDeleteIds.length, titles })
+      : t("deleteBody", { title: titles });
+  $("#libraryDeleteDialog").showModal();
+  $("#libraryDeleteCancel").focus();
+}
+
+function confirmLibraryDelete() {
+  const count = state.pendingDeleteIds.length;
+  state.pendingDeleteIds.forEach((id) => {
+    const index = items.findIndex((item) => item.id === id);
+    if (index >= 0) items.splice(index, 1);
+  });
+  state.librarySelected.clear();
+  state.pendingDeleteIds = [];
+  $("#libraryDeleteDialog").close();
+  updateAllCounts();
+  renderKnowledgeTable();
+  showToast(count > 1 ? t("deletedMany", { count }) : t("deletedOne"));
 }
 
 function renderKnowledgeTable() {
   const list = filteredItems();
   const container = $("#knowledgeTable");
   if (!list.length) {
-    container.innerHTML = `<div class="empty-state">${t("noResults")}</div>`;
+    container.innerHTML = `<div class="empty-state">${state.libraryQuery ? t("noLibraryResults") : t("noResults")}</div>`;
+    syncBulkActions();
     return;
   }
-  container.innerHTML = list.map((item) => `
-    <div class="knowledge-row" data-item-id="${item.id}" tabindex="0" role="button">
-      <div class="knowledge-main">
-        ${renderSourceIcon(item.source)}
-        <div>
-          <strong>${escapeHtml(item.title)}</strong>
-          <small>${escapeHtml(item.tags.join(" · "))}</small>
-        </div>
-      </div>
-      <span class="table-label table-category">${escapeHtml(item.category)}</span>
-      <span class="table-label table-source">${escapeHtml(sourceName(item.source))}</span>
-      <span class="table-date">${escapeHtml(item.updated)}</span>
-      <span class="status-pill ${statusClass(item.status)}">${statusLabel(item.status)}</span>
+  const selected = new Set(list.filter((item) => state.librarySelected.has(item.id)).map((item) => item.id));
+  container.innerHTML = `
+    <div class="knowledge-table-head">
+      <label class="row-checkbox">
+        <input id="librarySelectAll" type="checkbox" aria-label="${t("selectVisible")}" ${allVisibleSelected() ? "checked" : ""} />
+      </label>
+      <span aria-hidden="true">${t("libraryTitle")}</span>
+      <span aria-hidden="true"></span>
     </div>
-  `).join("");
+    ${list.map((item) => `
+      <div class="knowledge-row ${selected.has(item.id) ? "is-selected" : ""}" data-library-item-id="${item.id}">
+        <label class="row-checkbox">
+          <input type="checkbox" data-select-id="${item.id}" aria-label="${t("selectItem", { title: escapeHtml(item.title) })}" ${selected.has(item.id) ? "checked" : ""} />
+        </label>
+        <button class="knowledge-row-link" type="button" data-library-open-id="${item.id}">
+          <span class="knowledge-main">
+            ${renderSourceIcon(item.source)}
+            <span>
+              <strong>${escapeHtml(item.title)}</strong>
+              <small>${escapeHtml(item.summary || item.tags.join(" · "))}</small>
+            </span>
+          </span>
+          <span class="table-label table-category">${escapeHtml(item.category)}</span>
+          <span class="table-label table-source">${escapeHtml(sourceName(item.source))}</span>
+          <span class="table-date">${escapeHtml(item.updated)}</span>
+          <span class="status-pill ${statusClass(item.status)}">${statusLabel(item.status)}</span>
+        </button>
+        <button class="row-delete" type="button" data-delete-id="${item.id}" aria-label="${t("deleteItem", { title: escapeHtml(item.title) })}">
+          <svg><use href="#icon-trash"></use></svg>
+        </button>
+      </div>
+    `).join("")}
+  `;
+  const selectAll = $("#librarySelectAll");
+  if (selectAll) {
+    selectAll.indeterminate = selected.size > 0 && !allVisibleSelected();
+    selectAll.addEventListener("change", toggleVisibleSelection);
+  }
   $$(".knowledge-row", container).forEach((row) => {
-    const open = () => openDetail(row.dataset.itemId);
-    row.addEventListener("click", open);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        open();
+    $("[data-library-open-id]", row).addEventListener("click", () => openDetail(row.dataset.libraryItemId));
+    $("[data-select-id]", row).addEventListener("change", (event) => {
+      if (event.target.checked) state.librarySelected.add(row.dataset.libraryItemId);
+      else state.librarySelected.delete(row.dataset.libraryItemId);
+      syncBulkActions();
+      row.classList.toggle("is-selected", event.target.checked);
+      const selectAllNode = $("#librarySelectAll");
+      if (selectAllNode) {
+        selectAllNode.checked = allVisibleSelected();
+        selectAllNode.indeterminate = state.librarySelected.size > 0 && !allVisibleSelected();
       }
     });
+    $("[data-delete-id]", row).addEventListener("click", () => requestLibraryDelete([row.dataset.libraryItemId]));
   });
+  syncBulkActions();
 }
 
 function renderDetail(itemId) {
@@ -2546,9 +2693,38 @@ function bindEvents() {
     const chip = event.target.closest("[data-filter]");
     if (!chip) return;
     state.libraryFilter = chip.dataset.filter;
+    state.librarySelected.clear();
     $$(".filter-chip", $("#libraryFilters")).forEach((candidate) => candidate.classList.toggle("is-active", candidate === chip));
     renderKnowledgeTable();
   });
+
+  $("#librarySearchForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    state.libraryQuery = $("#librarySearchInput").value.trim();
+    $("#librarySearchClear").hidden = !state.libraryQuery;
+    state.librarySelected.clear();
+    renderKnowledgeTable();
+  });
+  $("#librarySearchClear").addEventListener("click", () => {
+    $("#librarySearchInput").value = "";
+    state.libraryQuery = "";
+    $("#librarySearchClear").hidden = true;
+    state.librarySelected.clear();
+    renderKnowledgeTable();
+    $("#librarySearchInput").focus();
+  });
+  $("#librarySearchInput").addEventListener("input", (event) => {
+    $("#librarySearchClear").hidden = !event.target.value && !state.libraryQuery;
+  });
+  $("#libraryMobileSelectAll").addEventListener("click", toggleVisibleSelection);
+  $("#libraryBulkDelete").addEventListener("click", () => {
+    requestLibraryDelete([...state.librarySelected].slice(0, 100));
+  });
+  $("#libraryDeleteCancel").addEventListener("click", () => {
+    state.pendingDeleteIds = [];
+    $("#libraryDeleteDialog").close();
+  });
+  $("#libraryDeleteConfirm").addEventListener("click", confirmLibraryDelete);
 
   $$(".capture-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
