@@ -20,8 +20,11 @@ const privateKey = normalizePrivateKeyInput(
 const environment = parseEnvironment(
   envValue("SHIHAI_WAFFO_ENV", "WAFFO_ENV"),
 );
+if (environment === "test" && publish) {
+  fail(2, "--publish is only allowed for production; test products are updated and activated in place.");
+}
 const client = new WaffoPancake({ merchantId, privateKey, environment });
-await synchronizeCatalog({ client, storeId, publish });
+await synchronizeCatalog({ client, storeId, publish, activate: environment === "test" });
 
 function parseEnvironment(value) {
   if (value === "production" || value === "prod") return "prod";

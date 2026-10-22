@@ -16,6 +16,7 @@ describe("Waffo catalog synchronization", () => {
 
   it("renames existing products and publishes the updated versions", async () => {
     const update = vi.fn(async ({ id, name }) => ({ product: { id, name } }));
+    const updateStatus = vi.fn(async ({ id, status }) => ({ product: { id, status } }));
     const publish = vi.fn(async ({ id }) => ({ product: { id } }));
     const client = {
       graphql: {
@@ -40,6 +41,7 @@ describe("Waffo catalog synchronization", () => {
       onetimeProducts: {
         create: vi.fn(),
         update,
+        updateStatus,
         publish,
       },
     };
@@ -48,13 +50,19 @@ describe("Waffo catalog synchronization", () => {
       client,
       storeId: "STO_1234567890123456789012",
       publish: true,
+      activate: true,
       log: () => {},
     });
 
     expect(update).toHaveBeenCalledTimes(3);
     expect(update).toHaveBeenCalledWith(
       { id: "PROD_9", name: "识海 400 点" },
-      { idempotencyKey: "zhishiku-rename-kb_pack_9" },
+      { idempotencyKey: "zhishiku-rename-kb_pack_9-2026-10-mvp-zh" },
+    );
+    expect(updateStatus).toHaveBeenCalledTimes(3);
+    expect(updateStatus).toHaveBeenCalledWith(
+      { id: "PROD_9", status: "active" },
+      { idempotencyKey: "zhishiku-activate-kb_pack_9-2026-10-mvp-zh" },
     );
     expect(publish).toHaveBeenCalledTimes(3);
   });

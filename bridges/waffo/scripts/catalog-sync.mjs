@@ -3,6 +3,7 @@ export const CATALOG = Object.freeze([
   { sku: "kb_pack_29", name: "识海 1,400 点", amount: "29.00" },
   { sku: "kb_pack_99", name: "识海 5,000 点", amount: "99.00" },
 ]);
+const CATALOG_VERSION = "2026-10-mvp-zh";
 
 export function normalizePrivateKeyInput(value) {
   const normalized = value.replace(/\\n/g, "\n").replace(/\r\n/g, "\n").trim();
@@ -20,7 +21,13 @@ export function normalizePrivateKeyInput(value) {
   return normalized;
 }
 
-export async function synchronizeCatalog({ client, storeId, publish = false, log = console.log }) {
+export async function synchronizeCatalog({
+  client,
+  storeId,
+  publish = false,
+  activate = false,
+  log = console.log,
+}) {
   const products = await listProducts(client, storeId);
 
   for (const item of CATALOG) {
@@ -39,22 +46,28 @@ export async function synchronizeCatalog({ client, storeId, publish = false, log
           },
           metadata: { sku: item.sku },
         },
-        { idempotencyKey: `zhishiku-catalog-${item.sku}` },
+        { idempotencyKey: `zhishiku-catalog-${item.sku}-${CATALOG_VERSION}` },
       );
       product = created.product;
       action = "created";
     } else if (product.name !== item.name) {
       const updated = await client.onetimeProducts.update(
         { id: product.id, name: item.name },
-        { idempotencyKey: `zhishiku-rename-${item.sku}` },
+        { idempotencyKey: `zhishiku-rename-${item.sku}-${CATALOG_VERSION}` },
       );
       product = updated.product;
       action = "renamed";
     }
+    if (activate) {
+      await client.onetimeProducts.updateStatus(
+        { id: product.id, status: "active" },
+        { idempotencyKey: `zhishiku-activate-${item.sku}-${CATALOG_VERSION}` },
+      );
+    }
     if (publish) {
       await client.onetimeProducts.publish(
         { id: product.id },
-        { idempotencyKey: `zhishiku-publish-${item.sku}` },
+        { idempotencyKey: `zhishiku-publish-${item.sku}-${CATALOG_VERSION}` },
       );
       action = action === "existing" ? "published" : `${action}-published`;
     }
