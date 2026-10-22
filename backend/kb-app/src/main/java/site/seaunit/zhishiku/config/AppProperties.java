@@ -98,6 +98,9 @@ public record AppProperties(
       int maxTextChars,
       int maxItems,
       boolean allowUnbilledAi) {
+    @ConstructorBinding
+    public WebImport {}
+
     public WebImport(
         String workerJar,
         String tesseractCommand,

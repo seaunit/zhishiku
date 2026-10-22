@@ -22,6 +22,8 @@ class AppPropertiesBindingTest {
 
           AppProperties properties = context.getBean(AppProperties.class);
           assertThat(properties.ai().model()).isEqualTo("deepseek-chat");
+          assertThat(properties.webImport()).isNotNull();
+          assertThat(properties.webImport().maxItems()).isEqualTo(20);
           assertThat(properties.registration().resendCooldownSeconds()).isEqualTo(60);
           assertThat(properties.billing().enabled()).isFalse();
         });
