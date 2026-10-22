@@ -143,7 +143,7 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - [x] T076 [P1] 收敛 Spring 到桥接超时、过期收银台、对账 closed/refunded/mismatch 状态、
   买家不透明 ID、成功返回地址、双向密钥差异和桥接 systemd 写权限。
 - [x] T077 [P1] 在部署脚本中增加 PostgreSQL 预部署备份、桥接 unit/Nginx snippet 回滚、
-  `BILLING_ENABLED` 显式选择、管理员邮箱和邮件退款入口。
+  `SHIHAI_BILLING_ENABLED` 显式选择、管理员邮箱和邮件退款入口。
 - [ ] T078 [P0] 作为真实支付总门禁，使用真实 Waffo 测试商户完成商品、收银台、通知、查询、
   退款、重复/乱序事件和物理测试/生产数据库隔离验收。当前无生产凭据与真实测试商户证据。
 - [ ] T079 [P0] 在真实 PostgreSQL 执行计费并发放行、账本批次、退款、恢复和 100 组并发门禁。
@@ -165,9 +165,11 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - [x] T084 [P0] 增加桥接 38 项测试，覆盖官方支付/退款事件、真实 RSA 验签、篡改签名、
   配置缺失、幂等参数、查询金额/商品和私钥编码。
 - [ ] T085 [P0] [依赖 T078] 在独立测试主机执行商品初始化冒烟，并保存三档商品、一次测试卡
-  支付和一次退款证据；完成前 `BILLING_ENABLED=false`。
+  支付和一次退款证据；完成前 `SHIHAI_BILLING_ENABLED=false`。
 - [x] T086 [P0] 让 Waffo release 自包含 `package.json`、商品初始化/冒烟脚本和运行时
   `node_modules`，避免部署后桥接缺少 SDK 或脚本不可执行。
+- [x] T087 [P0] 将识海专用环境变量统一为 `SHIHAI_` 前缀，在后端、Waffo 桥接和部署脚本中
+  实现新名优先、旧名同值双写、冲突失败关闭，并同步示例、SDD、测试和设备文档。
 
 ## 依赖关系
 
@@ -176,7 +178,7 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - US1 测试购买依赖 Spring 订单/账本和 Node 桥接。
 - US2 依赖报价、余额和任务事务。
 - US4 依赖 US1 的订单事件、US2 的批次和预留。
-- P0 未通过时 `BILLING_ENABLED=false`；P1 未通过不得公开收费。
+- P0 未通过时 `SHIHAI_BILLING_ENABLED=false`；P1 未通过不得公开收费。
 
 ## 完成记录格式
 
@@ -196,18 +198,42 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 | T074 | 支付事件必须显式有效签名，商品、金额、币种和订单状态匹配；查询未知订单返回 `unavailable`。 | `BillingP0PolicyTest`、`server.test.ts` 3 项。 | 真实 Waffo 字段仍待测试商户证据；回滚需保持 fail-closed。 |
 | T075 | 退款按批次实际回收量落结论；管理员调整显式目标账号并维护试用/购买投影；财务状态与 SKU 限定日期。 | 后端编译与专项测试；`BillingService`、`002` OpenAPI。 | 真实 PostgreSQL 并发、退款冻结和部分回收仍待 T079。 |
 | T076 | Spring→桥接增加 5/15 秒超时；清除过期 open 收银台；补齐对账状态；买家改为不透明 owner UUID；收银台传成功地址；双向密钥必须不同；桥接 unit 移除可写知识目录。 | 后端专项、桥接 typecheck/test/build、部署脚本检查。 | 真实 SDK 查询和回调仍待测试商户；配置变化必须同步 `/etc/zhishiku`。 |
-| T077 | 部署前 `pg_dump` 备份；备份/恢复桥接 unit 与 Nginx snippet；`BILLING_ENABLED` 不因填入凭据自动开启；增加管理员邮箱和 mailto 退款入口。 | `node tests/deploy/verify-deploy-scripts.mjs`、Git Bash `bash -n`（最终验收执行）。 | 数据库备份不自动回滚迁移；回滚仍以应用 release 和人工恢复演练为准。 |
+| T077 | 部署前 `pg_dump` 备份；备份/恢复桥接 unit 与 Nginx snippet；`SHIHAI_BILLING_ENABLED` 不因填入凭据自动开启；增加管理员邮箱和 mailto 退款入口。 | `node tests/deploy/verify-deploy-scripts.mjs`、Git Bash `bash -n`（最终验收执行）。 | 数据库备份不自动回滚迁移；回滚仍以应用 release 和人工恢复演练为准。 |
 
 ### 正式 Waffo 支付接入：2026-10-22
 
 执行角色：产品、开发、测试子智能体。Git commit：`990f4d8`。真实商户凭据未提供，
-`BILLING_ENABLED` 保持关闭。
+`SHIHAI_BILLING_ENABLED` 保持关闭。
 
 | 任务 | 摘要与详情 | 验证与证据 | 风险与回滚 |
 |------|------------|------------|------------|
 | T080 | 桥接改用官方 0.26 事件字段，支付/退款金额优先新字段，验签自动识别环境，退款 ID 使用退款工单或 eventId。 | Waffo 桥接 34 项 Vitest；`normalizer.test.ts`、`waffo-gateway.test.ts`。 | 真实商户字段仍需 T085 证据；桥接可回滚到上一 release，但不得重新接受缺失签名事件。 |
 | T081 | Checkout 传 `orderId` 幂等键、订单/SKU/Product metadata、价格快照和 15 分钟有效期，使用 SDK `expiresAt`。 | `waffo-gateway.test.ts`、`server.test.ts`。 | 若 Waffo 调整会话期限或 metadata 行为需回归测试。 |
 | T082 | 价格接口新增 `billingEnabled`；购买按钮在关闭时禁用；返回页恢复本地订单；弹窗被拦截时保留链接；退款复核结果可见。 | `BillingControllerTest`、Vitest 48 项、Playwright 支付专项 6 项。 | 生产支付仍需真实回调验证；UI 回滚不影响已有余额查询。 |
-| T083 | 增加商品初始化/冒烟脚本；`KB_RUNTIME_ENV` 同时派生应用、数据库和 Waffo 环境。 | 桥接 lint/typecheck/test/build、`verify-deploy-scripts.mjs`。 | 脚本不自动执行真实商品或支付；需操作者显式确认。 |
+| T083 | 增加商品初始化/冒烟脚本；`SHIHAI_RUNTIME_ENV` 同时派生应用、数据库和 Waffo 环境。 | 桥接 lint/typecheck/test/build、`verify-deploy-scripts.mjs`。 | 脚本不自动执行真实商品或支付；需操作者显式确认。 |
 | T084 | 覆盖官方事件、RSA 验签、篡改签名、店铺校验、退款缺失金额、查询多次支付、配置缺失、幂等和私钥编码。 | 桥接 38 项测试；后端全量、前端 Vitest/构建。 | Testcontainers 仍受 Docker 不可用限制。 |
 | T086 | release 复制 Waffo `package.json`、锁文件、`scripts/` 和 `node_modules`，部署检查覆盖运行时依赖。 | `verify-deploy-scripts.mjs`、Git Bash `bash -n`。 | release 体积略增；回滚 release 不受影响。 |
+
+### 完成记录：T087
+
+- 日期：2026-10-22
+- 状态：已完成本地实现与自动化验证；真实生产环境文件迁移尚未执行
+- 执行子智能体：产品、开发、测试
+- Git commit：`029617d`
+- 摘要：识海专用环境变量统一为 `SHIHAI_` 正式前缀，并保留旧名迁移兼容。
+- 详情：Spring 配置全部改为新名优先、旧名回退；新增启动前别名解析器，支持空新值回退、同值
+  双写兼容和异值失败关闭，并注册到 `spring.factories`。Waffo 桥接、商品初始化、收银台冒烟、
+  部署和 provision 脚本采用相同规则；部署文件同时写入同值旧别名，供上一 release 回滚启动。
+  provision 改为只更新受管键，不再整体覆盖环境文件。示例、部署说明、AGENTS、宪法、001/002/
+  006/007/008 相关 SDD 和测试控制变量已同步。
+- 验证：后端全量 249 项通过（core 22、app 226、browser worker 1）；Waffo 41 项、lint、
+  typecheck、build 通过；前端 lint、typecheck、Vitest 48 项、build 通过；Spring 新名、旧名、
+  空值、同值、异值和注册测试通过；部署依赖自检、Bash 语法、双写、冲突和环境文件保留黑盒
+  检查通过；`git diff --check` 和 `kb-app` Spotless 通过。
+- 证据：`ShihaiEnvironmentPostProcessor.java`、`ShihaiEnvironmentPostProcessorTest.java`、
+  `application.yml`、`bridges/waffo/src/config.ts`、`deploy/scripts/deploy.sh`、
+  `deploy/scripts/provision-ubuntu.sh`、`artifacts/002/environment-prefix-migration.md`。
+- 覆盖：FR-084、SC-025；部署环境标识、密钥隔离和回滚兼容。
+- 风险与回滚：本机 Docker 不可用，Testcontainers PostgreSQL 用例执行 0 项；本机无
+  `shellcheck`，部署脚本仅完成 `bash -n` 与函数级黑盒检查。旧别名至少保留一个稳定版本；
+  回滚 release 可读取双写旧名，不得在回滚目标迁移前删除旧别名。
