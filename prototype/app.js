@@ -280,6 +280,7 @@ const externalResults = [
     domain: "developer.mozilla.org",
     summary: "检索增强生成中的查询扩展、召回和结果排序基础。",
     url: "https://developer.mozilla.org/",
+    organizable: false,
   },
   {
     id: "ext-3",
@@ -441,6 +442,7 @@ const translations = {
     internetHint: "临时结果 · 仅在你确认后入库",
     internetLoading: "正在搜索互联网，已有本地结果保持不变…",
     saveToSea: "收入识海",
+    internetNotOrganizable: "该来源内容不足，无法通过 AI 整理收入。",
     review: "复核",
     retry: "重试",
     open: "查看",
@@ -669,6 +671,7 @@ const translations = {
     internetHint: "Temporary results · saved only after confirmation",
     internetLoading: "Searching the internet. Existing local results stay in place…",
     saveToSea: "Save to Sea",
+    internetNotOrganizable: "This source does not contain enough content for AI organization.",
     review: "Review",
     retry: "Retry",
     open: "Open",
@@ -947,10 +950,15 @@ function renderExternalResults() {
           <p class="external-title">${escapeHtml(result.title)}</p>
           <p class="external-domain">${escapeHtml(result.domain)} · ${escapeHtml(result.summary)}</p>
         </div>
-        <button class="save-link" data-save-external="${result.id}">
-          <svg><use href="#icon-plus"></use></svg>
-          ${t("saveToSea")}
-        </button>
+        <span
+          class="external-action-wrap ${result.organizable === false ? "is-unavailable" : ""}"
+          ${result.organizable === false ? `data-unavailable-external="true" title="${t("internetNotOrganizable")}"` : ""}
+        >
+          <button class="save-link" data-save-external="${result.id}" ${result.organizable === false ? "disabled" : ""}>
+            <svg><use href="#icon-plus"></use></svg>
+            ${t("saveToSea")}
+          </button>
+        </span>
       </div>
     `).join("")}
   `;
@@ -2630,6 +2638,11 @@ function bindEvents() {
     const saveExternal = event.target.closest("[data-save-external]");
     if (saveExternal) {
       saveExternalResult(saveExternal.dataset.saveExternal);
+      return;
+    }
+    const unavailableExternal = event.target.closest("[data-unavailable-external]");
+    if (unavailableExternal) {
+      showToast(t("internetNotOrganizable"));
       return;
     }
     const review = event.target.closest("[data-review-id]");

@@ -142,6 +142,7 @@ export interface ExternalSearchCandidate {
   url: string
   snippet: string
   provider: string
+  organizable: boolean
   expiresAt: string
 }
 

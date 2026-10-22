@@ -1923,6 +1923,45 @@ test('keeps other internet results available when one source cannot be fetched',
   await expect(page.getByText('互联网搜索暂时不可用，本地结果不受影响。')).toHaveCount(0)
 })
 
+test('shows unorganizable internet results with the import action disabled', async ({ page }) => {
+  await page.route('**/kb/api/v1/search/external', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            candidateId: '123e4567-e89b-42d3-a456-426614174140',
+            title: 'Unorganizable result',
+            url: 'https://example.com/no-content',
+            snippet: 'No usable article content.',
+            provider: 'Example',
+            organizable: false,
+            expiresAt: '2026-10-22T12:15:00Z',
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/kb/')
+  await page.getByRole('searchbox', { name: '搜索全部知识' }).fill('no-content')
+  await page.getByRole('button', { name: '潜入检索' }).click()
+  await page.getByRole('button', { name: '互联网搜索 · 1 点' }).click()
+
+  const candidate = page.locator('.external-row').first()
+  const importButton = candidate.getByRole('button', { name: 'AI 整理后收入' })
+  await expect(importButton).toBeDisabled()
+  await expect(candidate.locator('.candidate-action-wrap')).toHaveAttribute(
+    'title',
+    '该来源内容不足，无法通过 AI 整理收入。',
+  )
+  await candidate.locator('.candidate-action-wrap').click()
+  await expect(
+    candidate.getByText('该来源内容不足，无法通过 AI 整理收入。'),
+  ).toBeVisible()
+})
+
 test('searches the internet once with a one-point click and no second confirmation', async ({
   page,
 }) => {

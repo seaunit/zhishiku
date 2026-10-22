@@ -137,7 +137,6 @@ public class ExternalSearchService {
           provider.search(request.query().strip(), count);
       List<ExternalSearchCandidate> items =
           results.stream()
-              .filter(result -> hasOrganizableContent(result.content()))
               .map(
                   result -> {
                     UUID candidateId = UUID.randomUUID();
@@ -152,6 +151,7 @@ public class ExternalSearchService {
                             result.url(),
                             result.snippet(),
                             providerName,
+                            hasOrganizableContent(result.content()),
                             expiresAt);
                     candidates.put(
                         candidateId, new CachedCandidate(owner.getId(), result, expiresAt));
@@ -238,6 +238,14 @@ public class ExternalSearchService {
         || !clock.instant().isBefore(cached.expiresAt())) {
       candidates.invalidate(candidateId);
       throw new ExternalSearchCandidateNotFoundException();
+    }
+    if (!hasOrganizableContent(cached.result().content())) {
+      if (billingTaskId != null) {
+        billingService.releaseAfterFailure(
+            authentication, billingTaskId, "Internet source has no organizable content");
+      }
+      throw new ExternalSourceUnavailableException(
+          "The selected source did not contain enough content to organize.");
     }
 
     try {

@@ -1,6 +1,7 @@
 package site.seaunit.zhishiku.search.external;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -131,7 +132,7 @@ class ExternalSearchServiceTest {
   }
 
   @Test
-  void filtersSearchResultsWithoutOrganizableContent() {
+  void keepsSearchResultsWithoutOrganizableContentButMarksThemUnavailable() {
     when(currentOwnerService.require(authentication)).thenReturn(owner);
     when(provider.search("empty", 5))
         .thenReturn(
@@ -150,7 +151,35 @@ class ExternalSearchServiceTest {
 
     var search = service.search(new ExternalSearchRequest("empty", true, false), authentication);
 
-    assertThat(search.items()).isEmpty();
+    assertThat(search.items()).hasSize(1);
+    assertThat(search.items().get(0).organizable()).isFalse();
+  }
+
+  @Test
+  void rejectsDirectSaveOfAnUnorganizableCandidateWithoutCallingFetch() {
+    String url = "https://example.com/empty";
+    when(currentOwnerService.require(authentication)).thenReturn(owner);
+    when(provider.search("empty", 5))
+        .thenReturn(
+            List.of(
+                new DeepSeekWebProvider.SearchResult(
+                    "Empty result",
+                    url,
+                    "No body",
+                    "No body",
+                    "Example",
+                    null,
+                    null,
+                    1,
+                    0.5,
+                    "   ")));
+    var search = service.search(new ExternalSearchRequest("empty", true, false), authentication);
+
+    assertThatThrownBy(
+            () -> service.save(search.items().get(0).candidateId(), true, authentication))
+        .isInstanceOf(ExternalSourceUnavailableException.class);
+    verify(provider, never()).fetch(url);
+    verify(organizer, never()).organize(any(), any());
   }
 
   @Test

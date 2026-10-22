@@ -1141,6 +1141,19 @@ mark {
   border-color: var(--accent);
 }
 
+.external-action-wrap {
+  display: inline-flex;
+}
+
+.external-action-wrap.is-unavailable {
+  cursor: not-allowed;
+}
+
+.external-action-wrap.is-unavailable .save-link {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 .right-rail {
   display: grid;
   grid-template-rows: auto 1fr;

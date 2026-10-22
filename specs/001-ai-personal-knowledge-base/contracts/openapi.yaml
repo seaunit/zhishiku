@@ -1934,7 +1934,7 @@ components:
             组合价格也必须在唯一一次点击前展示。
     ExternalSearchCandidate:
       type: object
-      required: [candidateId, title, url, snippet, provider]
+      required: [candidateId, title, url, snippet, provider, organizable]
       properties:
         candidateId:
           type: string
@@ -1948,6 +1948,9 @@ components:
           type: string
         provider:
           type: string
+        organizable:
+          type: boolean
+          description: 候选正文是否足以进入 AI 整理；否时前端禁用收入操作。
         expiresAt:
           type: string
           format: date-time

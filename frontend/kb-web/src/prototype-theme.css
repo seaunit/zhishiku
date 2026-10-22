@@ -1088,6 +1088,18 @@
   min-height: 26px;
 }
 
+.candidate-action-wrap {
+  display: inline-flex;
+}
+
+.candidate-action-wrap.is-unavailable {
+  cursor: not-allowed;
+}
+
+.candidate-action-wrap.is-unavailable .button {
+  pointer-events: none;
+}
+
 .candidate-error {
   margin: 7px 0 0;
   color: var(--pill-negative-ink);

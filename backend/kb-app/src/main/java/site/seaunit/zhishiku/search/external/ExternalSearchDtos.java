@@ -26,6 +26,7 @@ public final class ExternalSearchDtos {
       String url,
       String snippet,
       String provider,
+      boolean organizable,
       Instant expiresAt) {}
 
   public record ExternalSearchResponse(List<ExternalSearchCandidate> items, String answer) {

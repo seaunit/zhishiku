@@ -224,26 +224,44 @@
                   >
                     {{ t('home.internetOpen') }}
                   </a>
-                  <button
-                    type="button"
-                    class="button secondary"
-                    :disabled="savingCandidateId === candidate.candidateId"
-                    @click="saveCandidate(candidate)"
+                  <span
+                    class="candidate-action-wrap"
+                    :class="{ 'is-unavailable': candidate.organizable === false }"
+                    :title="
+                      candidate.organizable === false
+                        ? t('home.internetNotOrganizable')
+                        : undefined
+                    "
+                    @click="
+                      candidate.organizable === false
+                        ? showCandidateUnavailable(candidate)
+                        : undefined
+                    "
                   >
-                    <LoaderCircle
-                      v-if="savingCandidateId === candidate.candidateId"
-                      class="spin"
-                      :size="15"
-                    />
-                    {{
-                      savingCandidateId === candidate.candidateId
-                        ? t('home.internetSaving')
-                        : candidateQuote &&
-                            candidateQuoteId === candidate.candidateId
-                          ? t('home.confirmImport', { points: candidateQuote.maxPoints })
-                          : t('home.internetSave')
-                    }}
-                  </button>
+                    <button
+                      type="button"
+                      class="button secondary"
+                      :disabled="
+                        savingCandidateId === candidate.candidateId ||
+                        candidate.organizable === false
+                      "
+                      @click="saveCandidate(candidate)"
+                    >
+                      <LoaderCircle
+                        v-if="savingCandidateId === candidate.candidateId"
+                        class="spin"
+                        :size="15"
+                      />
+                      {{
+                        savingCandidateId === candidate.candidateId
+                          ? t('home.internetSaving')
+                          : candidateQuote &&
+                              candidateQuoteId === candidate.candidateId
+                            ? t('home.confirmImport', { points: candidateQuote.maxPoints })
+                            : t('home.internetSave')
+                      }}
+                    </button>
+                  </span>
                 </div>
               </article>
             </template>
@@ -575,6 +593,14 @@ async function saveCandidate(candidate: ExternalSearchCandidate) {
     candidateQuoteId.value = ''
   } finally {
     savingCandidateId.value = ''
+  }
+}
+
+function showCandidateUnavailable(candidate: ExternalSearchCandidate) {
+  if (candidate.organizable !== false) return
+  candidateErrors.value = {
+    ...candidateErrors.value,
+    [candidate.candidateId]: t('home.internetNotOrganizable'),
   }
 }
 
