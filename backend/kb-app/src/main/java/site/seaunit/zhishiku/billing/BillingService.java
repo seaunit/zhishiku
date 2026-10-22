@@ -456,13 +456,8 @@ public class BillingService {
         timestamp(clock.instant()));
     CheckoutBridgeResponse response =
         bridge.checkout(
-            new CheckoutBridgeRequest(
-                orderId,
-                order.sku(),
-                order.amountMinor(),
-                order.currency(),
-                owner.getId().toString(),
-                checkoutSuccessUrl(config.checkoutSuccessUrl(), orderId)),
+            checkoutBridgeRequest(
+                order, owner, checkoutSuccessUrl(config.checkoutSuccessUrl(), orderId)),
             orderId.toString());
     Instant now = clock.instant();
     jdbc.update(
@@ -501,6 +496,18 @@ public class BillingService {
         .replaceQueryParam("orderId", orderId)
         .build()
         .toUriString();
+  }
+
+  static CheckoutBridgeRequest checkoutBridgeRequest(
+      PaymentOrderRow order, OwnerAccountEntity owner, String successUrl) {
+    return new CheckoutBridgeRequest(
+        order.id(),
+        order.sku(),
+        order.amountMinor(),
+        order.currency(),
+        owner.getId().toString(),
+        owner.getEmailNormalized(),
+        successUrl);
   }
 
   @Transactional

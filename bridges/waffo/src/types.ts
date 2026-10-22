@@ -6,6 +6,7 @@ export interface CheckoutInput {
   amountMinor: number;
   currency: "CNY";
   buyerIdentity: string;
+  buyerEmail: string;
   successUrl: string;
 }
 

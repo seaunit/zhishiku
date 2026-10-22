@@ -724,3 +724,6 @@ verifying -> manual_review -> recovered/partially_recovered/rejected
   体验点优先、购买点最早批次顺序消费并逐批次写只追加账本。
 - 退款结论以实际可回收批次点数为准，客户端提交的 recovered/unrecovered 数值只作为请求
   结构兼容字段，不作为账务权威。
+- Waffo 收银台请求可短期携带当前认证账号的 `buyerEmail` 用于预填邮箱。该字段只存在于
+  Spring 到桥接的内部请求和 Waffo SDK 调用中，不写入本地订单、收银台会话、桥接日志或商品
+  metadata；订单和账本归属仍只使用账号 UUID。

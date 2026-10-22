@@ -21,12 +21,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import site.seaunit.zhishiku.billing.BillingDtos.CheckoutBridgeRequest;
 import site.seaunit.zhishiku.billing.BillingDtos.NormalizedWaffoEvent;
 import site.seaunit.zhishiku.billing.BillingDtos.QuoteLineRequest;
 import site.seaunit.zhishiku.config.AppProperties;
 import site.seaunit.zhishiku.core.billing.BillingModel.Feature;
 import site.seaunit.zhishiku.core.billing.BillingModel.OrderStatus;
 import site.seaunit.zhishiku.owner.CurrentOwnerService;
+import site.seaunit.zhishiku.owner.OwnerAccountEntity;
 
 class BillingP0PolicyTest {
   private static final UUID OWNER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -247,6 +249,22 @@ class BillingP0PolicyTest {
             BillingService.checkoutSuccessUrl(
                 "https://seaunit.site/kb/billing/return?source=waffo", orderId))
         .isEqualTo("https://seaunit.site/kb/billing/return?source=waffo&orderId=" + orderId);
+  }
+
+  @Test
+  void checkoutBridgeRequestCarriesTheAuthenticatedAccountEmail() {
+    UUID orderId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    OwnerAccountEntity owner = OwnerAccountEntity.create("Buyer@Example.com", "hash", "zh-CN");
+    BillingService.PaymentOrderRow order =
+        new BillingService.PaymentOrderRow(
+            orderId, owner.getId(), "kb_pack_9", 900, "CNY", 400, OrderStatus.PENDING, null, null);
+
+    CheckoutBridgeRequest request =
+        BillingService.checkoutBridgeRequest(
+            order, owner, "https://seaunit.site/kb/billing/return");
+
+    assertThat(request.buyerIdentity()).isEqualTo(owner.getId().toString());
+    assertThat(request.buyerEmail()).isEqualTo("buyer@example.com");
   }
 
   @Test

@@ -146,6 +146,7 @@ components:
         - amountMinor
         - currency
         - buyerIdentity
+        - buyerEmail
         - successUrl
       properties:
         orderId:
@@ -163,6 +164,11 @@ components:
         buyerIdentity:
           type: string
           description: 不透明买家标识；不得记录明文邮箱或知识内容。
+        buyerEmail:
+          type: string
+          format: email
+          maxLength: 320
+          description: 当前登录账号邮箱，仅用于预填 Waffo 收银台，不得写日志或持久化到桥接。
         successUrl:
           type: string
           format: uri

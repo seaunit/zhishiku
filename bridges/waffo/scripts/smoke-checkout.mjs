@@ -42,7 +42,10 @@ const response = await fetch(`${bridgeUrl}/checkout`, {
     currency: "CNY",
     buyerIdentity:
       envValue("SHIHAI_SMOKE_BUYER_IDENTITY", "KB_SMOKE_BUYER_IDENTITY")?.trim() ??
-      "operator-smoke@example.invalid",
+      "operator-smoke",
+    buyerEmail:
+      envValue("SHIHAI_SMOKE_BUYER_EMAIL", "KB_SMOKE_BUYER_EMAIL")?.trim() ??
+      "operator-smoke@seaunit.site",
     successUrl:
       envValue("SHIHAI_SMOKE_SUCCESS_URL", "KB_SMOKE_SUCCESS_URL")?.trim() ??
       "https://seaunit.site/kb/billing/return",

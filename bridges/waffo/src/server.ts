@@ -147,6 +147,13 @@ function validateCheckout(
   if (!input.orderId || !input.sku || !input.buyerIdentity) {
     throw new BridgeHttpError(400, "CHECKOUT_INVALID", "Checkout fields are required.");
   }
+  if (!validEmail(input.buyerEmail)) {
+    throw new BridgeHttpError(
+      400,
+      "CHECKOUT_BUYER_EMAIL_INVALID",
+      "A valid account email is required for checkout prefill.",
+    );
+  }
   if (Array.isArray(idempotencyKey) || idempotencyKey !== input.orderId) {
     throw new BridgeHttpError(
       400,
@@ -167,6 +174,14 @@ function validateCheckout(
   if (!allowedSuccessUrl(input.successUrl, config.successUrlAllowlist)) {
     throw new BridgeHttpError(400, "CHECKOUT_SUCCESS_URL_INVALID", "Success URL is not allowed.");
   }
+}
+
+function validEmail(value: string | undefined): value is string {
+  return Boolean(
+    value &&
+      value.length <= 320 &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+  );
 }
 
 function allowedSuccessUrl(value: string, allowlist: string[]): boolean {

@@ -241,6 +241,7 @@ public final class BillingDtos {
       int amountMinor,
       String currency,
       String buyerIdentity,
+      String buyerEmail,
       String successUrl) {}
 
   public record CheckoutBridgeResponse(

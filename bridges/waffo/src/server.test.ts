@@ -40,6 +40,25 @@ describe("waffo bridge", () => {
     expect(mismatch.status).toBe(409);
   });
 
+  it("requires the account email used to prefill checkout", async () => {
+    const { baseUrl } = await start();
+    const { buyerEmail: _buyerEmail, ...withoutEmail } = checkout();
+    const response = await fetch(`${baseUrl}/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": "app-secret",
+        "Idempotency-Key": checkout().orderId,
+      },
+      body: JSON.stringify(withoutEmail),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "CHECKOUT_BUYER_EMAIL_INVALID",
+    });
+  });
+
   it("creates a dry-run checkout and forwards normalized webhooks", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
     const { baseUrl } = await start(fetchImpl);
@@ -236,6 +255,7 @@ function checkout() {
     amountMinor: 900,
     currency: "CNY" as const,
     buyerIdentity: "owner@example.com",
+    buyerEmail: "owner@example.com",
     successUrl: "http://127.0.0.1:4173/kb/billing/return",
   };
 }

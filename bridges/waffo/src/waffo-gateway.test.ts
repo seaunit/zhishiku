@@ -32,6 +32,7 @@ describe("SdkWaffoGateway", () => {
         productId: "PROD_9",
         currency: "CNY",
         buyerIdentity: "owner@example.com",
+        buyerEmail: "owner@example.com",
         orderMerchantExternalId: input.orderId,
         successUrl: input.successUrl,
         metadata: {
@@ -264,6 +265,7 @@ function checkoutInput() {
     amountMinor: 900,
     currency: "CNY" as const,
     buyerIdentity: "owner@example.com",
+    buyerEmail: "owner@example.com",
     successUrl: "https://seaunit.site/kb/billing/return",
   };
 }

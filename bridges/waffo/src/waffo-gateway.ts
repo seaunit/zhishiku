@@ -42,6 +42,7 @@ export class SdkWaffoGateway implements WaffoGateway {
         productId,
         currency: this.config.currency,
         buyerIdentity: input.buyerIdentity,
+        buyerEmail: input.buyerEmail,
         orderMerchantExternalId: input.orderId,
         successUrl: input.successUrl,
         metadata: {
