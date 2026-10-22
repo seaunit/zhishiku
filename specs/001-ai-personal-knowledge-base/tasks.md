@@ -645,6 +645,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   用户可直接选择其他来源继续整理。
 - 验证：DeepSeek Provider 404 回归用例通过；后端完整 Maven 测试通过；前端 ESLint、TypeScript、
   53 项 Vitest、51 项 Playwright 和生产构建通过；真实搜索的 8 个候选抽查中 4 个可抓取、4 个返回 404。
+  使用本地真实账号复测“梁文峰”：8 条候选保持可见，36Kr 候选显示行内提示；该次操作只结算搜索
+  1 点，候选整理预留 5 点在 Fetch 404 后完整释放，没有把失败整理计入消费。
 - 证据：`DeepSeekWebProvider.java`、`ExternalSourceUnavailableException.java`、
   `ApiExceptionHandler.java`、`DeepSeekWebProviderTest.java`、`HomeView.vue`、
   `frontend/kb-web/e2e/app.spec.ts`、`specs/001-ai-personal-knowledge-base/contracts/openapi.yaml`。
