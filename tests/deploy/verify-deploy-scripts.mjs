@@ -25,7 +25,11 @@ if (!deploy.includes('kb-browser-worker') || !deploy.includes('--install-browser
 if (!deploy.includes('PLAYWRIGHT_BROWSERS_PATH')) {
   failures.push('deploy.sh must configure the Playwright browser path')
 }
-if (!provision.includes("KB_WEB_IMPORT_ALLOW_UNBILLED_AI='false'")) {
+if (
+  !provision.includes(
+    'set_env_pair SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI KB_WEB_IMPORT_ALLOW_UNBILLED_AI false',
+  )
+) {
   failures.push('production provisioning must keep unbilled webpage AI disabled')
 }
 if (!/location \^~ \/kb\/api\/ \{[\s\S]*client_max_body_size 26m;/.test(nginx)) {
@@ -61,7 +65,7 @@ if (!provision.includes('waffo.env') || !provision.includes('Waffo 私钥 Base64
   failures.push('provision-ubuntu.sh must interactively configure the isolated Waffo environment')
 }
 if (
-  !provision.includes('KB_RUNTIME_ENV') ||
+  !provision.includes('SHIHAI_RUNTIME_ENV') ||
   !provision.includes('WAFFO_ENVIRONMENT') ||
   provision.includes('WAFFO_ENV=production')
 ) {
@@ -71,15 +75,16 @@ if (!provision.includes('Waffo 店铺 ID')) {
   failures.push('provision-ubuntu.sh must preserve the Waffo store id for catalog setup')
 }
 if (
-  !provision.includes('Existing WAFFO_ENV') ||
-  !provision.includes('Existing BILLING_DB_ENV')
+  !provision.includes('Existing SHIHAI_WAFFO_ENV') ||
+  !provision.includes('Existing SHIHAI_BILLING_DB_ENV')
 ) {
   failures.push('provision-ubuntu.sh must reject conflicting existing billing environments')
 }
 if (
   !deploy.includes('ensure_environment_consistency') ||
   !deploy.includes('read_waffo_env_value') ||
-  !deploy.includes('WAFFO_ENV and APP_ENV')
+  !deploy.includes('assert_alias_consistency') ||
+  !deploy.includes('SHIHAI_WAFFO_ENV and SHIHAI_APP_ENV')
 ) {
   failures.push('deploy.sh must verify APP_ENV, BILLING_DB_ENV, and WAFFO_ENV before release')
 }
@@ -91,14 +96,34 @@ if (
 ) {
   failures.push('deploy.sh must interactively configure Waffo without echoing secrets')
 }
-if (!provision.includes("BILLING_ENABLED_VALUE=\"${BILLING_ENABLED:-false}\"")) {
-  failures.push('production billing must require an explicit BILLING_ENABLED choice')
+if (
+  !provision.includes('SHIHAI_BILLING_ENABLED') ||
+  !deploy.includes('SHIHAI_BILLING_ENABLED')
+) {
+  failures.push('production billing must require an explicit SHIHAI_BILLING_ENABLED choice')
 }
-if (!provision.includes('BILLING_ADMIN_EMAILS=')) {
+if (!provision.includes('set_env_pair SHIHAI_BILLING_ADMIN_EMAILS BILLING_ADMIN_EMAILS')) {
   failures.push('production provisioning must configure at least one billing administrator')
 }
-if (!provision.includes('APP_TO_BRIDGE_SECRET and BRIDGE_TO_APP_SECRET must be different')) {
+if (
+  !provision.includes(
+    'SHIHAI_APP_TO_BRIDGE_SECRET and SHIHAI_BRIDGE_TO_APP_SECRET must be different',
+  )
+) {
   failures.push('provision-ubuntu.sh must reject identical internal bridge secrets')
+}
+if (
+  !/set_waffo_pair[\s\\]+SHIHAI_WAFFO_PRIVATE_KEY_BASE64/.test(provision) ||
+  !/set_waffo_pair\s+SHIHAI_WAFFO_PRODUCT_MAP/.test(provision) ||
+  !provision.includes('set_env_pair SHIHAI_DEEPSEEK_API_KEY') ||
+  !provision.includes('set_env_pair SHIHAI_SMTP_PASSWORD') ||
+  !deploy.includes('set_dual_file_value') ||
+  !provision.includes('assert_alias_consistency') ||
+  !deploy.includes('assert_alias_consistency')
+) {
+  failures.push(
+    'deploy scripts must write SHIHAI_ names and retain same-value legacy aliases for rollback',
+  )
 }
 if (!deploy.includes('pg_dump') || !deploy.includes('predeploy-$RELEASE_ID.sql.gz')) {
   failures.push('deploy.sh must create a PostgreSQL backup before switching releases')

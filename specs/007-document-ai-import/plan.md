@@ -144,5 +144,5 @@ specs/007-document-ai-import/contracts/document-import.openapi.yaml
 | 依赖版本冲突 | 固定 Tika 3.3.3，覆盖与 commons-compress 兼容的 commons-lang3 3.21.0 |
 | 扫描 PDF 无文字 | `DOCUMENT_NO_TEXT` 并提示截图入口 |
 | 大文档内存 | 单请求 25 MiB、文本 60k；P2 分块任务 |
-| 未计费外发 | 生产 `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false` |
+| 未计费外发 | 生产 `SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=false` |
 | 原文泄露 | 不落对象存储、不写日志，只发送脱敏文本 |

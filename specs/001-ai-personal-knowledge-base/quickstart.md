@@ -8,7 +8,7 @@
 ## 前置条件
 
 - 当前 MVP：Java 17 LTS、Maven Wrapper、Node.js 20/22 LTS、pnpm 和 PostgreSQL 18。
-- 当前 MVP 图片使用 `KB_STORAGE_ROOT` 指定的本地持久目录，不要求 S3 或 MinIO。
+- 当前 MVP 图片使用 `SHIHAI_STORAGE_ROOT` 指定的本地持久目录，不要求 S3 或 MinIO。
 - 完整目标另需 S3、Playwright Java、Tesseract、libvips、Tika/PDFBox 和 Waffo 测试桥接；
   这些能力尚未实现，不能作为当前 MVP 的放行依据。
 
@@ -53,26 +53,26 @@ pnpm build
 ## 环境变量
 
 ```dotenv
-APP_ENV=test
-SERVER_PORT=8082
-DATABASE_URL=jdbc:postgresql://127.0.0.1:55432/zhishiku
-DATABASE_USERNAME=zhishiku
-DATABASE_PASSWORD=replace-me
-SESSION_COOKIE_SECURE=false
-KB_STORAGE_ROOT=.data/uploads
-KB_CAPTCHA_TTL_SECONDS=120
-KB_CAPTCHA_MAX_ENTRIES=10000
-KB_CAPTCHA_EXPOSE_ANSWER=false
-KB_AUTO_BOOTSTRAP=true
-KB_OWNER_EMAIL=owner@zhishiku.local
-KB_OWNER_PASSWORD=local-dev-password-change-me
+SHIHAI_APP_ENV=test
+SHIHAI_SERVER_PORT=8082
+SHIHAI_DATABASE_URL=jdbc:postgresql://127.0.0.1:55432/zhishiku
+SHIHAI_DATABASE_USERNAME=zhishiku
+SHIHAI_DATABASE_PASSWORD=replace-me
+SHIHAI_SESSION_COOKIE_SECURE=false
+SHIHAI_STORAGE_ROOT=.data/uploads
+SHIHAI_CAPTCHA_TTL_SECONDS=120
+SHIHAI_CAPTCHA_MAX_ENTRIES=10000
+SHIHAI_CAPTCHA_EXPOSE_ANSWER=false
+SHIHAI_AUTO_BOOTSTRAP=true
+SHIHAI_OWNER_EMAIL=owner@zhishiku.local
+SHIHAI_OWNER_PASSWORD=local-dev-password-change-me
 ```
 
-以上仅用于本地开发。生产环境必须使用 `SESSION_COOKIE_SECURE=true`、随机数据库密码，
-并在首次初始化后设置 `KB_AUTO_BOOTSTRAP=false`。任何 AI、S3 或 Waffo 密钥只能放在
+以上仅用于本地开发。生产环境必须使用 `SHIHAI_SESSION_COOKIE_SECURE=true`、随机数据库密码，
+并在首次初始化后设置 `SHIHAI_AUTO_BOOTSTRAP=false`。任何 AI、S3 或 Waffo 密钥只能放在
 服务器受限环境文件或受管密钥服务中。
 
-`KB_OWNER_EMAIL` 和 `KB_OWNER_PASSWORD` 是预置开发账号的兼容变量名，不代表实例只能有一个
+`SHIHAI_OWNER_EMAIL` 和 `SHIHAI_OWNER_PASSWORD` 是预置开发账号的变量名，不代表实例只能有一个
 所有者；生产公开注册不依赖这两个变量。
 
 ## 验证场景

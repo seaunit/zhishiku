@@ -17,10 +17,14 @@ if (!apply) {
   );
 }
 
-const storeId = requiredEnv("WAFFO_STORE_ID");
-const merchantId = requiredEnv("WAFFO_MERCHANT_ID");
-const privateKey = resolvePrivateKey(requiredEnv("WAFFO_PRIVATE_KEY_BASE64"));
-const environment = parseEnvironment(process.env.WAFFO_ENV);
+const storeId = requiredEnv("SHIHAI_WAFFO_STORE_ID", "WAFFO_STORE_ID");
+const merchantId = requiredEnv("SHIHAI_WAFFO_MERCHANT_ID", "WAFFO_MERCHANT_ID");
+const privateKey = resolvePrivateKey(
+  requiredEnv("SHIHAI_WAFFO_PRIVATE_KEY_BASE64", "WAFFO_PRIVATE_KEY_BASE64"),
+);
+const environment = parseEnvironment(
+  envValue("SHIHAI_WAFFO_ENV", "WAFFO_ENV"),
+);
 const client = new WaffoPancake({ merchantId, privateKey, environment });
 const products = await listProducts(client, storeId);
 
@@ -83,13 +87,27 @@ function metadataSku(metadata) {
 function parseEnvironment(value) {
   if (value === "production" || value === "prod") return "prod";
   if (value === "test" || value === undefined || value === "") return "test";
-  fail(2, "WAFFO_ENV must be test or production.");
+  fail(2, "SHIHAI_WAFFO_ENV must be test or production.");
 }
 
-function requiredEnv(name) {
-  const value = process.env[name]?.trim();
-  if (!value) fail(2, `${name} is required.`);
+function requiredEnv(primary, legacy) {
+  const value = envValue(primary, legacy)?.trim();
+  if (!value) fail(2, `${primary} is required.`);
   return value;
+}
+
+function envValue(primary, legacy) {
+  const primaryValue = process.env[primary];
+  const legacyValue = process.env[legacy];
+  const normalizedPrimary = primaryValue?.trim();
+  const normalizedLegacy = legacyValue?.trim();
+  if (normalizedPrimary && normalizedLegacy && normalizedPrimary !== normalizedLegacy) {
+    fail(
+      2,
+      `Conflicting Shihai environment variables: ${primary} and ${legacy} must match during migration.`,
+    );
+  }
+  return normalizedPrimary ? primaryValue : legacyValue;
 }
 
 function resolvePrivateKey(value) {
@@ -104,7 +122,7 @@ function resolvePrivateKey(value) {
       new WaffoPancake({
         merchantId,
         privateKey: candidate,
-        environment: parseEnvironment(process.env.WAFFO_ENV),
+        environment,
       });
       return candidate;
     } catch {
@@ -113,7 +131,7 @@ function resolvePrivateKey(value) {
   }
   fail(
     2,
-    "WAFFO_PRIVATE_KEY_BASE64 must contain a PEM key, escaped PEM key, or Base64-wrapped PEM key.",
+    "SHIHAI_WAFFO_PRIVATE_KEY_BASE64 must contain a PEM key, escaped PEM key, or Base64-wrapped PEM key.",
   );
 }
 

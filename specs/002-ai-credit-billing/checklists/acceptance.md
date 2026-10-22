@@ -5,7 +5,7 @@
 **日期**：2026-10-22
 
 **状态**：部分实现；本地自动化已通过，真实 Waffo、物理 PostgreSQL、生产零影响、Taste 和
-单位经济性门禁未完成，`BILLING_ENABLED=false`
+单位经济性门禁未完成，`SHIHAI_BILLING_ENABLED=false`
 
 ## 文档就绪度
 
@@ -69,7 +69,8 @@
 - [x] 支付关闭、弹窗拦截恢复、带订单号返回、无订单号恢复和退款复核结果 E2E
 - [x] Spring 内部通知鉴权、`billingEnabled` 目录字段和返回 URL 订单号测试
 - [x] Waffo release 包含 `package.json`、操作脚本和运行时依赖的部署门禁
-- [x] `KB_RUNTIME_ENV` 同源派生应用、数据库和 Waffo 环境的部署检查
+- [x] `SHIHAI_RUNTIME_ENV` 同源派生应用、数据库和 Waffo 环境的部署检查
+- [x] `SHIHAI_*` 新名启动、旧名兼容、同值双写和异值失败关闭测试
 
 ## 证据目录
 

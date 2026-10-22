@@ -1,42 +1,83 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO_URL="${KB_REPO_URL:-https://github.com/seaunit/zhishiku.git}"
-REF="${KB_REF:-main}"
-INSTALL_ROOT="${KB_INSTALL_ROOT:-/opt/zhishiku}"
-PORTAL_ROOT="${KB_PORTAL_ROOT:-/opt/seaunit-portal}"
-ENV_FILE="${KB_ENV_FILE:-/etc/zhishiku/kb.env}"
-WAFFO_ENV_FILE="${WAFFO_ENV_FILE:-/etc/zhishiku/waffo.env}"
-SERVICE_NAME="${KB_SERVICE_NAME:-zhishiku-api}"
-SERVICE_USER="${KB_SERVICE_USER:-zhishiku}"
-PORT="${KB_PORT:-8082}"
-NGINX_CONFIG="${KB_NGINX_CONFIG:-/etc/nginx/conf.d/shuati.conf}"
+REPO_URL="${SHIHAI_REPO_URL:-${KB_REPO_URL:-https://github.com/seaunit/zhishiku.git}}"
+REF="${SHIHAI_REF:-${KB_REF:-main}}"
+INSTALL_ROOT="${SHIHAI_INSTALL_ROOT:-${KB_INSTALL_ROOT:-/opt/zhishiku}}"
+PORTAL_ROOT="${SHIHAI_PORTAL_ROOT:-${KB_PORTAL_ROOT:-/opt/seaunit-portal}}"
+ENV_FILE="${SHIHAI_ENV_FILE:-${KB_ENV_FILE:-/etc/zhishiku/kb.env}}"
+WAFFO_ENV_FILE="${SHIHAI_WAFFO_ENV_FILE:-${WAFFO_ENV_FILE:-/etc/zhishiku/waffo.env}}"
+SERVICE_NAME="${SHIHAI_SERVICE_NAME:-${KB_SERVICE_NAME:-zhishiku-api}}"
+SERVICE_USER="${SHIHAI_SERVICE_USER:-${KB_SERVICE_USER:-zhishiku}}"
+PORT="${SHIHAI_PORT:-${KB_PORT:-8082}}"
+NGINX_CONFIG="${SHIHAI_NGINX_CONFIG:-${KB_NGINX_CONFIG:-/etc/nginx/conf.d/shuati.conf}}"
 NGINX_SNIPPET="/etc/nginx/snippets/zhishiku-kb.conf"
-SKIP_TESTS="${KB_SKIP_TESTS:-0}"
-PROMPT_SECRETS="${KB_PROMPT_SECRETS:-1}"
-PROMPT_TIMEOUT="${KB_PROMPT_TIMEOUT:-60}"
-SECRETS_ALREADY_PROMPTED="${KB_SECRETS_ALREADY_PROMPTED:-0}"
+SKIP_TESTS="${SHIHAI_SKIP_TESTS:-${KB_SKIP_TESTS:-0}}"
+PROMPT_SECRETS="${SHIHAI_PROMPT_SECRETS:-${KB_PROMPT_SECRETS:-1}}"
+PROMPT_TIMEOUT="${SHIHAI_PROMPT_TIMEOUT:-${KB_PROMPT_TIMEOUT:-60}}"
+SECRETS_ALREADY_PROMPTED="${SHIHAI_SECRETS_ALREADY_PROMPTED:-${KB_SECRETS_ALREADY_PROMPTED:-0}}"
 
 read_env_value() {
   local key="$1"
-  awk -v key="$key" -v sq="'" '
+  local legacy_key="${2:-}"
+  awk -v key="$key" -v legacy_key="$legacy_key" -v sq="'" '
     index($0, key "=") == 1 {
       value = substr($0, length(key) + 2)
       if ((substr(value, 1, 1) == sq && substr(value, length(value), 1) == sq) ||
           (substr(value, 1, 1) == "\"" && substr(value, length(value), 1) == "\"")) {
         value = substr(value, 2, length(value) - 2)
       }
-      print value
-      exit
+      primary = value
+    }
+    legacy_key != "" && index($0, legacy_key "=") == 1 {
+      value = substr($0, length(legacy_key) + 2)
+      if ((substr(value, 1, 1) == sq && substr(value, length(value), 1) == sq) ||
+          (substr(value, 1, 1) == "\"" && substr(value, length(value), 1) == "\"")) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      legacy = value
+    }
+    END {
+      value = primary != "" ? primary : legacy
+      if (value != "") print value
     }
   ' "$ENV_FILE"
 }
 
 read_waffo_env_value() {
   local key="$1"
+  local legacy_key="${2:-}"
   if [[ ! -f "$WAFFO_ENV_FILE" ]]; then
     return 0
   fi
+  awk -v key="$key" -v legacy_key="$legacy_key" -v sq="'" '
+    index($0, key "=") == 1 {
+      value = substr($0, length(key) + 2)
+      if ((substr(value, 1, 1) == sq && substr(value, length(value), 1) == sq) ||
+          (substr(value, 1, 1) == "\"" && substr(value, length(value), 1) == "\"")) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      primary = value
+    }
+    legacy_key != "" && index($0, legacy_key "=") == 1 {
+      value = substr($0, length(legacy_key) + 2)
+      if ((substr(value, 1, 1) == sq && substr(value, length(value), 1) == sq) ||
+          (substr(value, 1, 1) == "\"" && substr(value, length(value), 1) == "\"")) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      legacy = value
+    }
+    END {
+      value = primary != "" ? primary : legacy
+      if (value != "") print value
+    }
+  ' "$WAFFO_ENV_FILE"
+}
+
+read_raw_file_value() {
+  local target_file="$1"
+  local key="$2"
+  [[ -f "$target_file" ]] || return 0
   awk -v key="$key" -v sq="'" '
     index($0, key "=") == 1 {
       value = substr($0, length(key) + 2)
@@ -47,7 +88,49 @@ read_waffo_env_value() {
       print value
       exit
     }
-  ' "$WAFFO_ENV_FILE"
+  ' "$target_file"
+}
+
+assert_alias_consistency() {
+  local target_file="$1"
+  local primary="$2"
+  local legacy="$3"
+  local primary_value legacy_value
+  primary_value="$(read_raw_file_value "$target_file" "$primary")"
+  legacy_value="$(read_raw_file_value "$target_file" "$legacy")"
+  if [[ -n "$primary_value" && -n "$legacy_value" && "$primary_value" != "$legacy_value" ]]; then
+    printf 'Environment aliases must match during migration: %s and %s in %s.\n' \
+      "$primary" "$legacy" "$target_file" >&2
+    exit 1
+  fi
+}
+
+legacy_name_for() {
+  local primary="$1"
+  case "$primary" in
+    SHIHAI_WAFFO_*)
+      printf 'WAFFO_%s' "${primary#SHIHAI_WAFFO_}"
+      ;;
+    SHIHAI_OWNER_*|SHIHAI_BOOTSTRAP_TOKEN|SHIHAI_AUTO_BOOTSTRAP|SHIHAI_STORAGE_ROOT|SHIHAI_CAPTCHA_*|SHIHAI_BROWSER_*|SHIHAI_OCR_*|SHIHAI_WEB_IMPORT_*|SHIHAI_DOCUMENT_IMPORT_*|SHIHAI_SCREENSHOT_IMPORT_*|SHIHAI_TESSERACT_COMMAND)
+      printf 'KB_%s' "${primary#SHIHAI_}"
+      ;;
+    SHIHAI_*)
+      printf '%s' "${primary#SHIHAI_}"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+assert_all_aliases() {
+  local target_file="$1"
+  local primary legacy
+  [[ -f "$target_file" ]] || return 0
+  while IFS= read -r primary; do
+    legacy="$(legacy_name_for "$primary")"
+    assert_alias_consistency "$target_file" "$primary" "$legacy"
+  done < <(sed -n 's/^\(SHIHAI_[A-Z0-9_]*\)=.*/\1/p' "$target_file" | sort -u)
 }
 
 prompt_secret() {
@@ -92,7 +175,12 @@ prompt_secret() {
 }
 
 set_env_value() {
-  set_file_value "$ENV_FILE" "$1" "$2"
+  local key="$1"
+  local legacy_key="${key#SHIHAI_}"
+  set_file_value "$ENV_FILE" "$key" "$2"
+  if [[ "$legacy_key" != "$key" ]]; then
+    set_file_value "$ENV_FILE" "$legacy_key" "$2"
+  fi
 }
 
 set_file_value() {
@@ -113,50 +201,70 @@ set_file_value() {
   mv "$env_tmp" "$target_file"
 }
 
+set_waffo_env_value() {
+  local key="$1"
+  local legacy_key="${key#SHIHAI_WAFFO_}"
+  set_file_value "$WAFFO_ENV_FILE" "$key" "$2"
+  if [[ "$legacy_key" != "$key" ]]; then
+    set_file_value "$WAFFO_ENV_FILE" "WAFFO_${legacy_key}" "$2"
+  fi
+}
+
+set_dual_file_value() {
+  local target_file="$1"
+  local key="$2"
+  local legacy_key="$3"
+  local value="$4"
+  set_file_value "$target_file" "$key" "$value"
+  set_file_value "$target_file" "$legacy_key" "$value"
+}
+
 ensure_environment_consistency() {
   local app_env billing_db_env waffo_env
-  app_env="$(read_env_value APP_ENV)"
-  billing_db_env="$(read_env_value BILLING_DB_ENV)"
+  assert_all_aliases "$ENV_FILE"
+  assert_all_aliases "$WAFFO_ENV_FILE"
+  app_env="$(read_env_value SHIHAI_APP_ENV APP_ENV)"
+  billing_db_env="$(read_env_value SHIHAI_BILLING_DB_ENV BILLING_DB_ENV)"
   if [[ -z "$app_env" ]]; then
-    printf 'APP_ENV is required in %s.\n' "$ENV_FILE" >&2
+    printf 'SHIHAI_APP_ENV is required in %s.\n' "$ENV_FILE" >&2
     exit 1
   fi
   if [[ "$app_env" == "prod" ]]; then
     app_env="production"
   fi
   if [[ "$app_env" != "test" && "$app_env" != "production" ]]; then
-    printf 'APP_ENV must be test or production.\n' >&2
+    printf 'SHIHAI_APP_ENV must be test or production.\n' >&2
     exit 1
   fi
   if [[ -z "$billing_db_env" ]]; then
-    set_env_value BILLING_DB_ENV "$app_env"
+    set_env_value SHIHAI_BILLING_DB_ENV "$app_env"
     billing_db_env="$app_env"
   elif [[ "$billing_db_env" == "prod" ]]; then
     billing_db_env="production"
   fi
   if [[ "$billing_db_env" != "$app_env" ]]; then
-    printf 'APP_ENV and BILLING_DB_ENV must identify the same environment.\n' >&2
+    printf 'SHIHAI_APP_ENV and SHIHAI_BILLING_DB_ENV must identify the same environment.\n' >&2
     exit 1
   fi
-  if [[ -z "$(read_env_value BILLING_ENABLED)" ]]; then
-    set_env_value BILLING_ENABLED false
+  if [[ -z "$(read_env_value SHIHAI_BILLING_ENABLED BILLING_ENABLED)" ]]; then
+    set_env_value SHIHAI_BILLING_ENABLED false
   fi
-  waffo_env="$(read_waffo_env_value WAFFO_ENV)"
+  waffo_env="$(read_waffo_env_value SHIHAI_WAFFO_ENV WAFFO_ENV)"
   if [[ "$waffo_env" == "prod" ]]; then
     waffo_env="production"
   fi
   if [[ -n "$waffo_env" && "$waffo_env" != "$app_env" ]]; then
-    printf 'WAFFO_ENV and APP_ENV must identify the same environment.\n' >&2
+    printf 'SHIHAI_WAFFO_ENV and SHIHAI_APP_ENV must identify the same environment.\n' >&2
     exit 1
   fi
 }
 
 ensure_secrets() {
   local ai_key search_key fetch_key smtp_password
-  ai_key="${DEEPSEEK_API_KEY:-$(read_env_value DEEPSEEK_API_KEY)}"
-  search_key="${DEEPSEEK_SEARCH_API_KEY:-$(read_env_value DEEPSEEK_SEARCH_API_KEY)}"
-  fetch_key="${DEEPSEEK_FETCH_API_KEY:-$(read_env_value DEEPSEEK_FETCH_API_KEY)}"
-  smtp_password="${SMTP_PASSWORD:-$(read_env_value SMTP_PASSWORD)}"
+  ai_key="${SHIHAI_DEEPSEEK_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_API_KEY DEEPSEEK_API_KEY)}"
+  search_key="${SHIHAI_DEEPSEEK_SEARCH_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_SEARCH_API_KEY DEEPSEEK_SEARCH_API_KEY)}"
+  fetch_key="${SHIHAI_DEEPSEEK_FETCH_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_FETCH_API_KEY DEEPSEEK_FETCH_API_KEY)}"
+  smtp_password="${SHIHAI_SMTP_PASSWORD:-$(read_env_value SHIHAI_SMTP_PASSWORD SMTP_PASSWORD)}"
 
   if [[ "$SECRETS_ALREADY_PROMPTED" != "1" ]]; then
     ai_key="$(prompt_secret "DeepSeek AI API Key" "$ai_key")"
@@ -172,10 +280,10 @@ ensure_secrets() {
     fetch_key="$ai_key"
   fi
 
-  set_env_value DEEPSEEK_API_KEY "$ai_key"
-  set_env_value DEEPSEEK_SEARCH_API_KEY "$search_key"
-  set_env_value DEEPSEEK_FETCH_API_KEY "$fetch_key"
-  set_env_value SMTP_PASSWORD "$smtp_password"
+  set_env_value SHIHAI_DEEPSEEK_API_KEY "$ai_key"
+  set_env_value SHIHAI_DEEPSEEK_SEARCH_API_KEY "$search_key"
+  set_env_value SHIHAI_DEEPSEEK_FETCH_API_KEY "$fetch_key"
+  set_env_value SHIHAI_SMTP_PASSWORD "$smtp_password"
 
   printf '[部署] DeepSeek AI 密钥：%s\n' \
     "$([[ -n "$ai_key" ]] && printf 已配置 || printf 未配置)"
@@ -185,10 +293,10 @@ ensure_secrets() {
 
 ensure_waffo() {
   local merchant_id store_id private_key product_map app_secret bridge_secret
-  merchant_id="${WAFFO_MERCHANT_ID:-$(read_waffo_env_value WAFFO_MERCHANT_ID)}"
-  store_id="${WAFFO_STORE_ID:-$(read_waffo_env_value WAFFO_STORE_ID)}"
-  private_key="${WAFFO_PRIVATE_KEY_BASE64:-$(read_waffo_env_value WAFFO_PRIVATE_KEY_BASE64)}"
-  product_map="${WAFFO_PRODUCT_MAP:-$(read_waffo_env_value WAFFO_PRODUCT_MAP)}"
+  merchant_id="${SHIHAI_WAFFO_MERCHANT_ID:-$(read_waffo_env_value SHIHAI_WAFFO_MERCHANT_ID WAFFO_MERCHANT_ID)}"
+  store_id="${SHIHAI_WAFFO_STORE_ID:-$(read_waffo_env_value SHIHAI_WAFFO_STORE_ID WAFFO_STORE_ID)}"
+  private_key="${SHIHAI_WAFFO_PRIVATE_KEY_BASE64:-$(read_waffo_env_value SHIHAI_WAFFO_PRIVATE_KEY_BASE64 WAFFO_PRIVATE_KEY_BASE64)}"
+  product_map="${SHIHAI_WAFFO_PRODUCT_MAP:-$(read_waffo_env_value SHIHAI_WAFFO_PRODUCT_MAP WAFFO_PRODUCT_MAP)}"
 
   if [[ "$SECRETS_ALREADY_PROMPTED" != "1" ]]; then
     merchant_id="$(prompt_secret "Waffo 商户 ID" "$merchant_id")"
@@ -199,8 +307,8 @@ ensure_waffo() {
   fi
 
   if [[ -z "$merchant_id" && -z "$store_id" && -z "$private_key" && -z "$product_map" ]]; then
-    if [[ "$(read_env_value BILLING_ENABLED)" == "true" ]]; then
-      printf 'BILLING_ENABLED=true requires Waffo merchant, store, private key, and product map.\n' >&2
+    if [[ "$(read_env_value SHIHAI_BILLING_ENABLED BILLING_ENABLED)" == "true" ]]; then
+      printf 'SHIHAI_BILLING_ENABLED=true requires Waffo merchant, store, private key, and product map.\n' >&2
       exit 1
     fi
     printf '[部署] Waffo 未配置；支付桥接保持关闭。\n'
@@ -211,27 +319,33 @@ ensure_waffo() {
     exit 1
   fi
 
-  app_secret="$(read_env_value APP_TO_BRIDGE_SECRET)"
-  bridge_secret="$(read_env_value BRIDGE_TO_APP_SECRET)"
+  app_secret="$(read_env_value SHIHAI_APP_TO_BRIDGE_SECRET APP_TO_BRIDGE_SECRET)"
+  bridge_secret="$(read_env_value SHIHAI_BRIDGE_TO_APP_SECRET BRIDGE_TO_APP_SECRET)"
   if [[ -z "$app_secret" || -z "$bridge_secret" || "$app_secret" == "$bridge_secret" ]]; then
-    printf 'APP_TO_BRIDGE_SECRET and BRIDGE_TO_APP_SECRET must be configured and different.\n' >&2
+    printf 'SHIHAI_APP_TO_BRIDGE_SECRET and SHIHAI_BRIDGE_TO_APP_SECRET must be configured and different.\n' >&2
     exit 1
   fi
 
-  set_file_value "$WAFFO_ENV_FILE" WAFFO_ENV "$(read_env_value APP_ENV)"
-  set_file_value "$WAFFO_ENV_FILE" WAFFO_STORE_ID "$store_id"
-  set_file_value "$WAFFO_ENV_FILE" WAFFO_MERCHANT_ID "$merchant_id"
-  set_file_value "$WAFFO_ENV_FILE" WAFFO_PRIVATE_KEY_BASE64 "$private_key"
-  set_file_value "$WAFFO_ENV_FILE" WAFFO_PRODUCT_MAP "$product_map"
-  set_file_value "$WAFFO_ENV_FILE" WAFFO_CURRENCY CNY
-  set_file_value "$WAFFO_ENV_FILE" WAFFO_DRY_RUN false
-  set_file_value "$WAFFO_ENV_FILE" WAFFO_BRIDGE_PORT 8091
-  set_file_value \
-    "$WAFFO_ENV_FILE" WAFFO_SUCCESS_URL_ALLOWLIST "$(read_env_value CHECKOUT_SUCCESS_URL)"
-  set_file_value \
-    "$WAFFO_ENV_FILE" INTERNAL_EVENT_URL "http://127.0.0.1:${PORT}/kb/api/internal/billing/waffo-events"
-  set_file_value "$WAFFO_ENV_FILE" APP_TO_BRIDGE_SECRET "$app_secret"
-  set_file_value "$WAFFO_ENV_FILE" BRIDGE_TO_APP_SECRET "$bridge_secret"
+  set_waffo_env_value SHIHAI_WAFFO_ENV "$(read_env_value SHIHAI_APP_ENV APP_ENV)"
+  set_waffo_env_value SHIHAI_WAFFO_STORE_ID "$store_id"
+  set_waffo_env_value SHIHAI_WAFFO_MERCHANT_ID "$merchant_id"
+  set_waffo_env_value SHIHAI_WAFFO_PRIVATE_KEY_BASE64 "$private_key"
+  set_waffo_env_value SHIHAI_WAFFO_PRODUCT_MAP "$product_map"
+  set_waffo_env_value SHIHAI_WAFFO_CURRENCY CNY
+  set_waffo_env_value SHIHAI_WAFFO_DRY_RUN false
+  set_waffo_env_value SHIHAI_WAFFO_BRIDGE_PORT 8091
+  set_waffo_env_value \
+    SHIHAI_WAFFO_SUCCESS_URL_ALLOWLIST \
+    "$(read_env_value SHIHAI_CHECKOUT_SUCCESS_URL CHECKOUT_SUCCESS_URL)"
+  set_dual_file_value \
+    "$WAFFO_ENV_FILE" \
+    SHIHAI_INTERNAL_EVENT_URL \
+    INTERNAL_EVENT_URL \
+    "http://127.0.0.1:${PORT}/kb/api/internal/billing/waffo-events"
+  set_dual_file_value \
+    "$WAFFO_ENV_FILE" SHIHAI_APP_TO_BRIDGE_SECRET APP_TO_BRIDGE_SECRET "$app_secret"
+  set_dual_file_value \
+    "$WAFFO_ENV_FILE" SHIHAI_BRIDGE_TO_APP_SECRET BRIDGE_TO_APP_SECRET "$bridge_secret"
   printf '[部署] Waffo 商户配置已更新；私钥不会回显。\n'
 }
 
@@ -289,8 +403,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 ensure_environment_consistency
 ensure_waffo
-if [[ "$(read_env_value BILLING_ENABLED)" == "true" && ! -f "$WAFFO_ENV_FILE" ]]; then
-  printf 'BILLING_ENABLED=true requires %s\n' "$WAFFO_ENV_FILE" >&2
+if [[ "$(read_env_value SHIHAI_BILLING_ENABLED BILLING_ENABLED)" == "true" && ! -f "$WAFFO_ENV_FILE" ]]; then
+  printf 'SHIHAI_BILLING_ENABLED=true requires %s\n' "$WAFFO_ENV_FILE" >&2
   exit 1
 fi
 
@@ -443,9 +557,9 @@ fi
 
 BACKUP_ROOT="/var/backups/zhishiku"
 install -d -m 0700 "$BACKUP_ROOT"
-DATABASE_URL="$(read_env_value DATABASE_URL)"
-DATABASE_USERNAME="$(read_env_value DATABASE_USERNAME)"
-DATABASE_PASSWORD="$(read_env_value DATABASE_PASSWORD)"
+DATABASE_URL="$(read_env_value SHIHAI_DATABASE_URL DATABASE_URL)"
+DATABASE_USERNAME="$(read_env_value SHIHAI_DATABASE_USERNAME DATABASE_USERNAME)"
+DATABASE_PASSWORD="$(read_env_value SHIHAI_DATABASE_PASSWORD DATABASE_PASSWORD)"
 DB_PORT="$(printf '%s' "$DATABASE_URL" | sed -E 's#.*127\.0\.0\.1:([0-9]+)/.*#\1#')"
 DB_BACKUP="$BACKUP_ROOT/predeploy-$RELEASE_ID.sql.gz"
 PGPASSWORD="$DATABASE_PASSWORD" pg_dump \
@@ -633,12 +747,13 @@ nginx -t
 systemctl reload nginx
 
 # Finalize the one-time owner bootstrap without leaving the password in systemd config.
-if grep -q '^KB_AUTO_BOOTSTRAP=true$' "$ENV_FILE"; then
-  DATABASE_URL="$(read_env_value DATABASE_URL)"
-  DATABASE_USERNAME="$(read_env_value DATABASE_USERNAME)"
-  DATABASE_PASSWORD="$(read_env_value DATABASE_PASSWORD)"
-  KB_OWNER_EMAIL="$(read_env_value KB_OWNER_EMAIL)"
-  KB_OWNER_PASSWORD="$(read_env_value KB_OWNER_PASSWORD)"
+if grep -q '^SHIHAI_AUTO_BOOTSTRAP=true$' "$ENV_FILE" \
+  || grep -q '^KB_AUTO_BOOTSTRAP=true$' "$ENV_FILE"; then
+  DATABASE_URL="$(read_env_value SHIHAI_DATABASE_URL DATABASE_URL)"
+  DATABASE_USERNAME="$(read_env_value SHIHAI_DATABASE_USERNAME DATABASE_USERNAME)"
+  DATABASE_PASSWORD="$(read_env_value SHIHAI_DATABASE_PASSWORD DATABASE_PASSWORD)"
+  KB_OWNER_EMAIL="$(read_env_value SHIHAI_OWNER_EMAIL KB_OWNER_EMAIL)"
+  KB_OWNER_PASSWORD="$(read_env_value SHIHAI_OWNER_PASSWORD KB_OWNER_PASSWORD)"
   owner_count="$(
     PGPASSWORD="$DATABASE_PASSWORD" psql \
       -h 127.0.0.1 \
@@ -656,9 +771,9 @@ PASSWORD=${KB_OWNER_PASSWORD}
 EOF
     chmod 0600 /root/zhishiku-initial-password
     env_tmp="$(mktemp)"
-    grep -v -E '^(KB_AUTO_BOOTSTRAP|KB_OWNER_PASSWORD|KB_BOOTSTRAP_TOKEN)=' "$ENV_FILE" \
+    grep -v -E '^(SHIHAI_AUTO_BOOTSTRAP|SHIHAI_OWNER_PASSWORD|SHIHAI_BOOTSTRAP_TOKEN|KB_AUTO_BOOTSTRAP|KB_OWNER_PASSWORD|KB_BOOTSTRAP_TOKEN)=' "$ENV_FILE" \
       > "$env_tmp" || true
-    printf 'KB_AUTO_BOOTSTRAP=false\n' >> "$env_tmp"
+    printf 'SHIHAI_AUTO_BOOTSTRAP=false\nKB_AUTO_BOOTSTRAP=false\n' >> "$env_tmp"
     chmod 0600 "$env_tmp"
     mv "$env_tmp" "$ENV_FILE"
     systemctl restart "$SERVICE_NAME"

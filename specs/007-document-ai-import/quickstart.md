@@ -46,6 +46,6 @@ pnpm exec playwright test e2e/app.spec.ts --workers=1
 
 ## 生产前置
 
-- `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false`。
+- `SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=false`。
 - 002 报价、预留、结算和释放接入完成。
 - 真实 PDF/DOCX 解析、原文不落库、日志无正文和原应用零影响验收通过。

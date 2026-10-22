@@ -79,7 +79,7 @@ Playwright、k6、Gitleaks、Trivy
 
 7. **环境硬隔离。**
    测试/生产使用独立物理 PostgreSQL 数据库、商户、商品、密钥、通知、返回地址、订单和
-   账本。启动时 `BILLING_DB_ENV` 不一致立即失败。
+   账本。启动时 `SHIHAI_BILLING_DB_ENV` 不一致立即失败。
 
 8. **任务不依赖 Redis。**
    对账、过期释放、退款和重试存储在 PostgreSQL 任务表中。Worker 使用租约和
@@ -93,6 +93,11 @@ Playwright、k6、Gitleaks、Trivy
     不读取或写入拾题 MySQL、Redis、Cookie、支付 sidecar、`/pay`、订单或密钥。识海回调固定
     为 `/kb/pay/webhooks/waffo`。
 
+11. **识海环境变量使用品牌前缀。**
+    所有识海专用变量以 `SHIHAI_` 为正式名称；旧名仅用于迁移期兼容。Spring、Node 桥接和部署
+    脚本采用相同规则：新名优先，新名为空时回退旧名，新旧同时存在但值不同则失败关闭。部署脚本
+    在一个稳定版本内同时写入同值旧别名，保证回滚 release 仍可启动。
+
 ## 正式支付接入收口（2026-10-22）
 
 - Node 桥接固定使用 `@waffo/pancake-ts@0.26.0`，收银台请求的 `metadata` 同时携带
@@ -105,7 +110,8 @@ Playwright、k6、Gitleaks、Trivy
   `failed/canceled` 映射为关闭。
 - Webhook 验签先自动识别环境，再由 Spring 根据事件环境拒绝跨环境入账。
 - 价格接口返回 `billingEnabled`；前端在支付关闭时禁用购买并明确说明免费功能不受影响。
-- `KB_RUNTIME_ENV` 同步派生 `APP_ENV`、`BILLING_DB_ENV` 和 `WAFFO_ENV`，不匹配时部署失败。
+- `SHIHAI_RUNTIME_ENV` 同步派生 `SHIHAI_APP_ENV`、`SHIHAI_BILLING_DB_ENV` 和
+  `SHIHAI_WAFFO_ENV`，不匹配时部署失败。
 - 商品初始化与收银台冒烟脚本要求显式 `--apply`/`--confirm`，脚本不打印私钥或完整 token URL。
 
 ## 项目结构

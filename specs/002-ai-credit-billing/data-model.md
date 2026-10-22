@@ -17,7 +17,7 @@
 - 可变业务行包含 `version integer NOT NULL DEFAULT 1`，用于乐观并发控制。
 - 支付与计费数据必须包含不可变 `environment`，取值仅为 `test` 或 `production`。
 - 测试与生产必须使用独立物理 PostgreSQL 数据库和独立连接串。每个应用实例启动时以
-  `BILLING_DB_ENV` 校验所连数据库身份；禁止在同一个数据库中仅靠 schema 或行字段隔离
+  `SHIHAI_BILLING_DB_ENV` 校验所连数据库身份；禁止在同一个数据库中仅靠 schema 或行字段隔离
   两套账本。
 - `owner_id` 是兼容字段名，语义为账号 ID。它始终来自已认证会话；同一账号独立拥有知识、
   附件、点数、订单、退款和账本，客户端不能提交账号 ID、余额、价格、点率或环境作为权威值。
@@ -99,7 +99,7 @@ erDiagram
 
 - `UNIQUE(catalog_version_id, sku)`。
 - SKU 必须使用 `kb_pack_` 前缀，不得复用拾题商品代码。
-- `WAFFO_PRODUCT_MAP` 是供应商商品映射的权威来源；Web 只提交 SKU，桥接返回实际
+- `SHIHAI_WAFFO_PRODUCT_MAP` 是供应商商品映射的权威来源；Web 只提交 SKU，桥接返回实际
   `productId`，订单保存该返回值快照。数据库不维护第二份可漂移映射。
 
 ## 实体：AI 点率
@@ -707,7 +707,7 @@ verifying -> manual_review -> recovered/partially_recovered/rejected
   部署文档已同步到 V0009。
 - `V0013__api_idempotency.sql` 提供服务端请求哈希和安全响应重放，供 AI 导入与计费治理共用。
 - `V0014__billing_environment_guard.sql` 在物理数据库中写入唯一环境标识；应用启动时若
-  `APP_ENV` 与数据库标识不一致必须失败。
+  `SHIHAI_APP_ENV` 与数据库标识不一致必须失败。
 - 管理员点数调整请求必须显式携带 `targetOwnerId`；信用调整新增 manual batch，扣减调整按
   体验点优先、购买点最早批次顺序消费并逐批次写只追加账本。
 - 退款结论以实际可回收批次点数为准，客户端提交的 recovered/unrecovered 数值只作为请求

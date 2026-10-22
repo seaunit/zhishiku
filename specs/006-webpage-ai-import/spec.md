@@ -20,7 +20,7 @@
 
 本功能不提供网页收藏夹、离线网页镜像、全文爬虫、站内遍历、分页采集或登录态页面抓取。
 
-生产门禁：网页截图分析和 AI 拆分属于付费能力。当前分支保留 `KB_WEB_IMPORT_ALLOW_UNBILLED_AI`
+生产门禁：网页截图分析和 AI 拆分属于付费能力。当前分支保留 `SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI`
 供本地自动化使用，默认值为 `false`。002 的报价、预留、结算和释放尚未接入时，生产请求必须
 返回 `402 AI_BILLING_REQUIRED`，不得调用 DeepSeek；不得用该变量绕过生产计费。
 

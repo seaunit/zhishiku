@@ -73,32 +73,32 @@ zhishiku-waffo-bridge.service
 Spring Boot API/Worker 的 `kb.env` 只包含应用配置与桥接调用密钥名称，不包含 Waffo 私钥：
 
 ```text
-APP_ENV
-BILLING_DB_ENV
-BILLING_ENABLED
-BILLING_BRIDGE_URL
-APP_TO_BRIDGE_SECRET
-BRIDGE_TO_APP_SECRET
-BILLING_CATALOG_VERSION
-CHECKOUT_SUCCESS_URL
-BILLING_WEBHOOK_URL
-REFUND_SUPPORT_URL
-REFUND_RESPONSE_TARGET
+SHIHAI_APP_ENV
+SHIHAI_BILLING_DB_ENV
+SHIHAI_BILLING_ENABLED
+SHIHAI_BILLING_BRIDGE_URL
+SHIHAI_APP_TO_BRIDGE_SECRET
+SHIHAI_BRIDGE_TO_APP_SECRET
+SHIHAI_BILLING_CATALOG_VERSION
+SHIHAI_CHECKOUT_SUCCESS_URL
+SHIHAI_BILLING_WEBHOOK_URL
+SHIHAI_REFUND_SUPPORT_URL
+SHIHAI_REFUND_RESPONSE_TARGET
 ```
 
 桥接的 `waffo.env` 只包含 Waffo 和事件转发配置：
 
 ```text
-WAFFO_ENV
-WAFFO_STORE_ID
-WAFFO_MERCHANT_ID
-WAFFO_PRIVATE_KEY_BASE64
-WAFFO_PRODUCT_MAP
-WAFFO_CURRENCY
-WAFFO_DRY_RUN
-INTERNAL_EVENT_URL
-BRIDGE_TO_APP_SECRET
-APP_TO_BRIDGE_SECRET
+SHIHAI_WAFFO_ENV
+SHIHAI_WAFFO_STORE_ID
+SHIHAI_WAFFO_MERCHANT_ID
+SHIHAI_WAFFO_PRIVATE_KEY_BASE64
+SHIHAI_WAFFO_PRODUCT_MAP
+SHIHAI_WAFFO_CURRENCY
+SHIHAI_WAFFO_DRY_RUN
+SHIHAI_INTERNAL_EVENT_URL
+SHIHAI_BRIDGE_TO_APP_SECRET
+SHIHAI_APP_TO_BRIDGE_SECRET
 ```
 
 规则：
@@ -106,11 +106,14 @@ APP_TO_BRIDGE_SECRET
 - 两个文件权限均为 `600`，所有者分别为对应服务用户。
 - 不得把变量值写入 Nginx、systemd unit、GitHub Actions 明文、命令历史或文档。
 - 启动校验只列出缺失变量名。
-- `APP_ENV=production` 与 `WAFFO_ENV=test` 同时出现时失败关闭。
-- 测试和生产必须使用不同物理 PostgreSQL 数据库；`BILLING_DB_ENV` 必须与
-  `APP_ENV`、`WAFFO_ENV` 一致，否则启动失败。不得通过同一数据库的不同 schema 代替。
+- `SHIHAI_APP_ENV=production` 与 `SHIHAI_WAFFO_ENV=test` 同时出现时失败关闭。
+- 测试和生产必须使用不同物理 PostgreSQL 数据库；`SHIHAI_BILLING_DB_ENV` 必须与
+  `SHIHAI_APP_ENV`、`SHIHAI_WAFFO_ENV` 一致，否则启动失败。不得通过同一数据库的不同
+  schema 代替。
+- `SHIHAI_*` 是正式名称。迁移期可保留同值旧别名供旧 release 回滚；新旧值不一致时后端、
+  桥接和部署脚本必须失败关闭。
 - 生产商品映射必须只包含 `kb_pack_*` 商品；发现拾题商品或其他环境商品时失败关闭。
-- 生产环境缺少 `REFUND_SUPPORT_URL`、使用 `.invalid` 测试地址或答复目标不是已批准值时
+- 生产环境缺少 `SHIHAI_REFUND_SUPPORT_URL`、使用 `.invalid` 测试地址或答复目标不是已批准值时
   必须失败关闭购买。
 
 ## Nginx 增量配置
@@ -155,7 +158,7 @@ Spring Boot 8082 -> POST 127.0.0.1:8091/checkout
                  -> 用户支付
 ```
 
-Spring Boot 到桥接使用 `APP_TO_BRIDGE_SECRET`。桥接不保存本地余额或知识。
+Spring Boot 到桥接使用 `SHIHAI_APP_TO_BRIDGE_SECRET`。桥接不保存本地余额或知识。
 
 ### 通知
 
@@ -168,7 +171,7 @@ Waffo
   -> Spring 事务处理订单、批次与账本
 ```
 
-桥接到 Spring Boot 使用 `BRIDGE_TO_APP_SECRET`。内部事件接口不得对外开放或依赖用户 Cookie。
+桥接到 Spring Boot 使用 `SHIHAI_BRIDGE_TO_APP_SECRET`。内部事件接口不得对外开放或依赖用户 Cookie。
 Spring 将事件持久化并返回 `409` 进入人工复核时，桥接必须向 Waffo 返回成功确认 `200`；
 只有未持久化或临时故障才返回可重试错误。
 
@@ -182,7 +185,7 @@ Worker 定期扫描未决订单，通过桥接的 `/orders/status` 获取规范�
 1. 记录拾题 `/`、`/app`、`/api`、`/bank`、`/pay`、`/apk`、证书、认证和支付 sidecar
    基线。
 2. 备份 PostgreSQL、当前 Nginx 配置、systemd unit 和环境文件清单。
-3. 部署数据库迁移，但保持 `BILLING_ENABLED=false`。
+3. 部署数据库迁移，但保持 `SHIHAI_BILLING_ENABLED=false`。
 4. 部署并启动 `zhishiku-waffo-bridge.service`，验证健康仅从本机可访问。
 5. 部署 Spring Boot API/Worker 和 Vue 静态文件，验证内部通知转发和主动对账。
 6. 使用 Waffo 测试商品执行购买、重复通知、通知丢失、退款和回滚演练。
@@ -199,7 +202,7 @@ Worker 定期扫描未决订单，通过桥接的 `/orders/status` 获取规范�
 - Vue `/kb/`。
 - 桥接本机 `/health`，只报告 `configured`、环境和 dry-run 状态。
 - 数据库迁移版本、PostgreSQL 任务租约和计费 worker 活跃度。
-- 数据库身份与 `BILLING_DB_ENV`、`APP_ENV`、`WAFFO_ENV` 一致。
+- 数据库身份与 `SHIHAI_BILLING_DB_ENV`、`SHIHAI_APP_ENV`、`SHIHAI_WAFFO_ENV` 一致。
 - 支付目录版本、商品映射完整性和环境一致性。
 - 订单事件处理延迟、对账积压、过期预留和退款复核期限。
 - 拾题全部原路由和支付 sidecar 保持健康。
@@ -216,7 +219,7 @@ Worker 定期扫描未决订单，通过桥接的 `/orders/status` 获取规范�
 
 ## 回滚
 
-1. 将 `BILLING_ENABLED=false`，停止新订单和新付费 AI 预留。
+1. 将 `SHIHAI_BILLING_ENABLED=false`，停止新订单和新付费 AI 预留。
 2. 恢复变更前 Nginx 配置并执行 `nginx -t` 后 reload。
 3. 停止并禁用 `zhishiku-waffo-bridge.service`。
 4. 保留 Spring API/Worker、订单、账本、退款和对账数据，不回滚删除财务事实。

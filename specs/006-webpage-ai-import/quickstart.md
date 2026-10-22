@@ -6,7 +6,7 @@
 - 可运行现有 Spring Boot、PostgreSQL 和 Vue 开发环境。
 - `tesseract` 已安装，并能识别 `chi_sim` 和 `eng`。
 - 已构建 `kb-browser-worker`，并安装 Playwright Chromium。
-- `DEEPSEEK_API_KEY` 已在本地环境变量中配置；不要写入命令、文件或终端历史。
+- `SHIHAI_DEEPSEEK_API_KEY` 已在本地环境变量中配置；不要写入命令、文件或终端历史。
 
 ```powershell
 tesseract --list-langs
@@ -17,17 +17,17 @@ cd backend
 可设置本地变量：
 
 ```powershell
-$env:KB_WEB_IMPORT_ALLOW_UNBILLED_AI = "true"
-$env:KB_BROWSER_WORKER_JAR = "$PWD/kb-browser-worker/target/kb-browser-worker-0.1.0-SNAPSHOT.jar"
+$env:SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI = "true"
+$env:SHIHAI_BROWSER_WORKER_JAR = "$PWD/kb-browser-worker/target/kb-browser-worker-0.1.0-SNAPSHOT.jar"
 ```
 
 该未计费开关只用于本地开发与自动化。生产环境必须保持
-`KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，并接入 002 点数门禁。
+`SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，并接入 002 点数门禁。
 
 Chromium 安装：
 
 ```powershell
-java -jar "$env:KB_BROWSER_WORKER_JAR" --install-browser
+java -jar "$env:SHIHAI_BROWSER_WORKER_JAR" --install-browser
 ```
 
 ## 自动化验证
@@ -73,7 +73,7 @@ node tests/deploy/verify-deploy-scripts.mjs
 - 不勾选外部 AI 同意时按钮不可用；绕过前端调用 API 时预期 `AI_EXTERNAL_CONSENT_REQUIRED`。
 - 生产环境未接入 002 点数时，预期 `402 AI_BILLING_REQUIRED` 且 DeepSeek 调用次数为 0。
 - 提交无足够可见文字的页面，预期 `WEB_PAGE_NO_TEXT` 且知识数量不增加。
-- 临时移除 `DEEPSEEK_API_KEY`，预期 `WEB_IMPORT_UNAVAILABLE` 且不创建 URL-only 知识。
+- 临时移除 `SHIHAI_DEEPSEEK_API_KEY`，预期 `WEB_IMPORT_UNAVAILABLE` 且不创建 URL-only 知识。
 - 模拟 AI 返回空数组或无效 JSON，预期 `WEB_PAGE_ORGANIZATION_FAILED` 且不回滚失败。
 - 使用重定向到私网地址的测试站点，确认 worker 阻断请求，后端不接收私网最终 URL。
 

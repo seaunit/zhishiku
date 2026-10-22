@@ -33,6 +33,6 @@
 
 ## 计费
 
-**决策**：生产沿用 `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false` 和 002 门禁。
+**决策**：生产沿用 `SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=false` 和 002 门禁。
 
 **理由**：OCR 和 AI 都是付费能力，不能因入口不同绕过计费。

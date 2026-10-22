@@ -23,25 +23,26 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 新部署也可以不预置账号。任何用户都能在 `/kb/register` 通过图形验证码和 SMTP 邮箱验证创建
 独立账号；已有账号不会关闭其他邮箱的注册。每个账号独立隔离知识、附件、搜索、会话、点数、
 订单和账本。默认 SMTP 主机为 `smtpdm.aliyun.com:465`，发件与登录账号为
-`no-reply@mail.seaunit.site`，可通过 `SMTP_HOST`、`SMTP_PORT`、`SMTP_USERNAME`、
-`SMTP_FROM`、`SMTP_FROM_NAME` 和 `SMTP_SSL` 覆盖。生产必须以 TLS 投递。
+`no-reply@mail.seaunit.site`，可通过 `SHIHAI_SMTP_HOST`、`SHIHAI_SMTP_PORT`、
+`SHIHAI_SMTP_USERNAME`、`SHIHAI_SMTP_FROM`、`SHIHAI_SMTP_FROM_NAME` 和
+`SHIHAI_SMTP_SSL` 覆盖。生产必须以 TLS 投递。
 
 首次安装会使用 `/swapfile-zhishiku` 补充 2 GiB swap，避免小内存服务器在 Maven 和
-Vite 构建期间触发 OOM；可通过 `KB_SWAP_SIZE_MB=0` 禁用。
+Vite 构建期间触发 OOM；可通过 `SHIHAI_SWAP_SIZE_MB=0` 禁用。
 
 ## 交互式密钥
 
 首次执行会从 `/dev/tty` 隐藏读取以下值，因此可以通过 `curl | sudo bash` 执行：
 
-- `DEEPSEEK_API_KEY`
-- `DEEPSEEK_SEARCH_API_KEY`，留空时复用主 AI Key
-- `DEEPSEEK_FETCH_API_KEY`，留空时复用主 AI Key
-- `SMTP_PASSWORD`
+- `SHIHAI_DEEPSEEK_API_KEY`
+- `SHIHAI_DEEPSEEK_SEARCH_API_KEY`，留空时复用主 AI Key
+- `SHIHAI_DEEPSEEK_FETCH_API_KEY`，留空时复用主 AI Key
+- `SHIHAI_SMTP_PASSWORD`
 
 输入内容不会回显，也不会写入 Git、命令行参数或部署日志。值保存在
 `/etc/zhishiku/kb.env`，权限为 `600`。每次部署都会重新提示；直接回车保留现有值，
 输入新值才更新。
-每项输入默认等待 60 秒，超时按回车处理；可通过 `KB_PROMPT_TIMEOUT=<秒数>` 调整。
+每项输入默认等待 60 秒，超时按回车处理；可通过 `SHIHAI_PROMPT_TIMEOUT=<秒数>` 调整。
 首次安装和其内部的部署步骤共享一次提示结果，因此同一轮部署只会输入一次。
 
 常规更新部署：
@@ -51,8 +52,12 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
   | sudo bash -s -- --ref v0.1.8-mvp
 ```
 
+识海正式变量统一使用 `SHIHAI_` 前缀。迁移期部署脚本会把新名称和同值旧别名一起写入环境文件，
+使当前 release 和回滚目标都能启动；如果新旧名称同时存在但值不同，部署和桥接均失败关闭。
+旧名称不再作为新配置的主路径，稳定一个发布周期后再移除兼容。
+
 在完全非交互的 CI 中，可先由受管密钥系统写入环境文件，再设置
-`KB_PROMPT_SECRETS=0` 执行。
+`SHIHAI_PROMPT_SECRETS=0` 执行。
 
 ## 后续更新
 
@@ -63,9 +68,10 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 
 ## Waffo 测试与生产配置
 
-首次安装和后续部署都会交互输入 `WAFFO_MERCHANT_ID`、`WAFFO_STORE_ID`、
-`WAFFO_PRIVATE_KEY_BASE64` 和 `WAFFO_PRODUCT_MAP`；部署脚本从 `kb.env` 同步双向内部密钥，
-统一写入 `/etc/zhishiku/waffo.env`。`KB_RUNTIME_ENV` 与 `WAFFO_ENV` 必须同为 `test` 或
+首次安装和后续部署都会交互输入 `SHIHAI_WAFFO_MERCHANT_ID`、`SHIHAI_WAFFO_STORE_ID`、
+`SHIHAI_WAFFO_PRIVATE_KEY_BASE64` 和 `SHIHAI_WAFFO_PRODUCT_MAP`；部署脚本从 `kb.env`
+同步双向内部密钥，统一写入 `/etc/zhishiku/waffo.env`。`SHIHAI_RUNTIME_ENV` 与
+`SHIHAI_WAFFO_ENV` 必须同为 `test` 或
 `production`；生产服务器不得接受测试支付，测试服务器也不得写生产账本。
 直接回车保留现有值；四项全部留空时不会创建半配置桥接，支付保持关闭。
 
@@ -80,16 +86,16 @@ set +a
 pnpm catalog:setup -- --apply
 ```
 
-确认商品 ID 后更新 `WAFFO_PRODUCT_MAP`。创建一次真实测试收银台前，先使用现有本地待支付
+确认商品 ID 后更新 `SHIHAI_WAFFO_PRODUCT_MAP`。创建一次真实测试收银台前，先使用现有本地待支付
 订单号：
 
 ```bash
-KB_SMOKE_ORDER_ID=<existing-pending-order-id> \
+SHIHAI_SMOKE_ORDER_ID=<existing-pending-order-id> \
   pnpm smoke:checkout -- --confirm
 ```
 
 冒烟脚本不会打印带 token 的完整收银台地址。完成测试卡支付、通知、主动查询、重复通知、
-退款和乱序事件验收前，`/etc/zhishiku/kb.env` 中的 `BILLING_ENABLED` 必须保持 `false`。
+退款和乱序事件验收前，`/etc/zhishiku/kb.env` 中的 `SHIHAI_BILLING_ENABLED` 必须保持 `false`。
 
 ## 路由边界
 

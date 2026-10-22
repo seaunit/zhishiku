@@ -32,9 +32,9 @@ pnpm --dir frontend/kb-web exec playwright test --config ../../tests/playwright.
 可通过环境变量收紧或放宽阈值：
 
 ```powershell
-$env:KB_PERF_DETAIL_200K_MS='15000'
-$env:KB_PERF_20_IMAGES_MS='15000'
-$env:KB_PERF_MOBILE_INPUT_200K_MS='15000'
+$env:SHIHAI_PERF_DETAIL_200K_MS='15000'
+$env:SHIHAI_PERF_20_IMAGES_MS='15000'
+$env:SHIHAI_PERF_MOBILE_INPUT_200K_MS='15000'
 ```
 
 ## 限制

@@ -8,9 +8,21 @@ import {
 } from '../../support/rich-text'
 
 const budget = {
-  detail200kMs: Number(process.env.KB_PERF_DETAIL_200K_MS || 15_000),
-  detail20ImagesMs: Number(process.env.KB_PERF_20_IMAGES_MS || 15_000),
-  mobileInput200kMs: Number(process.env.KB_PERF_MOBILE_INPUT_200K_MS || 15_000),
+  detail200kMs: Number(
+    process.env.SHIHAI_PERF_DETAIL_200K_MS ??
+      process.env.KB_PERF_DETAIL_200K_MS ??
+      15_000,
+  ),
+  detail20ImagesMs: Number(
+    process.env.SHIHAI_PERF_20_IMAGES_MS ??
+      process.env.KB_PERF_20_IMAGES_MS ??
+      15_000,
+  ),
+  mobileInput200kMs: Number(
+    process.env.SHIHAI_PERF_MOBILE_INPUT_200K_MS ??
+      process.env.KB_PERF_MOBILE_INPUT_200K_MS ??
+      15_000,
+  ),
 }
 
 function imagesDocument(count: number) {

@@ -1,17 +1,17 @@
 spring:
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:55432/zhishiku}
-    username: ${DATABASE_USERNAME:zhishiku}
-    password: ${DATABASE_PASSWORD:}
+    url: ${SHIHAI_DATABASE_URL:${DATABASE_URL:jdbc:postgresql://127.0.0.1:55432/zhishiku}}
+    username: ${SHIHAI_DATABASE_USERNAME:${DATABASE_USERNAME:zhishiku}}
+    password: ${SHIHAI_DATABASE_PASSWORD:${DATABASE_PASSWORD:}}
 
 app:
   owner:
-    email: ${KB_OWNER_EMAIL:owner@zhishiku.local}
-    password: ${KB_OWNER_PASSWORD:local-dev-password-change-me}
-    bootstrap-token: ${KB_BOOTSTRAP_TOKEN:local-bootstrap-token-change-me}
-    auto-bootstrap: ${KB_AUTO_BOOTSTRAP:true}
+    email: ${SHIHAI_OWNER_EMAIL:${KB_OWNER_EMAIL:owner@zhishiku.local}}
+    password: ${SHIHAI_OWNER_PASSWORD:${KB_OWNER_PASSWORD:local-dev-password-change-me}}
+    bootstrap-token: ${SHIHAI_BOOTSTRAP_TOKEN:${KB_BOOTSTRAP_TOKEN:local-bootstrap-token-change-me}}
+    auto-bootstrap: ${SHIHAI_AUTO_BOOTSTRAP:${KB_AUTO_BOOTSTRAP:true}}
   storage:
-    root: ${KB_STORAGE_ROOT:.data/uploads}
+    root: ${SHIHAI_STORAGE_ROOT:${KB_STORAGE_ROOT:.data/uploads}}
   captcha:
     ttl-seconds: 120
     max-entries: 1000

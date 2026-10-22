@@ -8,7 +8,7 @@
 
 - Search：`POST https://api.deepseek.com/v1/tools/search`
 - Fetch：`POST https://api.deepseek.com/v1/tools/fetch`
-- 认证：Bearer `DEEPSEEK_SEARCH_API_KEY` / `DEEPSEEK_FETCH_API_KEY`
+- 认证：Bearer `SHIHAI_DEEPSEEK_SEARCH_API_KEY` / `SHIHAI_DEEPSEEK_FETCH_API_KEY`
 
 Search 请求只发送查询词、结果数量和 `need_content=false`。只有用户在本地结果之后再次点击
 “继续搜索互联网”才会调用。Fetch 只处理用户明确选择并确认收入知识库的单个候选 URL。

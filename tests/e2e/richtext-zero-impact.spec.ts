@@ -1,10 +1,14 @@
 import { connect } from 'node:tls'
 import { expect, request, test } from '../support/playwright'
 
-const liveEnabled = process.env.KB_ZERO_IMPACT_LIVE === '1'
-const baseURL = process.env.KB_LIVE_BASE_URL || 'https://seaunit.site'
+const liveEnabled =
+  (process.env.SHIHAI_ZERO_IMPACT_LIVE ?? process.env.KB_ZERO_IMPACT_LIVE) === '1'
+const baseURL =
+  process.env.SHIHAI_LIVE_BASE_URL ??
+  process.env.KB_LIVE_BASE_URL ??
+  'https://seaunit.site'
 
-test.skip(!liveEnabled, 'set KB_ZERO_IMPACT_LIVE=1 to run read-only production checks')
+test.skip(!liveEnabled, 'set SHIHAI_ZERO_IMPACT_LIVE=1 to run read-only production checks')
 
 test('keeps the existing routes, certificate, security headers and /kb cookie scope intact', async ({
   playwright,
@@ -89,8 +93,8 @@ test('keeps the existing routes, certificate, security headers and /kb cookie sc
 test('checks the internal payment sidecar when its read-only health URL is supplied', async ({
   request,
 }) => {
-  const sidecarURL = process.env.KB_SIDECAR_URL
-  test.skip(!sidecarURL, 'KB_SIDECAR_URL is only available from the production host')
+  const sidecarURL = process.env.SHIHAI_SIDECAR_URL ?? process.env.KB_SIDECAR_URL
+  test.skip(!sidecarURL, 'SHIHAI_SIDECAR_URL is only available from the production host')
   const response = await request.get(sidecarURL as string)
   expect(response.ok()).toBe(true)
 })

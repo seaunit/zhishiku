@@ -45,7 +45,7 @@
   模型、JSON 模式和响应解析。
 - 未执行生产部署，因此尚未完成真实公开页面、AI 生成多条知识、URL-only 次数为 0、
   原应用零影响和回滚验收。
-- 生产网页 AI 默认保持 `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，在 002 点数门禁接入前会返回
+- 生产网页 AI 默认保持 `SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，在 002 点数门禁接入前会返回
   `402 AI_BILLING_REQUIRED`。这是有意设置的发布阻塞，不是功能通过。
 - 全量测试中的 Testcontainers PostgreSQL 用例因本机没有可用 Docker 环境未启动；该外部
   条件不代表新增网页导入测试失败。

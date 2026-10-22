@@ -20,41 +20,42 @@
 `.env.example` 只能包含安全占位值。Spring API/Worker 与 Waffo 桥接使用不同环境文件。
 
 ```dotenv
-APP_ENV=test
-BILLING_DB_ENV=test
-BILLING_ENABLED=false
-BILLING_BRIDGE_URL=http://127.0.0.1:8091
-BILLING_CATALOG_VERSION=2026-10-mvp-test
-BILLING_WEBHOOK_URL=https://seaunit.site/kb/pay/webhooks/waffo
-CHECKOUT_SUCCESS_URL=https://seaunit.site/kb/billing/return
-REFUND_SUPPORT_URL=https://support.example.invalid/refund
-REFUND_RESPONSE_TARGET=3 个工作日
+SHIHAI_APP_ENV=test
+SHIHAI_BILLING_DB_ENV=test
+SHIHAI_BILLING_ENABLED=false
+SHIHAI_BILLING_BRIDGE_URL=http://127.0.0.1:8091
+SHIHAI_BILLING_CATALOG_VERSION=2026-10-mvp-test
+SHIHAI_BILLING_WEBHOOK_URL=https://seaunit.site/kb/pay/webhooks/waffo
+SHIHAI_CHECKOUT_SUCCESS_URL=https://seaunit.site/kb/billing/return
+SHIHAI_REFUND_SUPPORT_URL=https://support.example.invalid/refund
+SHIHAI_REFUND_RESPONSE_TARGET=3 个工作日
 ```
 
 仅 Waffo 桥接进程可见的变量：
 
 ```dotenv
-WAFFO_ENV=test
-WAFFO_STORE_ID=replace-me
-WAFFO_MERCHANT_ID=replace-me
-WAFFO_PRIVATE_KEY_BASE64=replace-me
-WAFFO_PRODUCT_MAP=kb_pack_9=replace-me,kb_pack_29=replace-me,kb_pack_99=replace-me
-WAFFO_CURRENCY=CNY
-WAFFO_DRY_RUN=false
-INTERNAL_EVENT_URL=http://127.0.0.1:8082/kb/api/internal/billing/waffo-events
+SHIHAI_WAFFO_ENV=test
+SHIHAI_WAFFO_STORE_ID=replace-me
+SHIHAI_WAFFO_MERCHANT_ID=replace-me
+SHIHAI_WAFFO_PRIVATE_KEY_BASE64=replace-me
+SHIHAI_WAFFO_PRODUCT_MAP=kb_pack_9=replace-me,kb_pack_29=replace-me,kb_pack_99=replace-me
+SHIHAI_WAFFO_CURRENCY=CNY
+SHIHAI_WAFFO_DRY_RUN=false
+SHIHAI_INTERNAL_EVENT_URL=http://127.0.0.1:8082/kb/api/internal/billing/waffo-events
 ```
 
 Spring API/Worker 与桥接两端必须持有相同值的内部服务密钥，但 Spring 不读取 Waffo 私钥：
 
 ```dotenv
-APP_TO_BRIDGE_SECRET=replace-me
-BRIDGE_TO_APP_SECRET=replace-me
+SHIHAI_APP_TO_BRIDGE_SECRET=replace-me
+SHIHAI_BRIDGE_TO_APP_SECRET=replace-me
 ```
 
-启动检查只允许报告缺失变量名，绝不能打印值。`APP_ENV=production` 时发现 `WAFFO_ENV=test`、
-`BILLING_DB_ENV` 不一致、测试商品或测试回跳地址必须失败关闭。测试与生产必须使用不同的
-物理 PostgreSQL 数据库，不能只切换环境字段。部署脚本使用 `KB_RUNTIME_ENV` 同时设置
-`APP_ENV`、`BILLING_DB_ENV` 和默认 `WAFFO_ENV`，三者不一致时拒绝部署。
+启动检查只允许报告缺失变量名，绝不能打印值。`SHIHAI_APP_ENV=production` 时发现
+`SHIHAI_WAFFO_ENV=test`、`SHIHAI_BILLING_DB_ENV` 不一致、测试商品或测试回跳地址必须
+失败关闭。测试与生产必须使用不同的物理 PostgreSQL 数据库，不能只切换环境字段。部署脚本使用
+`SHIHAI_RUNTIME_ENV` 同时设置 `SHIHAI_APP_ENV`、`SHIHAI_BILLING_DB_ENV` 和默认
+`SHIHAI_WAFFO_ENV`，三者不一致时拒绝部署。
 
 ## 启动计划中的技术栈
 
@@ -76,10 +77,10 @@ cd bridges/waffo
 pnpm catalog:setup -- --apply
 ```
 
-确认 `WAFFO_PRODUCT_MAP` 后，可使用一个现有待支付本地订单号创建一次测试收银台：
+确认 `SHIHAI_WAFFO_PRODUCT_MAP` 后，可使用一个现有待支付本地订单号创建一次测试收银台：
 
 ```powershell
-$env:KB_SMOKE_ORDER_ID = "<existing-pending-order-id>"
+$env:SHIHAI_SMOKE_ORDER_ID = "<existing-pending-order-id>"
 pnpm smoke:checkout -- --confirm
 ```
 

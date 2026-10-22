@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: zhishiku
       POSTGRES_USER: zhishiku
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-local-dev-password-change-me}
+      POSTGRES_PASSWORD: ${SHIHAI_DATABASE_PASSWORD:-${DATABASE_PASSWORD:-local-dev-password-change-me}}
     ports:
       - "127.0.0.1:55432:5432"
     volumes:
@@ -19,8 +19,8 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-local-minio-password-change-me}
+      MINIO_ROOT_USER: ${SHIHAI_S3_ACCESS_KEY:-${S3_ACCESS_KEY:-minioadmin}}
+      MINIO_ROOT_PASSWORD: ${SHIHAI_S3_SECRET_KEY:-${S3_SECRET_KEY:-local-minio-password-change-me}}
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"

@@ -3,7 +3,7 @@
 日期：2026-10-22
 
 状态：代码与本地自动化完成（`990f4d8`）；真实测试商户支付仍待验收，
-`BILLING_ENABLED=false`。
+`SHIHAI_BILLING_ENABLED=false`。
 
 ## 参考基线
 
@@ -28,7 +28,7 @@
 | 前端恢复 | 返回地址自动带本地订单号；缺少时恢复最近待支付/确认中订单 |
 | 弹窗拦截 | 保留“返回收银台”链接，不创建第二笔订单 |
 | 支付关闭 | 价格接口返回 `billingEnabled=false`，购买按钮禁用且免费功能说明可见 |
-| 环境一致性 | `KB_RUNTIME_ENV` 派生 `APP_ENV`、`BILLING_DB_ENV` 和 `WAFFO_ENV`，不一致拒绝部署 |
+| 环境一致性 | `SHIHAI_RUNTIME_ENV` 派生 `SHIHAI_APP_ENV`、`SHIHAI_BILLING_DB_ENV` 和 `SHIHAI_WAFFO_ENV`，不一致拒绝部署 |
 | 运维配置 | 每次部署交互提示 Waffo 商户、店铺、私钥和商品映射；全部留空时保持桥接关闭 |
 
 ## 自动化证据
@@ -46,4 +46,4 @@
 - 使用独立识海 Waffo 测试商户和店铺创建/发布三档商品。
 - 使用测试卡完成收银台、签名通知、主动查询、退款、重复和乱序事件验收。
 - 在独立测试和生产物理 PostgreSQL 上执行计费并发、迁移和恢复演练。
-- 完成上述门禁前不得打开 `BILLING_ENABLED`。
+- 完成上述门禁前不得打开 `SHIHAI_BILLING_ENABLED`。

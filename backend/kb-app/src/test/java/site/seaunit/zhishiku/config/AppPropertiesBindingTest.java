@@ -29,6 +29,42 @@ class AppPropertiesBindingTest {
         });
   }
 
+  @Test
+  void prefersShihaiPrefixedEnvironmentNames() {
+    contextRunner
+        .withPropertyValues(
+            "SHIHAI_BILLING_ENABLED=true",
+            "SHIHAI_BILLING_TRIAL_POINTS=321",
+            "SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=true")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+
+              AppProperties properties = context.getBean(AppProperties.class);
+              assertThat(properties.billing().enabled()).isTrue();
+              assertThat(properties.billing().trialPoints()).isEqualTo(321);
+              assertThat(properties.webImport().allowUnbilledAi()).isTrue();
+            });
+  }
+
+  @Test
+  void keepsLegacyEnvironmentNamesWorkingDuringMigration() {
+    contextRunner
+        .withPropertyValues(
+            "BILLING_ENABLED=true",
+            "BILLING_TRIAL_POINTS=222",
+            "KB_WEB_IMPORT_ALLOW_UNBILLED_AI=true")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+
+              AppProperties properties = context.getBean(AppProperties.class);
+              assertThat(properties.billing().enabled()).isTrue();
+              assertThat(properties.billing().trialPoints()).isEqualTo(222);
+              assertThat(properties.webImport().allowUnbilledAi()).isTrue();
+            });
+  }
+
   @Configuration(proxyBeanMethods = false)
   @EnableConfigurationProperties(AppProperties.class)
   static class TestConfiguration {}

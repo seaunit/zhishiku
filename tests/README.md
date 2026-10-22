@@ -34,15 +34,15 @@ pnpm --dir frontend/kb-web exec playwright test --config ../../tests/playwright.
 以下测试只执行无副作用的 GET/HEAD：
 
 ```powershell
-$env:KB_ZERO_IMPACT_LIVE='1'
-$env:KB_LIVE_BASE_URL='https://seaunit.site'
+$env:SHIHAI_ZERO_IMPACT_LIVE='1'
+$env:SHIHAI_LIVE_BASE_URL='https://seaunit.site'
 pnpm --dir frontend/kb-web exec playwright test --config ../../tests/playwright.config.ts e2e/richtext-zero-impact.spec.ts
 ```
 
 检查支付 sidecar 时需要从生产主机内部提供只读健康端点：
 
 ```powershell
-$env:KB_SIDECAR_URL='http://127.0.0.1:8090/health'
+$env:SHIHAI_SIDECAR_URL='http://127.0.0.1:8090/health'
 ```
 
 该变量不在本机时，sidecar 用例会明确跳过，不能把跳过报告为通过。

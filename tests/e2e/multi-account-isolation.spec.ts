@@ -1,12 +1,16 @@
 import { expect, test, type BrowserContext, type Page } from '../support/playwright'
 
-const liveEnabled = process.env.KB_MULTI_ACCOUNT_E2E === '1'
-const backendBase = process.env.KB_MULTI_ACCOUNT_API_URL || 'http://127.0.0.1:18082'
+const liveEnabled =
+  (process.env.SHIHAI_MULTI_ACCOUNT_E2E ?? process.env.KB_MULTI_ACCOUNT_E2E) === '1'
+const backendBase =
+  process.env.SHIHAI_MULTI_ACCOUNT_API_URL ??
+  process.env.KB_MULTI_ACCOUNT_API_URL ??
+  'http://127.0.0.1:18082'
 const password = 'multi-account-password'
 
 test.skip(
   !liveEnabled,
-  'set KB_MULTI_ACCOUNT_E2E=1 with a fresh local Spring Boot database',
+  'set SHIHAI_MULTI_ACCOUNT_E2E=1 with a fresh local Spring Boot database',
 )
 
 async function proxyApiToBackend(page: Page) {

@@ -48,7 +48,7 @@
 - 未执行生产部署，因此没有真实业务 PDF/DOCX、生产日志和原应用零影响证据。
 - 本机没有真实 DeepSeek 业务 Key，因此未执行真实 Provider 调用；Provider 协议由本地 HTTP
   测试验证，真实 PDF/DOCX 到文档解析器的链路已实际执行。
-- 生产 `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，002 点数门禁接入前返回
+- 生产 `SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，002 点数门禁接入前返回
   `402 AI_BILLING_REQUIRED`，不会执行未计费 AI。
 - 扫描版 PDF 自动 OCR、长文档分块和任务恢复属于 P2。
 - 本机无 Docker，Testcontainers PostgreSQL 用例未启动；现有仓库全量测试仍成功。

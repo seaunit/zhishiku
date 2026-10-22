@@ -384,7 +384,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - Git commit：`9743b4c`
 - 摘要：将运行代码和前端从实例单所有者改为多账号公开注册和按账号隔离。
 - 详情：新增 V0006 迁移，移除 `owner_account.instance_key` 唯一约束和列，保留邮箱唯一约束并
-  回填 `email_verified_at`；注册状态由 `REGISTRATION_ENABLED` 控制，默认开启，已有账号不再
+  回填 `email_verified_at`；注册状态由 `SHIHAI_REGISTRATION_ENABLED` 控制，默认开启，已有账号不再
   关闭其他邮箱注册。登录和 `/me` 从当前认证邮箱解析账号；重复邮箱返回
   `EMAIL_ALREADY_REGISTERED`。前端注册页不再依赖注册关闭状态，始终显示账户创建表单。
 - 验证：独立 PostgreSQL 18.1 全新数据库成功执行 V0001→V0004→V0005→V0006；通过两个浏览器
@@ -488,8 +488,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - Git commit：`bd9972e`
 - 摘要：恢复本地优先的联网搜索，并接入 DeepSeek Search 与单 URL Fetch。
 - 详情：首页在本地搜索完成后显示“继续搜索互联网”；用户再次点击且显式同意后，后端使用
-  `DEEPSEEK_SEARCH_API_KEY` 调用官方 Search API，只发送搜索词。候选绑定当前账号并短期缓存；
-  用户选择“收入识海”后，后端使用 `DEEPSEEK_FETCH_API_KEY` 获取单个 URL 的 Markdown，转换为
+  `SHIHAI_DEEPSEEK_SEARCH_API_KEY` 调用官方 Search API，只发送搜索词。候选绑定当前账号并短期缓存；
+  用户选择“收入识海”后，后端使用 `SHIHAI_DEEPSEEK_FETCH_API_KEY` 获取单个 URL 的 Markdown，转换为
   富文本并以 `internet_result` 来源保存。
 - 验证：Provider Search/Fetch 协议、Bearer 认证和响应映射测试通过；候选归属与保存来源测试
   通过；前端 E2E 验证本地结果先显示、点击前不联网、显式同意字段和候选保存。生产

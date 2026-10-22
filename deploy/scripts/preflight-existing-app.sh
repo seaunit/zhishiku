@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-KB_PORT="${KB_PORT:-8082}"
+KB_PORT="${SHIHAI_PORT:-${KB_PORT:-8082}}"
 failures=0
 
 log() {

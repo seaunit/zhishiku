@@ -19,7 +19,7 @@ Apache Tika 按文件内容解析 PDF、DOCX、DOC、RTF、TXT 和 Markdown，�
 文档/网页/截图加固已完成本地实现与自动化；真实收费在 Waffo 测试商户和物理 PostgreSQL
 门禁通过前保持关闭。网页、文档和截图 AI 的解析、脱敏、
 同意和拆分代码已接入；生产环境默认
-`KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，在 002 点数门禁完成前会返回 `AI_BILLING_REQUIRED`，
+`SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，在 002 点数门禁完成前会返回 `AI_BILLING_REQUIRED`，
 不会执行未计费的外部 AI 调用。扫描版 PDF 自动 OCR 和超长文档分块属于 P2。
 
 已批准的实现技术栈为 Vue 3 + TypeScript、Java 17 + Spring Boot 3.x、PostgreSQL 18
@@ -103,7 +103,7 @@ pnpm dev
 
 访问 `http://127.0.0.1:4173/kb/`。`local` profile 会使用开发占位账号
 `owner@zhishiku.local` 和密码 `local-dev-password-change-me` 初始化一个本地开发账号；生产环境
-必须通过环境变量覆盖并保持 `KB_AUTO_BOOTSTRAP=false`。占位账号只用于开发，不限制其他账号注册。
+必须通过环境变量覆盖并保持 `SHIHAI_AUTO_BOOTSTRAP=false`。占位账号只用于开发，不限制其他账号注册。
 
 后端测试：
 
@@ -177,7 +177,7 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
   整理，原始文件不长期保存，解析失败或超限时不创建部分知识。
 - 剪贴板截图只用于临时 OCR，AI 拆分后的文字才入库；截图模式不调用图片附件上传接口。
 - 生产网页 AI 必须等待 002 点数报价、预留、结算和释放接入；本地自动化可使用
-  `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=true`，该值不得用于生产绕过计费。
+  `SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=true`，该值不得用于生产绕过计费。
 - 静态门户安装到 `/opt/seaunit-portal/current`，根路径 `/` 同时提供拾题和识海入口。
 - 保留上一 release；健康检查失败时自动切回。
 - 只替换现有 Nginx 配置中精确的 `location = /`，增加独立的 `/seaunit-portal/` 静态资源

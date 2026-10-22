@@ -138,7 +138,7 @@ Playwright E2E，部署使用 Node 脚本和 Bash 语法检查。
 | T024 | 执行部署自检、Bash 语法、YAML、原型语法和 `git diff --check`。 | 所有命令退出码 0。 | 未执行生产部署。 |
 | T029 | 请求增加明确外部 AI 同意；OCR 扫描 API Key、Token、密码和私钥；URL 不进入 AI 请求。 | 服务/脱敏 Provider 测试；前端同意 E2E。 | 正则扫描不能识别所有秘密形态，仍需持续扩充语料。 |
 | T030 | KnowledgeService 增加内部 `createOrganized`，网页整理成功状态为 `succeeded`。 | `KnowledgeItemEntityTest` 与服务测试通过。 | 普通创建仍保持 `not_requested`。 |
-| T031 | 生产默认 `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，未接入 002 时返回 `402 AI_BILLING_REQUIRED`。 | 服务测试与部署自检通过。 | 这是当前生产阻塞；接入 002 后才能开放。 |
+| T031 | 生产默认 `SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，未接入 002 时返回 `402 AI_BILLING_REQUIRED`。 | 服务测试与部署自检通过。 | 这是当前生产阻塞；接入 002 后才能开放。 |
 
 ### 未完成
 
