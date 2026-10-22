@@ -580,6 +580,11 @@ recycled -> active
 - `purging` 状态不可恢复。
 - 删除会立即清除搜索投影。
 
+批量移入回收站不新增表或字段。服务端在一个事务内按稳定 UUID 顺序校验所有条目都属于当前账号，
+再逐项执行同一生命周期规则；任意一条不存在、非 active、已被其他请求处理或处理失败时，整批回滚。
+成功时所有条目使用同一事务提交新的 `lifecycle_state`、`deleted_at` 和 `purge_after`，搜索投影在
+提交后立即排除这些条目。客户端请求通过 `api_idempotency` 按账号和请求哈希重放。
+
 ### 条目处理
 
 ```text
@@ -749,3 +754,5 @@ Meilisearch 仅在 PostgreSQL 搜索基准失败后作为可重建派生索引�
   请求哈希、完成状态、安全响应 JSON 和过期时间；相同键不同请求必须拒绝。
 - 回收站与永久清除沿用 `knowledge_item.lifecycle_state`、`attachment_cleanup` 和富文本引用
   状态；公开接口既提供 `/knowledge-items/trash` 兼容路径，也提供规格中的 `/trash` 路径。
+- 列表批量回收使用 `POST /api/v1/knowledge-items/bulk-recycle`，要求 `Idempotency-Key`，最多
+  100 个去重 UUID；服务端排序后统一校验和加锁，成功响应 `{recycled:n}`，事务失败不返回部分成功。

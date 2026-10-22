@@ -447,6 +447,46 @@ paths:
           $ref: "#/components/responses/ValidationError"
         "503":
           description: AI 服务不可用。
+  /api/v1/knowledge-items/bulk-recycle:
+    post:
+      tags: [知识, 回收站]
+      operationId: bulkMoveKnowledgeItemsToTrash
+      summary: 原子地将最多 100 条知识移入回收站。
+      description: |
+        仅处理当前账号拥有且处于 active 状态的知识。服务端对去重后的 UUID 稳定排序，在单个事务中
+        校验所有权并执行回收；任一错误都使整批回滚。相同账号、相同键和相同规范化请求体重放同一成功
+        响应，同键异体返回 409。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkRecycleKnowledgeRequest"
+      responses:
+        "200":
+          description: 全部选中知识已移入回收站并立即退出活动检索。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkRecycleKnowledgeResponse"
+        "400":
+          description: 条目不存在、不属于当前账号或生命周期状态不允许回收；整批未改变。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: 幂等键冲突或条目已被并发请求修改；整批未改变。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/knowledge-items/{itemId}:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -1677,6 +1717,27 @@ components:
           type:
             - string
             - "null"
+    BulkRecycleKnowledgeRequest:
+      type: object
+      required: [itemIds]
+      properties:
+        itemIds:
+          type: array
+          description: 重复 UUID 会先去重；去重后必须为 1–100 条。
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+            format: uuid
+    BulkRecycleKnowledgeResponse:
+      type: object
+      required: [recycled]
+      properties:
+        recycled:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: 已在同一事务中移入回收站的去重知识条目数。
     CreateKnowledgeItemRequest:
       type: object
       required: [title, bodyDocument]

@@ -167,6 +167,9 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   并更新 OpenAPI、环境变量示例和部署说明。
 - [ ] T102 [P0] 在真实 Docker/PostgreSQL、真实 Waffo 测试商户、真实 DeepSeek/Tesseract 和生产
   `seaunit.site` 上执行迁移、支付、AI、回滚与零影响验收。当前本机 Docker 引擎不可用，生产验收未执行。
+- [x] T103 [P0] 在知识库列表页实现服务端检索、命中字段、单条移入回收站、三态全选、原子批量回收、
+  持久化幂等重试、失败保留和选择清理；同步 OpenAPI、数据模型、原型、中英文文案及桌面/平板/手机
+  E2E，并验证 320–430px 触控与溢出。
 
 ## 依赖关系
 
@@ -576,3 +579,28 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 | T099 | 退款使用实际可回收批次点数；管理员调整显式目标账号并维护投影；修复财务日期过滤和异常对账；买家标识改为不透明 UUID；桥接增加成功地址、未知订单和双向密钥约束。 | 计费专项、桥接 typecheck/test/build、部署脚本检查。 | 退款 held 批次和自动二次回收仍需真实任务结算演练。 |
 | T100 | 部署脚本增加 PostgreSQL 备份、桥接/片段回滚和显式计费开关；管理员邮箱与邮件退款入口写入环境；桥接 unit 去掉不必要写权限。 | `tests/deploy/verify-deploy-scripts.mjs`、Git Bash 语法检查、部署脚本 diff 审计。 | 未在生产主机执行本次新版脚本；必须先在 staging 演练数据库恢复和回滚。 |
 | T101 | 原型增加点数和七项移动导航；前端补英文套餐名、ARIA、页面标题、来源 URL、分类纠错和重新分析；OpenAPI 与示例环境变量同步。 | Vite build、39 项前端 E2E（37 通过/2 live 跳过）、原型 `node --check`、Taste lint 0 FAIL/0 WARN。 | 原型与前端仍需在同一固定 commit 完成截图对照归档。 |
+
+### 完成记录：T103
+
+- 日期：2026-10-22
+- 状态：已完成，本地自动化、原型交互和桌面/平板/手机视觉检查通过；真实 PostgreSQL 并发与生产验收未执行
+- 执行子智能体：产品、开发、测试
+- Git commit：`cb59600`
+- 摘要：知识库列表页新增服务端检索、匹配字段、逐行删除、三态全选和原子批量回收。
+- 详情：列表检索由一个输入框覆盖标题、正文、备注、分类和标签，不触发互联网搜索或 AI 扣点；
+  每行复选框与删除按钮固定 44px 触控槽，删除和批量删除均使用确认框。批量接口
+  `POST /api/v1/knowledge-items/bulk-recycle` 去重后限制 1–100 条，按稳定 UUID 顺序校验账号所有权
+  并执行全有或全无回收；`Idempotency-Key` 由现有持久化幂等服务处理同体重放和异体冲突。搜索、来源
+  筛选、刷新和成功删除会清空选择，失败时保留行、选择、检索条件和确认上下文。同步更新 OpenAPI、
+  数据模型、计划、快速验证、检查清单、001/003 任务、中英文文案和交互原型。
+- 验证：后端 241 项通过；列表专项 Playwright 6 项通过；前端完整 Playwright 49 项可执行用例中
+  48 项通过、2 项 live 跳过；Vitest 48 项通过；lint、typecheck、生产构建通过；原型浏览器验证
+  搜索 12→2 条、取消单删保持 12 条、批量删除 12→10 条，390px 横向溢出为 0，复选框和删除按钮
+  均为 44×44px；Taste app lint 前端 0 FAIL/4 个既有浮层阴影 WARN，原型 0 FAIL/0 WARN。
+- 证据：`frontend/kb-web/src/views/LibraryView.vue`、`KnowledgeServiceBulkRecycleTest.java`、
+  `KnowledgeLifecycleControllerTest.java`、`frontend/kb-web/e2e/app.spec.ts`、`prototype/`、
+  `artifacts/001/library-search-bulk-delete.md`、`frontend/kb-web/test-results/library-*.png`。
+- 覆盖：FR-003、FR-006、FR-007、FR-035、FR-036、FR-047、FR-075 至 FR-078；SC-013、SC-019、SC-020。
+- 风险与回滚：本机 Docker 不可用，Testcontainers PostgreSQL 用例执行 0 项；100 条以上结果尚无游标
+  分页，来源计数可能不完整；真实 iOS Safari、Android Chrome、软键盘、物理安全区和屏幕阅读器仍由
+  T073/T102/003 T036 承载。回滚接口和前端交互不需要数据库迁移，已回收数据仍可按既有流程恢复。
