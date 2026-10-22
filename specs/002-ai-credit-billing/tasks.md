@@ -180,6 +180,10 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
   失败重试保留幂等状态，并执行前端与后端完整回归门禁。
 - [x] T091 [P0] 修复生产收银台 503：部署前自动补齐并校验生产
   `SHIHAI_CHECKOUT_SUCCESS_URL`，拒绝生产环境使用非 HTTPS 回跳地址，并完成生产环境热修复。
+- [x] T092 [P0] 修复点数明细把预留和结算重复显示为可用余额扣减的问题；预留显示为冻结，
+  结算显示为已扣，并同时展示可用与冻结余额快照。
+- [x] T093 [P0] 将 `V0015` 的 1 点互联网搜索价格等价应用到生产 active 计费目录，历史消费和
+  既有账本保持不变。
 
 ## 依赖关系
 
@@ -342,3 +346,43 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - 风险与回滚：真实支付仍需要用户重新点击购买并在 Waffo 收银台完成；热修复只改识海环境文件。
   回滚可恢复上述备份并重启 `zhishiku-api`。部署脚本修复尚未推送到 GitHub，需在 GitHub 认证
   恢复后提交并发布，避免下次旧脚本部署再次遗漏。
+
+### 完成记录：T092
+
+- 日期：2026-10-22
+- 状态：实现与本地自动化验收完成，已归档
+- 执行主体：Codex
+- Git commit：`00bc60e`
+- 摘要：点数明细不再把一次搜索的预留和结算重复呈现为两次可用余额扣减。
+- 详情：生产账本确认两次搜索产生四条变动，但只有两条 `reserve` 改变可用余额；四条记录分别为
+  两次 `reserve` 和两次 `settle`。页面原先把 `settle` 的负数冻结变化也显示成 `-3`，造成四次
+  扣费错觉。新增账本展示映射：`reserve` 显示“冻结 N”，`settle` 显示“已扣 N”，次级信息
+  显示“可用 X · 冻结 Y”；充值、释放、退款回收和人工调整保持各自语义。
+- 验证：新增 Vitest 3 项先按预期因展示模块缺失 RED，实现后 GREEN；定向 Playwright 1 项通过；
+  完整 Vitest 51 项、完整 Playwright 50 项可执行用例通过，2 项真实环境用例跳过；lint、
+  typecheck、生产构建通过；Taste lint 0 FAIL；真实 Chrome 在 1440/768/390 宽度截图均无文本
+  溢出，行内同时可读“已扣 3”“冻结 3”及余额快照。
+- 证据：`frontend/kb-web/src/lib/billing-ledger.ts`、
+  `frontend/kb-web/src/lib/billing-ledger.test.ts`、`frontend/kb-web/src/views/BillingView.vue`、
+  `frontend/kb-web/e2e/app.spec.ts`、`frontend/kb-web/test-results/`。
+- 覆盖：FR-022、FR-023、FR-035、FR-038。
+- 风险与回滚：修复尚未部署到生产前端；当前生产页面仍显示旧的重复 `-3` 文案，但账务余额和
+  数据库事实不受影响。回滚只需恢复旧页面展示，不得修改账本。
+
+### 完成记录：T093
+
+- 日期：2026-10-22
+- 状态：生产 active 目录更新完成
+- 执行主体：Codex
+- Git commit：`95ef1d3`
+- 摘要：生产与测试 active 计费目录中的 `internet_search` 均已从 3 点更新为 1 点。
+- 详情：执行与 `V0015__internet_search_one_point.sql` 等价的事务更新，只修改当前 active
+  `billing_ai_rate`；历史报价、任务、预留、结算和账本快照保持不变。生产前端仍是旧 release，
+  因而一键确认与新的账本文案仍需后续 GitHub 固定提交部署。
+- 验证：事务返回 `UPDATE 2` 并提交；复核 active 目录结果为 production `internet_search=1`、
+  test `internet_search=1`；`ai_answer` 仍为 2 点。
+- 证据：`backend/kb-app/src/main/resources/db/migration/V0015__internet_search_one_point.sql`；
+  生产数据库 active 目录查询。
+- 覆盖：FR-035、FR-038、FR-085、SC-026。
+- 风险与回滚：历史两次搜索仍按当时 3 点快照保留，共 6 点；若需补偿应通过受审计的人工点数调整
+  单独执行。不得直接改写历史账本。
