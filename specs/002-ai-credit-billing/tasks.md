@@ -460,3 +460,23 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - 覆盖：FR-007 至 FR-020、FR-068 至 FR-075。
 - 风险与回滚：邮箱地址属于公开客服信息，不含密钥。回滚可恢复上述环境备份并重启
   `zhishiku-api`；恢复旧值会重新指向旧管理员地址，不推荐长期使用。
+
+### 完成记录：T097
+
+- 日期：2026-10-23
+- 状态：本地实现、自动化验收完成
+- 执行主体：Codex
+- Git commit：`b5c6c48`
+- 摘要：订单历史使用套餐业务名称，点数明细使用搜索、采集、整理等业务操作名称。
+- 详情：账本接口从关联 `billing_task.operation` 返回 `businessOperation`，前端将
+  `internet_search`、`webpage_import`、`document_import`、`screenshot_import` 等代码映射为
+  “搜索花费”“网页采集花费”“文档采集花费”“截图采集花费”，并把预留、释放、扣点作为次级状态。
+  订单历史、支付状态和购买到账明细均通过目录或已知 SKU 回退显示套餐名称，不直接暴露
+  `kb_pack_*` 内部代码。
+- 验证：前端 ESLint、TypeScript、53 项 Vitest、生产构建通过；相关 Playwright 用例通过；
+  后端 Maven 测试通过；Taste 检查在 1440、768、390 像素均为 `0 FAIL`。
+- 证据：`BillingDtos.java`、`BillingService.java`、`billing-ledger.ts`、
+  `billing-ledger.test.ts`、`BillingView.vue`、`contracts/openapi.yaml`。
+- 覆盖：FR-019、FR-022、FR-039。
+- 风险与回滚：历史 `ai_task` 账本若关联任务已不存在，回退显示“点数任务”；购买记录若关联订单不在
+  当前分页中，回退显示“点数套餐购买”。回滚只需恢复旧展示，不得改写历史账本。
