@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    url: ${SHIHAI_DATABASE_URL:jdbc:postgresql://127.0.0.1:5432/zhishiku_test}
+    username: ${SHIHAI_DATABASE_USERNAME:postgres}
+    password: ${SHIHAI_DATABASE_PASSWORD:postgres}
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+
+app:
+  owner:
+    auto-bootstrap: false
+  registration:
+    enabled: true
+    expose-code: true
+  captcha:
+    expose-answer: true
+  billing:
+    environment: test
+    database-environment: test
+    enabled: true
+    bridge-url: http://127.0.0.1:8091
+    app-to-bridge-secret: ${SHIHAI_APP_TO_BRIDGE_SECRET:local-test-app-to-bridge-secret}
+    bridge-to-app-secret: ${SHIHAI_BRIDGE_TO_APP_SECRET:local-test-bridge-to-app-secret}
+    catalog-version: 2026-10-mvp
+    checkout-success-url: http://127.0.0.1:4173/kb/billing/return
+    webhook-url: http://127.0.0.1:8091/webhooks/waffo
+    refund-support-url: mailto:sealevel666@163.com
+    refund-response-target: 3 个工作日
+    admin-emails: owner@zhishiku.local
+
+management:
+  health:
+    mail:
+      enabled: false
+
+logging:
+  level:
+    site.seaunit.zhishiku: DEBUG

@@ -32,6 +32,20 @@ describe("SdkWaffoGateway construction", () => {
       environment: "prod",
     });
   });
+
+  it("does not construct the Waffo SDK when dry-run is enabled", () => {
+    const config = {
+      ...bridgeConfig("test"),
+      merchantId: "",
+      privateKey: "",
+      dryRun: true,
+    };
+
+    const gateway = new SdkWaffoGateway(config);
+
+    expect(constructorSpy).not.toHaveBeenCalled();
+    expect(gateway.configured()).toBe(true);
+  });
 });
 
 function bridgeConfig(environment: "test" | "production"): BridgeConfig {

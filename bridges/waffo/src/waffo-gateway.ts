@@ -17,12 +17,16 @@ interface PaymentNode {
 }
 
 export class SdkWaffoGateway implements WaffoGateway {
-  private readonly client: WaffoPancake;
+  private readonly client: WaffoPancake | null;
 
   constructor(
     private readonly config: BridgeConfig,
     client?: WaffoPancake,
   ) {
+    if (config.dryRun && !client) {
+      this.client = null;
+      return;
+    }
     this.client =
       client ??
       new WaffoPancake({
@@ -33,11 +37,11 @@ export class SdkWaffoGateway implements WaffoGateway {
   }
 
   configured(): boolean {
-    return Boolean(this.config.merchantId && this.config.privateKey);
+    return this.config.dryRun || Boolean(this.config.merchantId && this.config.privateKey);
   }
 
   async createCheckout(input: CheckoutInput, productId: string) {
-    const result = await this.client.checkout.authenticated.create(
+    const result = await this.requireSdk().checkout.authenticated.create(
       {
         productId,
         currency: this.config.currency,
@@ -68,7 +72,7 @@ export class SdkWaffoGateway implements WaffoGateway {
   }
 
   async queryOrder(input: OrderStatusInput) {
-    const result = await this.client.graphql.query<{ payments: PaymentNode[] }>({
+    const result = await this.requireSdk().graphql.query<{ payments: PaymentNode[] }>({
       query: `query ($ref: String!) {
         payments(filter: { orderMerchantExternalId: { eq: $ref } }) {
           status orderMerchantExternalId
@@ -104,7 +108,14 @@ export class SdkWaffoGateway implements WaffoGateway {
   }
 
   verifyWebhook(rawBody: string, signature: string | undefined): unknown {
-    return this.client.webhooks.verify(rawBody, signature ?? "");
+    return this.requireSdk().webhooks.verify(rawBody, signature ?? "");
+  }
+
+  private requireSdk(): WaffoPancake {
+    if (!this.client) {
+      throw new Error("Waffo SDK is unavailable in dry-run mode.");
+    }
+    return this.client;
   }
 }
 

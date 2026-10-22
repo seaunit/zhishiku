@@ -131,6 +131,16 @@ pnpm build
 5. `$speckit-implement`：开发实现。
 6. 独立执行测试与验收，不要求使用子智能体或并行协作。
 
+本地隔离测试环境可使用独立的 `zhishiku_test` PostgreSQL 数据库、模拟邮件和 Waffo dry-run：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\deploy\local-test\start.ps1
+powershell -ExecutionPolicy Bypass -File .\deploy\local-test\stop.ps1
+```
+
+详细配置和切换测试商户的方法见
+[`deploy/local-test/README.md`](deploy/local-test/README.md)。
+
 ## 部署约束
 
 - GitHub 是源码、迁移和部署脚本的唯一权威来源。
