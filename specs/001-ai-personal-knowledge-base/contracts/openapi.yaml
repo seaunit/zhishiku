@@ -315,7 +315,10 @@ paths:
               $ref: "#/components/schemas/ExternalSearchRequest"
       responses:
         "200":
-          description: 短期互联网搜索候选结果。
+          description: >-
+            短期互联网搜索候选结果。服务端可让 Search Provider 在同次查询中返回正文，用于过滤
+            没有可整理正文的候选并短期缓存；正文不得返回浏览器。用户选择候选后优先单页 Fetch，
+            Fetch 失败时仅可使用该候选的已缓存搜索正文兜底。
           content:
             application/json:
               schema:

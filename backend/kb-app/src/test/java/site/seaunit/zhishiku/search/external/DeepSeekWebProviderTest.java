@@ -32,7 +32,8 @@ class DeepSeekWebProviderTest {
                   "site_name": "DeepSeek",
                   "site_icon": "https://www.deepseek.com/favicon.ico",
                   "date": "2026-10-22T00:00:00Z",
-                  "authority": 4
+                  "authority": 4,
+                  "content": "# DeepSeek\\n\\nOfficial page content."
                 }
               ]
             }
@@ -48,9 +49,10 @@ class DeepSeekWebProviderTest {
       assertThat(results.get(0).title()).isEqualTo("DeepSeek");
       assertThat(results.get(0).siteName()).isEqualTo("DeepSeek");
       assertThat(results.get(0).authority()).isEqualTo(4);
+      assertThat(results.get(0).content()).contains("Official page content");
       assertThat(authorization.get()).isEqualTo("Bearer search-key");
       assertThat(requestBody.get()).contains("\"query\":\"DeepSeek\"");
-      assertThat(requestBody.get()).contains("\"need_content\":false");
+      assertThat(requestBody.get()).contains("\"need_content\":true");
     } finally {
       server.stop(0);
     }

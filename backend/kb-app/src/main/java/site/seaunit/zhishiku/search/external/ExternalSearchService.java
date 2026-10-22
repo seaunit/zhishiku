@@ -40,6 +40,7 @@ import site.seaunit.zhishiku.webimport.WebPageOrganizationException;
 @Service
 public class ExternalSearchService {
   private static final int MAX_CONTENT_CHARS = 200_000;
+  private static final int MIN_ORGANIZABLE_CONTENT_CHARS = 200;
 
   private final DeepSeekWebProvider provider;
   private final KnowledgeService knowledgeService;
@@ -136,6 +137,7 @@ public class ExternalSearchService {
           provider.search(request.query().strip(), count);
       List<ExternalSearchCandidate> items =
           results.stream()
+              .filter(result -> hasOrganizableContent(result.content()))
               .map(
                   result -> {
                     UUID candidateId = UUID.randomUUID();
@@ -239,11 +241,18 @@ public class ExternalSearchService {
     }
 
     try {
-      DeepSeekWebProvider.FetchedPage page = provider.fetch(cached.result().url());
-      String content =
-          page.content().length() > MAX_CONTENT_CHARS
-              ? page.content().substring(0, MAX_CONTENT_CHARS)
-              : page.content();
+      String content;
+      try {
+        DeepSeekWebProvider.FetchedPage page = provider.fetch(cached.result().url());
+        content = page.content();
+      } catch (ExternalSourceUnavailableException | ExternalSearchUnavailableException error) {
+        if (!hasOrganizableContent(cached.result().content())) {
+          throw error;
+        }
+        content = cached.result().content();
+      }
+      content =
+          content.length() > MAX_CONTENT_CHARS ? content.substring(0, MAX_CONTENT_CHARS) : content;
       AiTextSecretRedactor.RedactionResult redacted = secretRedactor.redact(content);
       List<OrganizedKnowledge> organized =
           organizer.organize("internet search result", redacted.text());
@@ -296,6 +305,10 @@ public class ExternalSearchService {
       }
     }
     return "Internet result";
+  }
+
+  private static boolean hasOrganizableContent(String content) {
+    return content != null && content.strip().length() >= MIN_ORGANIZABLE_CONTENT_CHARS;
   }
 
   private static String host(String url) {

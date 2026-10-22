@@ -33,7 +33,7 @@ public class DeepSeekWebProvider {
         post(
             config.searchEndpoint(),
             config.searchApiKey(),
-            Map.of("query", query, "count", count, "need_content", false));
+            Map.of("query", query, "count", count, "need_content", true));
     JsonNode results = response.path("results");
     if (!results.isArray()) {
       throw new ExternalSearchUnavailableException("Search provider returned an invalid response.");
@@ -55,7 +55,8 @@ public class DeepSeekWebProvider {
               nullableText(item, "site_icon"),
               nullableText(item, "date"),
               item.path("authority").asInt(-1),
-              item.path("rerank_score").asDouble(0)));
+              item.path("rerank_score").asDouble(0),
+              item.path("content").asText("")));
     }
     return mapped;
   }
@@ -142,7 +143,8 @@ public class DeepSeekWebProvider {
       String siteIcon,
       String date,
       int authority,
-      double rerankScore) {}
+      double rerankScore,
+      String content) {}
 
   public record FetchedPage(String title, String content) {}
 }

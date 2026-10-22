@@ -84,7 +84,8 @@ class ExternalSearchServiceTest {
                     null,
                     "2026-10-22T00:00:00Z",
                     4,
-                    2.8)));
+                    2.8,
+                    "Official search-provided article content. ".repeat(20))));
     var search = service.search(new ExternalSearchRequest("DeepSeek", true, false), authentication);
     assertThat(search.items()).hasSize(1);
 
@@ -127,6 +128,63 @@ class ExternalSearchServiceTest {
     }
     verify(provider, never()).fetch(any());
     verify(organizer, never()).organize(any(), any());
+  }
+
+  @Test
+  void filtersSearchResultsWithoutOrganizableContent() {
+    when(currentOwnerService.require(authentication)).thenReturn(owner);
+    when(provider.search("empty", 5))
+        .thenReturn(
+            List.of(
+                new DeepSeekWebProvider.SearchResult(
+                    "Empty result",
+                    "https://example.com/empty",
+                    "No body",
+                    "No body",
+                    "Example",
+                    null,
+                    null,
+                    1,
+                    0.5,
+                    "   ")));
+
+    var search = service.search(new ExternalSearchRequest("empty", true, false), authentication);
+
+    assertThat(search.items()).isEmpty();
+  }
+
+  @Test
+  void usesSearchProvidedContentWhenSingleSourceFetchFails() {
+    String url = "https://eu.36kr.com/zh/p/4035009546000259";
+    String content = "36Kr article body. ".repeat(20);
+    when(currentOwnerService.require(authentication)).thenReturn(owner);
+    when(provider.search("36Kr", 5))
+        .thenReturn(
+            List.of(
+                new DeepSeekWebProvider.SearchResult(
+                    "36Kr article",
+                    url,
+                    "Article snippet",
+                    "Article summary",
+                    "36Kr",
+                    null,
+                    "2026-10-22T00:00:00Z",
+                    3,
+                    1.5,
+                    content)));
+    var search = service.search(new ExternalSearchRequest("36Kr", true, false), authentication);
+    when(provider.fetch(url))
+        .thenThrow(new ExternalSourceUnavailableException("The selected source could not be fetched."));
+    when(organizer.organize(eq("internet search result"), argThat(text -> text.contains("36Kr article body"))))
+        .thenReturn(
+            List.of(
+                new OrganizedKnowledge(
+                    "36Kr article", "Organized 36Kr knowledge.", "摘要", "资料", List.of("搜索"))));
+    when(knowledgeService.createOrganized(any(), any(), any())).thenReturn(savedResponse());
+
+    var saved = service.save(search.items().get(0).candidateId(), true, authentication);
+
+    assertThat(saved.items()).hasSize(1);
   }
 
   @Test
