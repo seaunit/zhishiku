@@ -1,6 +1,7 @@
 package site.seaunit.zhishiku.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
@@ -13,6 +14,9 @@ public record AppProperties(
     Ai ai,
     WebImport webImport,
     Billing billing) {
+  @ConstructorBinding
+  public AppProperties {}
+
   public AppProperties(
       Owner owner,
       Storage storage,
