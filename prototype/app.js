@@ -2787,7 +2787,7 @@ function initialize() {
   $$(".capture-tab").forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.captureMode === state.captureMode);
   });
-  if (["home", "library", "capture", "processing", "trash", "settings", "profile"].includes(requestedView)) {
+  if (["home", "library", "capture", "processing", "billing", "trash", "settings", "profile"].includes(requestedView)) {
     showView(requestedView);
   }
   if (["manual", "ai-text", "webpage", "document", "screenshot"].includes(requestedDialog)) {

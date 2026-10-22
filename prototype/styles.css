@@ -3146,14 +3146,19 @@ input[type="checkbox"]:checked::before {
 .billing-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 8px 20px;
   margin-top: 24px;
 }
 
 .billing-summary > div {
   display: grid;
+  justify-items: center;
   gap: 8px;
-  padding: 18px;
+  min-height: 104px;
+  align-content: center;
+  padding: 24px 20px;
   border-right: 1px solid var(--border);
+  text-align: center;
 }
 
 .billing-summary > div:last-child {

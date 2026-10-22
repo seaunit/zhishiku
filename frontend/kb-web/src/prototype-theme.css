@@ -2699,16 +2699,22 @@
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0 24px;
   margin: 0;
   border-top: 1px solid var(--border);
 }
 
 .billing-metrics div {
-  padding: 16px 0 0;
+  display: grid;
+  min-height: 104px;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
 }
 
 .billing-metrics div + div {
-  padding-left: 20px;
   border-left: 1px solid var(--border);
 }
 
@@ -2718,7 +2724,7 @@
 }
 
 .billing-metrics dd {
-  margin: 5px 0 0;
+  margin: 0;
   font-size: 22px;
 }
 
@@ -3009,10 +3015,10 @@
 
   .billing-metrics {
     grid-template-columns: minmax(0, 1fr);
+    padding: 0 20px;
   }
 
   .billing-metrics div + div {
-    padding-left: 0;
     border-left: 0;
     border-top: 1px solid var(--border);
   }

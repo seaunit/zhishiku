@@ -951,6 +951,24 @@ test('shows pricing, balance, and automatic charging controls', async ({ page })
   await expect(page.getByText('轻量加量包')).toBeVisible()
   await expect(page.getByText('常用加量包')).toBeVisible()
   await expect(page.getByText('超值加量包')).toBeVisible()
+  const metricCells = page.locator('.billing-metrics > div')
+  for (const cell of await metricCells.all()) {
+    await expect(cell).toHaveCSS('justify-items', 'center')
+    await expect(cell).toHaveCSS('text-align', 'center')
+  }
+  await expect(page.locator('.billing-metrics')).toHaveCSS('padding-left', '24px')
+  await page.screenshot({ path: 'test-results/billing-desktop.png', fullPage: true })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  await expect(metricCells.first()).toHaveCSS('justify-items', 'center')
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
+  await page.screenshot({ path: 'test-results/billing-mobile.png', fullPage: true })
+
   await page.getByRole('checkbox').check()
   await page.getByRole('button', { name: '保存设置' }).click()
   expect(savedAutoCharge).toMatchObject({
