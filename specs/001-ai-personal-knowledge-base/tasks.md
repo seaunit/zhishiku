@@ -653,3 +653,23 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-009、FR-079、SC-021。
 - 风险与回滚：来源可抓取性由 DeepSeek Fetch 动态决定，不能用静态域名白名单保证；回滚会恢复
   全局错误展示，但不影响已保存知识或账本。
+
+### 完成记录：T106
+
+- 日期：2026-10-23
+- 状态：本地实现与自动化验收完成
+- 执行主体：Codex
+- Git commit：`cc6c4dc`
+- 摘要：互联网搜索过滤没有可整理正文的候选，并为单页 Fetch 失败提供同次搜索正文兜底。
+- 详情：DeepSeek Search 请求改为 `need_content=true`，候选正文只保存在服务端短期缓存，不返回浏览器；
+  正文少于 200 字符的候选不展示。用户选择候选后仍优先调用单页 Fetch；Fetch 返回 404、不可用或
+  正文为空时，仅在缓存正文足够时使用该候选正文继续脱敏和 AI 整理。系统不会为预检逐条调用 Fetch，
+  也不遍历候选中的链接。
+- 验证：DeepSeek Provider 请求与响应测试、无正文过滤测试、Fetch 失败正文兜底测试通过；后端完整
+  Maven 测试通过；前端既有 53 项 Vitest 与 51 项 Playwright 通过。
+- 证据：`DeepSeekWebProvider.java`、`ExternalSearchService.java`、
+  `DeepSeekWebProviderTest.java`、`ExternalSearchServiceTest.java`、`AGENTS.md`、
+  `contracts/openapi.yaml`。
+- 覆盖：FR-010、FR-012、FR-080。
+- 风险与回滚：Search 正文会增大单次搜索结果体积，但仍限制在服务端内存短期缓存；若 Search Provider
+  不返回正文，候选会被过滤。回滚会恢复无正文过滤和必须依赖单页 Fetch 的行为。
