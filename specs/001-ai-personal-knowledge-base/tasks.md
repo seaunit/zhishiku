@@ -695,3 +695,21 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-006、FR-008、FR-035、FR-081。
 - 风险与回滚：当前使用页码限制和 `LIMIT/OFFSET`，超大数据量下后续可升级为稳定的
   `updated_at + id` 键集游标；回滚会恢复单次最多 100 条的无分页列表。
+
+### 完成记录：T108
+
+- 日期：2026-10-23
+- 状态：本地实现与自动化验收完成
+- 执行主体：Codex
+- Git commit：`838f52e`
+- 摘要：互联网搜索不再过滤不可整理候选，改为禁用收入操作并提示原因。
+- 详情：搜索接口为每个候选返回 `organizable`。没有足够正文的候选仍显示标题、摘要和来源，
+  “AI 整理后收入”按钮禁用；悬停显示原因，点击操作区域也显示同样的中文/英文提示。服务端对
+  直接调用保存且候选不可整理的情况失败关闭并释放已预留点数，不调用 Fetch 或 AI。
+- 验证：后端不可整理候选仍返回、直接保存拒绝且不调用 Fetch 的测试通过；前端专项 Playwright
+  验证按钮禁用、悬停 title 和点击提示通过；TypeScript 与原型 `node --check` 通过。
+- 证据：`ExternalSearchDtos.java`、`ExternalSearchService.java`、`ExternalSearchServiceTest.java`、
+  `HomeView.vue`、`types/api.ts`、`prototype/app.js`、`contracts/openapi.yaml`。
+- 覆盖：FR-010、FR-012、FR-080。
+- 风险与回滚：可整理性基于 Search Provider 返回正文长度阈值 200 字符；阈值调整可能改变按钮状态。
+  回滚会恢复隐藏不可整理候选的旧行为。
