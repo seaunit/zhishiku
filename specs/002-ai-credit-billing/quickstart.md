@@ -27,7 +27,7 @@ SHIHAI_BILLING_BRIDGE_URL=http://127.0.0.1:8091
 SHIHAI_BILLING_CATALOG_VERSION=2026-10-mvp-test
 SHIHAI_BILLING_WEBHOOK_URL=https://seaunit.site/kb/pay/webhooks/waffo
 SHIHAI_CHECKOUT_SUCCESS_URL=https://seaunit.site/kb/billing/return
-SHIHAI_REFUND_SUPPORT_URL=https://support.example.invalid/refund
+SHIHAI_REFUND_SUPPORT_URL=mailto:sealevel666@163.com?subject=%E8%AF%86%E6%B5%B7%E9%80%80%E6%AC%BE
 SHIHAI_REFUND_RESPONSE_TARGET=3 个工作日
 ```
 

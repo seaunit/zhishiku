@@ -482,7 +482,7 @@ set_env_pair SHIHAI_BILLING_WEBHOOK_URL BILLING_WEBHOOK_URL "https://seaunit.sit
 set_env_pair \
   SHIHAI_REFUND_SUPPORT_URL \
   REFUND_SUPPORT_URL \
-  "mailto:${OWNER_EMAIL}?subject=Zhishiku%20refund"
+  "mailto:sealevel666@163.com?subject=%E8%AF%86%E6%B5%B7%E9%80%80%E6%AC%BE"
 set_env_pair SHIHAI_REFUND_RESPONSE_TARGET REFUND_RESPONSE_TARGET "3 个工作日"
 set_env_pair SHIHAI_AUTO_BOOTSTRAP KB_AUTO_BOOTSTRAP "$auto_bootstrap"
 set_env_pair SHIHAI_OWNER_EMAIL KB_OWNER_EMAIL "$OWNER_EMAIL"

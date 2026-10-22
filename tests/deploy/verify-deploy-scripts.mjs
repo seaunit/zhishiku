@@ -114,6 +114,12 @@ if (
   )
 }
 if (
+  !provision.includes('mailto:sealevel666@163.com') ||
+  !deploy.includes('mailto:sealevel666@163.com')
+) {
+  failures.push('deploy scripts must configure the approved refund support email')
+}
+if (
   !provision.includes(
     'SHIHAI_APP_TO_BRIDGE_SECRET and SHIHAI_BRIDGE_TO_APP_SECRET must be different',
   )

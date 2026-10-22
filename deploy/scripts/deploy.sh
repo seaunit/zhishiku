@@ -276,6 +276,13 @@ ensure_checkout_success_url() {
   fi
 }
 
+ensure_refund_support_url() {
+  set_env_value \
+    SHIHAI_REFUND_SUPPORT_URL \
+    "mailto:sealevel666@163.com?subject=%E8%AF%86%E6%B5%B7%E9%80%80%E6%AC%BE"
+  printf '[部署] 退款客服邮箱已更新为 sealevel666@163.com。\n'
+}
+
 ensure_secrets() {
   local ai_key search_key fetch_key smtp_password
   ai_key="${SHIHAI_DEEPSEEK_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_API_KEY DEEPSEEK_API_KEY)}"
@@ -420,6 +427,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 ensure_environment_consistency
 ensure_checkout_success_url
+ensure_refund_support_url
 ensure_waffo
 if [[ "$(read_env_value SHIHAI_BILLING_ENABLED BILLING_ENABLED)" == "true" && ! -f "$WAFFO_ENV_FILE" ]]; then
   printf 'SHIHAI_BILLING_ENABLED=true requires %s\n' "$WAFFO_ENV_FILE" >&2

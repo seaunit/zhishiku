@@ -115,6 +115,7 @@ SHIHAI_APP_TO_BRIDGE_SECRET
 - 生产商品映射必须只包含 `kb_pack_*` 商品；发现拾题商品或其他环境商品时失败关闭。
 - 生产环境缺少 `SHIHAI_REFUND_SUPPORT_URL`、使用 `.invalid` 测试地址或答复目标不是已批准值时
   必须失败关闭购买。
+- 正式退款客服入口固定为 `mailto:sealevel666@163.com`，部署脚本每次执行都会幂等同步该值。
 
 ## Nginx 增量配置
 
