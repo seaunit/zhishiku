@@ -83,6 +83,14 @@ if (
 ) {
   failures.push('deploy.sh must verify APP_ENV, BILLING_DB_ENV, and WAFFO_ENV before release')
 }
+if (
+  !deploy.includes('Waffo 商户 ID') ||
+  !deploy.includes('Waffo 店铺 ID') ||
+  !deploy.includes('Waffo 私钥 Base64') ||
+  !deploy.includes('Waffo 商品映射')
+) {
+  failures.push('deploy.sh must interactively configure Waffo without echoing secrets')
+}
 if (!provision.includes("BILLING_ENABLED_VALUE=\"${BILLING_ENABLED:-false}\"")) {
   failures.push('production billing must require an explicit BILLING_ENABLED choice')
 }

@@ -63,10 +63,11 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 
 ## Waffo 测试与生产配置
 
-首次安装会交互输入 `WAFFO_MERCHANT_ID`、`WAFFO_STORE_ID`、
-`WAFFO_PRIVATE_KEY_BASE64`、`WAFFO_PRODUCT_MAP` 和双向内部密钥，写入
-`/etc/zhishiku/waffo.env`。`KB_RUNTIME_ENV` 与 `WAFFO_ENV` 必须同为 `test` 或
+首次安装和后续部署都会交互输入 `WAFFO_MERCHANT_ID`、`WAFFO_STORE_ID`、
+`WAFFO_PRIVATE_KEY_BASE64` 和 `WAFFO_PRODUCT_MAP`；部署脚本从 `kb.env` 同步双向内部密钥，
+统一写入 `/etc/zhishiku/waffo.env`。`KB_RUNTIME_ENV` 与 `WAFFO_ENV` 必须同为 `test` 或
 `production`；生产服务器不得接受测试支付，测试服务器也不得写生产账本。
+直接回车保留现有值；四项全部留空时不会创建半配置桥接，支付保持关闭。
 
 三个一次性商品使用独立编码 `kb_pack_9`、`kb_pack_29`、`kb_pack_99`，不得复用拾题
 `pack_*` 商品。商品初始化不会自动执行，必须在明确确认后运行：

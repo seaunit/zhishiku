@@ -92,17 +92,25 @@ prompt_secret() {
 }
 
 set_env_value() {
-  local key="$1"
-  local value="$2"
+  set_file_value "$ENV_FILE" "$1" "$2"
+}
+
+set_file_value() {
+  local target_file="$1"
+  local key="$2"
+  local value="$3"
   local escaped
   local env_tmp
-  env_tmp="$(mktemp "${ENV_FILE}.XXXXXX")"
-  awk -v key="$key" 'index($0, key "=") != 1' "$ENV_FILE" > "$env_tmp"
+  if [[ ! -f "$target_file" ]]; then
+    install -m 0600 /dev/null "$target_file"
+  fi
+  env_tmp="$(mktemp "${target_file}.XXXXXX")"
+  awk -v key="$key" 'index($0, key "=") != 1' "$target_file" > "$env_tmp"
   escaped="$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g')"
   printf '%s="%s"\n' "$key" "$escaped" >> "$env_tmp"
   chmod 0600 "$env_tmp"
   chown root:root "$env_tmp"
-  mv "$env_tmp" "$ENV_FILE"
+  mv "$env_tmp" "$target_file"
 }
 
 ensure_environment_consistency() {
@@ -175,6 +183,58 @@ ensure_secrets() {
     "$([[ -n "$smtp_password" ]] && printf 已配置 || printf 未配置)"
 }
 
+ensure_waffo() {
+  local merchant_id store_id private_key product_map app_secret bridge_secret
+  merchant_id="${WAFFO_MERCHANT_ID:-$(read_waffo_env_value WAFFO_MERCHANT_ID)}"
+  store_id="${WAFFO_STORE_ID:-$(read_waffo_env_value WAFFO_STORE_ID)}"
+  private_key="${WAFFO_PRIVATE_KEY_BASE64:-$(read_waffo_env_value WAFFO_PRIVATE_KEY_BASE64)}"
+  product_map="${WAFFO_PRODUCT_MAP:-$(read_waffo_env_value WAFFO_PRODUCT_MAP)}"
+
+  if [[ "$SECRETS_ALREADY_PROMPTED" != "1" ]]; then
+    merchant_id="$(prompt_secret "Waffo 商户 ID" "$merchant_id")"
+    store_id="$(prompt_secret "Waffo 店铺 ID（非 dry-run 必填）" "$store_id")"
+    private_key="$(prompt_secret "Waffo 私钥 Base64" "$private_key")"
+    product_map="$(prompt_secret \
+      "Waffo 商品映射（kb_pack_9=...，逗号分隔）" "$product_map")"
+  fi
+
+  if [[ -z "$merchant_id" && -z "$store_id" && -z "$private_key" && -z "$product_map" ]]; then
+    if [[ "$(read_env_value BILLING_ENABLED)" == "true" ]]; then
+      printf 'BILLING_ENABLED=true requires Waffo merchant, store, private key, and product map.\n' >&2
+      exit 1
+    fi
+    printf '[部署] Waffo 未配置；支付桥接保持关闭。\n'
+    return 0
+  fi
+  if [[ -z "$merchant_id" || -z "$store_id" || -z "$private_key" || -z "$product_map" ]]; then
+    printf 'Waffo configuration is incomplete: merchant, store, private key, and product map are required.\n' >&2
+    exit 1
+  fi
+
+  app_secret="$(read_env_value APP_TO_BRIDGE_SECRET)"
+  bridge_secret="$(read_env_value BRIDGE_TO_APP_SECRET)"
+  if [[ -z "$app_secret" || -z "$bridge_secret" || "$app_secret" == "$bridge_secret" ]]; then
+    printf 'APP_TO_BRIDGE_SECRET and BRIDGE_TO_APP_SECRET must be configured and different.\n' >&2
+    exit 1
+  fi
+
+  set_file_value "$WAFFO_ENV_FILE" WAFFO_ENV "$(read_env_value APP_ENV)"
+  set_file_value "$WAFFO_ENV_FILE" WAFFO_STORE_ID "$store_id"
+  set_file_value "$WAFFO_ENV_FILE" WAFFO_MERCHANT_ID "$merchant_id"
+  set_file_value "$WAFFO_ENV_FILE" WAFFO_PRIVATE_KEY_BASE64 "$private_key"
+  set_file_value "$WAFFO_ENV_FILE" WAFFO_PRODUCT_MAP "$product_map"
+  set_file_value "$WAFFO_ENV_FILE" WAFFO_CURRENCY CNY
+  set_file_value "$WAFFO_ENV_FILE" WAFFO_DRY_RUN false
+  set_file_value "$WAFFO_ENV_FILE" WAFFO_BRIDGE_PORT 8091
+  set_file_value \
+    "$WAFFO_ENV_FILE" WAFFO_SUCCESS_URL_ALLOWLIST "$(read_env_value CHECKOUT_SUCCESS_URL)"
+  set_file_value \
+    "$WAFFO_ENV_FILE" INTERNAL_EVENT_URL "http://127.0.0.1:${PORT}/kb/api/internal/billing/waffo-events"
+  set_file_value "$WAFFO_ENV_FILE" APP_TO_BRIDGE_SECRET "$app_secret"
+  set_file_value "$WAFFO_ENV_FILE" BRIDGE_TO_APP_SECRET "$bridge_secret"
+  printf '[部署] Waffo 商户配置已更新；私钥不会回显。\n'
+}
+
 usage() {
   cat <<'EOF'
 Usage: deploy.sh [--ref <branch|tag|commit>]
@@ -228,6 +288,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 ensure_environment_consistency
+ensure_waffo
 if [[ "$(read_env_value BILLING_ENABLED)" == "true" && ! -f "$WAFFO_ENV_FILE" ]]; then
   printf 'BILLING_ENABLED=true requires %s\n' "$WAFFO_ENV_FILE" >&2
   exit 1
