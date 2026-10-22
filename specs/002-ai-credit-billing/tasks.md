@@ -178,6 +178,8 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
   首页单次点击自动报价、确认和搜索、中英文成本文案及原型入口。
 - [x] T090 [P0] 通过公开报价集成测试和 Playwright E2E 验证 1 点报价、请求顺序、无搜索二次确认、
   失败重试保留幂等状态，并执行前端与后端完整回归门禁。
+- [x] T091 [P0] 修复生产收银台 503：部署前自动补齐并校验生产
+  `SHIHAI_CHECKOUT_SUCCESS_URL`，拒绝生产环境使用非 HTTPS 回跳地址，并完成生产环境热修复。
 
 ## 依赖关系
 
@@ -315,3 +317,28 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - 风险与回滚：E2E 使用受控 API 夹具，不证明生产 DeepSeek 每次都能返回结果；失败不扣点依赖
   既有计费释放逻辑，仍需在生产 API 回归中观察账本。视觉检查允许项为既有原型固定字体和
   辅助文本字号，不属于本次交互改动。
+
+### 完成记录：T091
+
+- 日期：2026-10-22
+- 状态：部署脚本修复与生产热修复完成，已归档
+- 执行主体：Codex
+- Git commit：`dff3a7d`
+- 摘要：生产收银台重新可用，根因是缺失支付成功回跳地址导致 Spring 回退到 localhost。
+- 详情：生产 `/etc/zhishiku/kb.env` 未包含 `SHIHAI_CHECKOUT_SUCCESS_URL`，应用使用开发默认
+  `http://127.0.0.1:4173/kb/billing/return`；Waffo 桥接拒绝该地址并返回
+  `CHECKOUT_SUCCESS_URL_INVALID`，Spring 将其映射为 `BILLING_BRIDGE_UNAVAILABLE` 和页面
+  503。部署脚本新增 `ensure_checkout_success_url`，生产环境缺值时自动写入
+  `https://seaunit.site/kb/billing/return` 及兼容变量，已有非 HTTPS 值会失败关闭。生产环境
+  已备份 `kb.env`、补齐两个变量并重启识海 API；未改桥接、Nginx、数据库或拾题应用。
+- 验证：部署回归检查先按预期 RED，修复后 GREEN；Git Bash `bash -n deploy.sh` 通过；
+  `https://seaunit.site/kb/billing` 返回 200，`/kb/api/actuator/health` 返回 `UP`；运行中
+  API 进程已确认加载生产回跳地址；同一桥接接口使用生产回跳地址返回 200，使用 localhost
+  地址稳定复现 400 和 `CHECKOUT_SUCCESS_URL_INVALID`；脚本函数测试分别得到
+  `BACKFILL_OK` 和 `HTTP_REJECTED_OK`。`git diff --check` 通过。
+- 证据：`deploy/scripts/deploy.sh`、`tests/deploy/verify-deploy-scripts.mjs`、
+  `/root/kb.env.before-checkout-success-20261022113026`。
+- 覆盖：FR-007 至 FR-020、FR-076 至 FR-085；SC-025。
+- 风险与回滚：真实支付仍需要用户重新点击购买并在 Waffo 收银台完成；热修复只改识海环境文件。
+  回滚可恢复上述备份并重启 `zhishiku-api`。部署脚本修复尚未推送到 GitHub，需在 GitHub 认证
+  恢复后提交并发布，避免下次旧脚本部署再次遗漏。
