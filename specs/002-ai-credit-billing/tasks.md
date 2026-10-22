@@ -10,6 +10,11 @@
 **测试**：测试先行。Spring Boot 使用 JUnit 5/Testcontainers/RestAssured，Vue 使用
 Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使用 Playwright。
 
+> 状态说明（2026-10-22）：T001-T072 是最初的规划草案，部分路径已被实际模块结构取代；
+> 其未勾选状态只表示没有按原始措辞逐项留存证据，不代表当前代码必然缺失。当前发布状态以
+> T073-T086、`artifacts/002/acceptance.md` 和 `artifacts/002/formal-payment-integration.md`
+> 为准。真实 Waffo、物理 PostgreSQL、生产零影响和商业门禁仍以显式未完成项为准。
+
 ## 优先级
 
 - **P0**：Spring 账本、报价/预留/结算、测试 Waffo、Node 桥接、Vue 购买闭环。
@@ -139,10 +144,27 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
   买家不透明 ID、成功返回地址、双向密钥差异和桥接 systemd 写权限。
 - [x] T077 [P1] 在部署脚本中增加 PostgreSQL 预部署备份、桥接 unit/Nginx snippet 回滚、
   `BILLING_ENABLED` 显式选择、管理员邮箱和邮件退款入口。
-- [ ] T078 [P0] 使用真实 Waffo 测试商户完成商品、收银台、通知、查询、退款、重复/乱序事件和
-  物理测试/生产数据库隔离验收。当前无生产凭据与真实测试商户证据。
+- [ ] T078 [P0] 作为真实支付总门禁，使用真实 Waffo 测试商户完成商品、收银台、通知、查询、
+  退款、重复/乱序事件和物理测试/生产数据库隔离验收。当前无生产凭据与真实测试商户证据。
 - [ ] T079 [P0] 在真实 PostgreSQL 执行计费并发放行、账本批次、退款、恢复和 100 组并发门禁。
   当前 Testcontainers 因 Docker 引擎不可用实际执行 0 项。
+
+## 阶段 11：2026-10-22 正式 Waffo 支付接入
+
+- [x] T080 [P0] 按官方 `@waffo/pancake-ts@0.26.0` 修复支付事件字段、退款 ID、金额回退、
+  自动环境验签、商品元数据和主动查询契约。
+- [x] T081 [P0] 为 Waffo Checkout 传 SDK 幂等键、商品/SKU/订单 metadata、价格快照和真实
+  会话有效期，使用 SDK 返回的 `expiresAt`。
+- [x] T082 [P0] 在价格接口返回 `billingEnabled`，支付关闭时禁用购买；返回页自动携带订单号，
+  缺少订单号时恢复最近待支付订单，弹窗被拦截时保留可重试收银台入口。
+- [x] T083 [P1] 增加 Waffo 商品初始化、收银台冒烟脚本和部署环境一致性开关，所有真实操作
+  必须显式 `--apply`/`--confirm`，不得输出私钥或完整 token URL。
+- [x] T084 [P0] 增加桥接 38 项测试，覆盖官方支付/退款事件、真实 RSA 验签、篡改签名、
+  配置缺失、幂等参数、查询金额/商品和私钥编码。
+- [ ] T085 [P0] [依赖 T078] 在独立测试主机执行商品初始化冒烟，并保存三档商品、一次测试卡
+  支付和一次退款证据；完成前 `BILLING_ENABLED=false`。
+- [x] T086 [P0] 让 Waffo release 自包含 `package.json`、商品初始化/冒烟脚本和运行时
+  `node_modules`，避免部署后桥接缺少 SDK 或脚本不可执行。
 
 ## 依赖关系
 
@@ -172,3 +194,16 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 | T075 | 退款按批次实际回收量落结论；管理员调整显式目标账号并维护试用/购买投影；财务状态与 SKU 限定日期。 | 后端编译与专项测试；`BillingService`、`002` OpenAPI。 | 真实 PostgreSQL 并发、退款冻结和部分回收仍待 T079。 |
 | T076 | Spring→桥接增加 5/15 秒超时；清除过期 open 收银台；补齐对账状态；买家改为不透明 owner UUID；收银台传成功地址；双向密钥必须不同；桥接 unit 移除可写知识目录。 | 后端专项、桥接 typecheck/test/build、部署脚本检查。 | 真实 SDK 查询和回调仍待测试商户；配置变化必须同步 `/etc/zhishiku`。 |
 | T077 | 部署前 `pg_dump` 备份；备份/恢复桥接 unit 与 Nginx snippet；`BILLING_ENABLED` 不因填入凭据自动开启；增加管理员邮箱和 mailto 退款入口。 | `node tests/deploy/verify-deploy-scripts.mjs`、Git Bash `bash -n`（最终验收执行）。 | 数据库备份不自动回滚迁移；回滚仍以应用 release 和人工恢复演练为准。 |
+
+### 正式 Waffo 支付接入：2026-10-22
+
+执行角色：产品、开发、测试子智能体。真实商户凭据未提供，`BILLING_ENABLED` 保持关闭。
+
+| 任务 | 摘要与详情 | 验证与证据 | 风险与回滚 |
+|------|------------|------------|------------|
+| T080 | 桥接改用官方 0.26 事件字段，支付/退款金额优先新字段，验签自动识别环境，退款 ID 使用退款工单或 eventId。 | Waffo 桥接 34 项 Vitest；`normalizer.test.ts`、`waffo-gateway.test.ts`。 | 真实商户字段仍需 T085 证据；桥接可回滚到上一 release，但不得重新接受缺失签名事件。 |
+| T081 | Checkout 传 `orderId` 幂等键、订单/SKU/Product metadata、价格快照和 15 分钟有效期，使用 SDK `expiresAt`。 | `waffo-gateway.test.ts`、`server.test.ts`。 | 若 Waffo 调整会话期限或 metadata 行为需回归测试。 |
+| T082 | 价格接口新增 `billingEnabled`；购买按钮在关闭时禁用；返回页恢复本地订单；弹窗被拦截时保留链接；退款复核结果可见。 | `BillingControllerTest`、Vitest 48 项、Playwright 支付专项 6 项。 | 生产支付仍需真实回调验证；UI 回滚不影响已有余额查询。 |
+| T083 | 增加商品初始化/冒烟脚本；`KB_RUNTIME_ENV` 同时派生应用、数据库和 Waffo 环境。 | 桥接 lint/typecheck/test/build、`verify-deploy-scripts.mjs`。 | 脚本不自动执行真实商品或支付；需操作者显式确认。 |
+| T084 | 覆盖官方事件、RSA 验签、篡改签名、店铺校验、退款缺失金额、查询多次支付、配置缺失、幂等和私钥编码。 | 桥接 38 项测试；后端全量、前端 Vitest/构建。 | Testcontainers 仍受 Docker 不可用限制。 |
+| T086 | release 复制 Waffo `package.json`、锁文件、`scripts/` 和 `node_modules`，部署检查覆盖运行时依赖。 | `verify-deploy-scripts.mjs`、Git Bash `bash -n`。 | release 体积略增；回滚 release 不受影响。 |

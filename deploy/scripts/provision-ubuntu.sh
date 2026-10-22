@@ -114,6 +114,48 @@ while (($# > 0)); do
   esac
 done
 
+BILLING_RUNTIME_ENV="${KB_RUNTIME_ENV:-production}"
+if [[ "$BILLING_RUNTIME_ENV" == "prod" ]]; then
+  BILLING_RUNTIME_ENV="production"
+fi
+if [[ "$BILLING_RUNTIME_ENV" != "test" && "$BILLING_RUNTIME_ENV" != "production" ]]; then
+  printf 'KB_RUNTIME_ENV must be test or production.\n' >&2
+  exit 1
+fi
+WAFFO_ENVIRONMENT="${WAFFO_ENV:-$BILLING_RUNTIME_ENV}"
+if [[ "$WAFFO_ENVIRONMENT" == "prod" ]]; then
+  WAFFO_ENVIRONMENT="production"
+fi
+if [[ "$WAFFO_ENVIRONMENT" != "$BILLING_RUNTIME_ENV" ]]; then
+  printf 'WAFFO_ENV and KB_RUNTIME_ENV must identify the same environment.\n' >&2
+  exit 1
+fi
+if [[ -f "$ENV_FILE" ]]; then
+  existing_app_env="$(read_env_value APP_ENV)"
+  existing_billing_db_env="$(read_env_value BILLING_DB_ENV)"
+  if [[ -n "$existing_app_env" && "$existing_app_env" != "$BILLING_RUNTIME_ENV" ]]; then
+    printf 'Existing APP_ENV=%s conflicts with requested KB_RUNTIME_ENV=%s.\n' \
+      "$existing_app_env" "$BILLING_RUNTIME_ENV" >&2
+    exit 1
+  fi
+  if [[ -n "$existing_billing_db_env" && "$existing_billing_db_env" != "$BILLING_RUNTIME_ENV" ]]; then
+    printf 'Existing BILLING_DB_ENV=%s conflicts with requested KB_RUNTIME_ENV=%s.\n' \
+      "$existing_billing_db_env" "$BILLING_RUNTIME_ENV" >&2
+    exit 1
+  fi
+fi
+if [[ -f "$WAFFO_ENV_FILE" ]]; then
+  existing_waffo_env="$(read_waffo_env_value WAFFO_ENV)"
+  if [[ "$existing_waffo_env" == "prod" ]]; then
+    existing_waffo_env="production"
+  fi
+  if [[ -n "$existing_waffo_env" && "$existing_waffo_env" != "$BILLING_RUNTIME_ENV" ]]; then
+    printf 'Existing WAFFO_ENV=%s conflicts with requested KB_RUNTIME_ENV=%s.\n' \
+      "$existing_waffo_env" "$BILLING_RUNTIME_ENV" >&2
+    exit 1
+  fi
+fi
+
 if ((EUID != 0)); then
   printf 'Run this script as root.\n' >&2
   exit 1
@@ -259,12 +301,14 @@ DEEPSEEK_SEARCH_API_KEY="$(prompt_secret "DeepSeek Search API Key（留空复用
 DEEPSEEK_FETCH_API_KEY="$(prompt_secret "DeepSeek Fetch API Key（留空复用主 AI Key）" "$DEEPSEEK_FETCH_API_KEY")"
 SMTP_PASSWORD="$(prompt_secret "SMTP 密码/应用专用密钥" "$SMTP_PASSWORD")"
 WAFFO_MERCHANT_ID="${WAFFO_MERCHANT_ID:-$(read_waffo_env_value WAFFO_MERCHANT_ID)}"
+WAFFO_STORE_ID="${WAFFO_STORE_ID:-$(read_waffo_env_value WAFFO_STORE_ID)}"
 WAFFO_PRIVATE_KEY_BASE64="${WAFFO_PRIVATE_KEY_BASE64:-$(read_waffo_env_value WAFFO_PRIVATE_KEY_BASE64)}"
 WAFFO_PRODUCT_MAP="${WAFFO_PRODUCT_MAP:-$(read_waffo_env_value WAFFO_PRODUCT_MAP)}"
 APP_TO_BRIDGE_SECRET="${APP_TO_BRIDGE_SECRET:-$(read_env_value APP_TO_BRIDGE_SECRET)}"
 BRIDGE_TO_APP_SECRET="${BRIDGE_TO_APP_SECRET:-$(read_env_value BRIDGE_TO_APP_SECRET)}"
 
 WAFFO_MERCHANT_ID="$(prompt_secret "Waffo 商户 ID" "$WAFFO_MERCHANT_ID")"
+WAFFO_STORE_ID="$(prompt_secret "Waffo 店铺 ID（非 dry-run 必填）" "$WAFFO_STORE_ID")"
 WAFFO_PRIVATE_KEY_BASE64="$(prompt_secret "Waffo 私钥 Base64" "$WAFFO_PRIVATE_KEY_BASE64")"
 WAFFO_PRODUCT_MAP="$(prompt_secret "Waffo 商品映射（kb_pack_9=...，逗号分隔）" "$WAFFO_PRODUCT_MAP")"
 APP_TO_BRIDGE_SECRET="$(prompt_secret "Spring 到 Waffo 桥接内部密钥（留空自动生成）" "$APP_TO_BRIDGE_SECRET")"
@@ -301,7 +345,7 @@ fi
 
 env_tmp="$(mktemp)"
 cat > "$env_tmp" <<EOF
-APP_ENV=production
+APP_ENV=${BILLING_RUNTIME_ENV}
 SERVER_PORT=8082
 DATABASE_URL='jdbc:postgresql://127.0.0.1:${DB_PORT}/zhishiku'
 DATABASE_USERNAME='zhishiku'
@@ -310,7 +354,7 @@ SESSION_COOKIE_SECURE=true
 KB_STORAGE_ROOT='/var/lib/zhishiku/uploads'
 KB_WEB_IMPORT_ALLOW_UNBILLED_AI='false'
 BILLING_ENABLED='${BILLING_ENABLED_VALUE}'
-BILLING_DB_ENV='production'
+BILLING_DB_ENV='${BILLING_RUNTIME_ENV}'
 APP_TO_BRIDGE_SECRET='${APP_TO_BRIDGE_SECRET}'
 BRIDGE_TO_APP_SECRET='${BRIDGE_TO_APP_SECRET}'
 BILLING_CATALOG_VERSION='2026-10-mvp'
@@ -338,8 +382,8 @@ mv "$env_tmp" "$ENV_FILE"
 if [[ -n "$WAFFO_MERCHANT_ID" && -n "$WAFFO_PRIVATE_KEY_BASE64" && -n "$WAFFO_PRODUCT_MAP" ]]; then
   waffo_tmp="$(mktemp)"
   cat > "$waffo_tmp" <<EOF
-WAFFO_ENV=production
-WAFFO_STORE_ID=''
+WAFFO_ENV=${WAFFO_ENVIRONMENT}
+WAFFO_STORE_ID='${WAFFO_STORE_ID}'
 WAFFO_MERCHANT_ID='${WAFFO_MERCHANT_ID}'
 WAFFO_PRIVATE_KEY_BASE64='${WAFFO_PRIVATE_KEY_BASE64}'
 WAFFO_PRODUCT_MAP='${WAFFO_PRODUCT_MAP}'

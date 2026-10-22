@@ -243,9 +243,38 @@ Worker 主动查询未决订单，并将查询结果转换为同一套内部支�
 - 共存：独立 `/kb` 路由、端口 8091、数据库和环境文件，不影响拾题。
 - 验证：契约、并发、退款、对账、双语、Taste 和零影响回归。
 
+## 2026-10-22 正式支付契约复核
+
+对照 `@waffo/pancake-ts@0.26.0`、拾题 `7ce4b501` 支付实现和识海本地桥接后，补充以下结论：
+
+1. Waffo 支付通知的 `WebhookEventData` 不保证包含 `productId` 或 `refundId`。识海必须在创建
+   收银台时把本地订单号、SKU 和 Waffo 商品 ID 写入 SDK `metadata`，通知到达后优先从
+   `orderMetadata`（兼容旧版 `metadata`）恢复绑定证据。退款 ID 使用
+   `refundTicketMerchantExternalId`，缺失时退回稳定的 `eventId`。
+2. 支付事件金额优先读取 `chargedAmount`，退款事件优先读取 `refundedAmount`；旧字段只作为
+   兼容回退。最终入账仍以本地订单快照和跨环境校验为权威。
+3. `checkout.authenticated.create()` 的第二个参数必须传入以本地订单号为值的
+   `idempotencyKey`。SDK 返回的 `expiresAt` 是唯一会话有效期，桥接不得自行猜测。
+4. 主动对账通过 `payments(orderMerchantExternalId)` 查询，金额读取
+   `snapshotAmountDetails`，商品读取 `onetimeOrder.onetimeProduct.id`。
+5. Webhook 验签不能锁死单一环境，否则同一域名下测试与生产公钥切换会拒付。桥接先完成 SDK
+   自动环境验签，再把事件 `mode` 归一化为 `test/production`；Spring 仍必须按本地环境硬拒绝
+   跨环境事件。
+6. Waffo 私钥输入可能是 PEM、转义换行 PEM、Base64 包装 PEM 或裸 PKCS#8 Base64。桥接和
+   商品初始化脚本必须先解析候选格式，失败时只报告变量名，不输出私钥。
+7. 正式支付仍需独立识海商户、店铺和三档商品；不能复用拾题的 `pack_*` Product ID、私钥或
+   `/etc/shuati/payments.env`。
+8. 官方要求使用通知投递记录 `event.id` 做去重；业务 `eventId` 只作为供应商业务标识，不能
+   替代投递键。事件 `storeId` 必须与桥接配置店铺一致。
+9. 退款金额缺失时不得使用 `originalPayment.total` 推断退款额；只有 `refundedAmount` 或
+   官方兼容字段 `amount` 可用于自动核验，否则必须进入人工复核。
+10. 同一本地订单可能存在多次支付尝试，主动查询必须在精确匹配
+   `orderMerchantExternalId` 后优先选择成功支付，而不是直接取第一条记录。
+
 ## 阶段 0 已知风险
 
 1. 现有主机内存余量不足，增加桥接和完整知识库仍需容量审批。
-2. 实际 Waffo 查询和退款字段需在测试环境固定脱敏样例后才能冻结最终契约。
+2. 官方 SDK 字段与查询契约已经从文档和代码冻结，但真实 Waffo 查询和退款事件仍需测试商户
+   证据。
 3. 三档价格和 AI 点率仍属于草案，必须经过产品批准与单位经济性测算。
 4. 人工退款复核的具体客服渠道必须在实现前配置并写入价格与订单页面。

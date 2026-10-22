@@ -221,6 +221,7 @@ export interface BillingAiRate {
 
 export interface BillingCatalog {
   environment: BillingEnvironment
+  billingEnabled: boolean
   versionCode: string
   packs: BillingPointPack[]
   aiRates: BillingAiRate[]

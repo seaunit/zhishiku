@@ -60,6 +60,12 @@
           <h2 id="billing-packs-title">{{ tx('点数包', 'Point packs') }}</h2>
           <span>{{ tx('一次性购买，点数不可提现或转让', 'One-time purchase. Points cannot be withdrawn or transferred.') }}</span>
         </header>
+        <div v-if="catalog && !catalog.billingEnabled" class="billing-return panel" role="status">
+          <div>
+            <strong>{{ tx('支付通道暂不可用', 'Payment is temporarily unavailable') }}</strong>
+            <p>{{ tx('支付通道暂不可用，现有知识、搜索和手动录入不受影响。', 'Payment is temporarily unavailable. Your existing knowledge, search, and manual capture remain available.') }}</p>
+          </div>
+        </div>
         <article
           v-for="pack in catalog?.packs"
           :key="pack.sku"
@@ -74,7 +80,7 @@
           <button
             type="button"
             class="button primary"
-            :disabled="purchasingSku === pack.sku"
+            :disabled="!catalog?.billingEnabled || purchasingSku === pack.sku"
             @click="buy(pack)"
           >
             <LoaderCircle v-if="purchasingSku === pack.sku" class="spin" :size="17" />
@@ -199,6 +205,11 @@
             <span>
               <strong>{{ refundStatus(refund.status) }}</strong>
               <small>{{ formatDate(refund.createdAt) }} · ¥{{ money(refund.refundAmountMinor) }}</small>
+              <small>
+                {{ tx('未回收', 'Unrecovered') }} {{ refund.unrecoveredPoints }}
+                · {{ tx('复核期限', 'Review due') }} {{ formatDate(refund.reviewDueAt) }}
+              </small>
+              <small v-if="refund.resolution">{{ tx('结论', 'Resolution') }}：{{ refund.resolution }}</small>
             </span>
             <span class="billing-row-side">
               <b class="num">{{ refund.recoveredPoints }}</b>
@@ -361,6 +372,13 @@ async function load() {
     Object.assign(autoPolicy, nextAuto)
     if (orderId.value) {
       activeOrder.value = await getBillingOrder(orderId.value)
+    } else if (route.name === 'billing-return') {
+      activeOrder.value =
+        nextOrders.items.find((order) =>
+          ['PENDING', 'CONFIRMING'].includes(order.status),
+        ) ?? null
+    }
+    if (activeOrder.value) {
       schedulePoll()
     }
   } catch (caught) {
@@ -371,16 +389,36 @@ async function load() {
 }
 
 async function buy(pack: BillingPointPack) {
+  if (!catalog.value?.billingEnabled) return
   actionError.value = ''
   notice.value = ''
   purchasingSku.value = pack.sku
+  const checkoutWindow =
+    typeof window === 'undefined' ? null : window.open('', '_blank')
+  if (checkoutWindow) {
+    checkoutWindow.opener = null
+    checkoutWindow.document.title = tx('正在打开收银台', 'Opening checkout')
+    checkoutWindow.document.body.textContent = tx(
+      '正在安全打开 Waffo 收银台…',
+      'Opening the Waffo checkout securely…',
+    )
+  }
   try {
     const order = await createBillingOrder(pack.sku)
     const checkout = await openBillingCheckout(order.id)
     activeOrder.value = { ...order, checkoutUrl: checkout.checkoutUrl, status: 'PENDING' }
-    window.open(checkout.checkoutUrl, '_blank', 'noopener,noreferrer')
-    notice.value = tx('收银台已在新标签页打开。', 'Checkout opened in a new tab.')
+    if (checkoutWindow) {
+      checkoutWindow.location.replace(checkout.checkoutUrl)
+      notice.value = tx('收银台已在新标签页打开。', 'Checkout opened in a new tab.')
+    } else {
+      notice.value = tx(
+        '浏览器阻止了新标签页，请使用下方“返回收银台”。',
+        'The browser blocked the new tab. Use "Return to checkout" below.',
+      )
+    }
+    schedulePoll()
   } catch (caught) {
+    checkoutWindow?.close()
     actionError.value = caught instanceof Error ? caught.message : t('errors.generic')
   } finally {
     purchasingSku.value = ''

@@ -16,36 +16,58 @@ export function normalizeWebhook(
     timestamp?: string;
     createdAt?: string;
     mode?: string;
+    storeId?: string;
     data?: Record<string, unknown>;
   };
   const data = event.data ?? {};
-  const environmentMismatch =
-    event.mode !== undefined &&
-    event.mode !== config.environment &&
-    !(config.environment === "production" && event.mode === "prod") &&
-    !(config.environment === "test" && event.mode === "test");
+  const environment = eventEnvironment(event.mode, config.environment);
+  const storeMatches =
+    config.dryRun || !config.storeId || event.storeId === config.storeId;
   const timestamp = event.timestamp ?? event.createdAt;
   const timestampInvalid = timestampOutsideWindow(timestamp);
   const eventType =
-    environmentMismatch || timestampInvalid ? "conflict" : mapEventType(event.eventType);
-  const orderId = stringValue(data.orderMerchantExternalId);
+    timestampInvalid || !storeMatches ? "conflict" : mapEventType(event.eventType);
+  const metadata =
+    objectValue(data.orderMetadata) ??
+    objectValue(data.metadata) ??
+    {};
+  const orderId =
+    stringValue(data.orderMerchantExternalId) ??
+    stringValue(metadata.orderId);
   const providerEventId = stringValue(event.eventId);
   const deliveryId =
     stringValue(event.id) ??
     stringValue(event.deliveryId) ??
     headerValue(headers["x-waffo-delivery-id"]);
   const sourceEventKey =
-    providerEventId ??
     deliveryId ??
+    providerEventId ??
     `payload:${sha256(rawBody)}`;
-  const providerProductId = stringValue(data.productId);
+  const itemCode = stringValue(metadata.itemCode) ?? stringValue(metadata.sku);
+  const providerProductId =
+    stringValue(metadata.waffoProductId) ??
+    stringValue(metadata.waffo_product_id) ??
+    stringValue(metadata.productId);
   const productMatch =
     providerProductId !== null &&
-    Object.values(config.productMap).includes(providerProductId);
-  const amount = numberValue(data.amount ?? data.total);
-  const refundAmount = numberValue(data.refundAmount ?? data.refundedAmount);
+    Object.values(config.productMap).includes(providerProductId) &&
+    (itemCode === null || config.productMap[itemCode] === providerProductId);
+  const amount =
+    numberValue(data.chargedAmount) ??
+    breakdownTotal(data.listPrice) ??
+    numberValue(data.amount) ??
+    numberValue(data.total);
+  const refundAmount =
+    numberValue(data.refundedAmount) ??
+    numberValue(data.amount);
+  const providerRefundId =
+    eventType === "refund"
+      ? stringValue(data.refundTicketMerchantExternalId) ??
+        providerEventId ??
+        deliveryId
+      : null;
   return {
-    environment: config.environment,
+    environment,
     eventType,
     sourceEventKey,
     providerEventId,
@@ -53,12 +75,18 @@ export function normalizeWebhook(
     orderId,
     providerOrderId: stringValue(data.orderId),
     providerSessionId: stringValue(data.checkoutSessionId ?? data.sessionId),
-    providerRefundId: stringValue(data.refundId),
+    providerRefundId,
     providerProductId,
-    productMatch: productMatch && !environmentMismatch,
-    amountMinor: amount === null ? null : Math.round(amount * 100),
+    productMatch: productMatch && storeMatches,
+    amountMinor:
+      eventType === "refund" || amount === null
+        ? null
+        : Math.round(amount * 100),
     currency: stringValue(data.currency),
-    refundAmountMinor: refundAmount === null ? null : Math.round(refundAmount * 100),
+    refundAmountMinor:
+      eventType === "refund" && refundAmount !== null
+        ? Math.round(refundAmount * 100)
+        : null,
     reasonCode: timestampInvalid
       ? "TIMESTAMP_OUTSIDE_WINDOW"
       : stringValue(data.refundReason ?? data.reason),
@@ -72,7 +100,16 @@ function timestampOutsideWindow(value: string | undefined): boolean {
   if (!value) return false;
   const parsed = Date.parse(value);
   if (!Number.isFinite(parsed)) return true;
-  return Math.abs(Date.now() - parsed) > 5 * 60_000;
+  return Math.abs(Date.now() - parsed) > 45 * 60_000;
+}
+
+function eventEnvironment(
+  mode: string | undefined,
+  fallback: BridgeConfig["environment"],
+): BridgeConfig["environment"] {
+  if (mode === "test") return "test";
+  if (mode === "prod" || mode === "production") return "production";
+  return fallback;
 }
 
 function mapEventType(value: string | undefined): NormalizedEvent["eventType"] {
@@ -97,6 +134,17 @@ function numberValue(value: unknown): number | null {
     return numberValue((value as { amount?: unknown }).amount);
   }
   return null;
+}
+
+function breakdownTotal(value: unknown): number | null {
+  if (!value || typeof value !== "object") return null;
+  return numberValue((value as { total?: unknown }).total);
+}
+
+function objectValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function headerValue(value: string | string[] | undefined): string | null {

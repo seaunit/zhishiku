@@ -682,10 +682,12 @@ components:
               minimum: 1
     BillingCatalog:
       type: object
-      required: [environment, versionCode, packs, aiRates, refundPolicy]
+      required: [environment, billingEnabled, versionCode, packs, aiRates, refundPolicy]
       properties:
         environment:
           $ref: "#/components/schemas/Environment"
+        billingEnabled:
+          type: boolean
         versionCode:
           type: string
         packs:

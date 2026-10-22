@@ -240,6 +240,18 @@ class BillingP0PolicyTest {
   }
 
   @Test
+  void checkoutReturnUrlCarriesTheLocalOrderId() {
+    UUID orderId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+
+    assertThat(
+            BillingService.checkoutSuccessUrl(
+                "https://seaunit.site/kb/billing/return?source=waffo", orderId))
+        .isEqualTo(
+            "https://seaunit.site/kb/billing/return?source=waffo&orderId="
+                + orderId);
+  }
+
+  @Test
   void requireReservedUsesIndependentTransactionBeforeExternalAiWork() throws Exception {
     Method method =
         BillingService.class.getMethod(

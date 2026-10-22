@@ -30,6 +30,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.UriComponentsBuilder;
 import site.seaunit.zhishiku.billing.BillingDtos.AiRateResponse;
 import site.seaunit.zhishiku.billing.BillingDtos.AutoChargePolicyResponse;
 import site.seaunit.zhishiku.billing.BillingDtos.BillingTaskResponse;
@@ -254,6 +255,7 @@ public class BillingService {
             .toList();
     return new CatalogResponse(
         environment.wireValue(),
+        config.enabled(),
         catalog.versionCode(),
         packs,
         rates,
@@ -460,7 +462,7 @@ public class BillingService {
                 order.amountMinor(),
                 order.currency(),
                 owner.getId().toString(),
-                config.checkoutSuccessUrl()),
+                checkoutSuccessUrl(config.checkoutSuccessUrl(), orderId)),
             orderId.toString());
     Instant now = clock.instant();
     jdbc.update(
@@ -492,6 +494,13 @@ public class BillingService {
         orderId);
     return new CheckoutSessionResponse(
         orderId, response.checkoutUrl(), response.expiresAt(), response.environment());
+  }
+
+  static String checkoutSuccessUrl(String baseUrl, UUID orderId) {
+    return UriComponentsBuilder.fromUriString(baseUrl)
+        .replaceQueryParam("orderId", orderId)
+        .build()
+        .toUriString();
   }
 
   @Transactional

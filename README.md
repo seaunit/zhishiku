@@ -15,15 +15,16 @@ JPG、PNG、WebP 会先经过安全检查和 OCR，不直接保存为附件；�
 Apache Tika 按文件内容解析 PDF、DOCX、DOC、RTF、TXT 和 Markdown，再由 AI 拆分为多条知识；
 原始文档不长期保存。剪贴板截图会经过图片安全检查、OCR 和 AI 拆分，创建多条文字知识；
 截图本身不长期保存，也不会成为附件。互联网候选只有在 Fetch、脱敏和 AI 整理成功后才入库，
-不会直接保存搜索摘要或抓取原文。独立分类标签表、Waffo 点数和 P2 文档/网页/截图加固
-仍在后续任务中，真实收费在 P0/P1 门禁通过前保持关闭。网页、文档和截图 AI 的解析、脱敏、
+不会直接保存搜索摘要或抓取原文。独立分类标签表、Waffo 点数、正式支付桥接和 P2
+文档/网页/截图加固已完成本地实现与自动化；真实收费在 Waffo 测试商户和物理 PostgreSQL
+门禁通过前保持关闭。网页、文档和截图 AI 的解析、脱敏、
 同意和拆分代码已接入；生产环境默认
 `KB_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，在 002 点数门禁完成前会返回 `AI_BILLING_REQUIRED`，
 不会执行未计费的外部 AI 调用。扫描版 PDF 自动 OCR 和超长文档分块属于 P2。
 
 已批准的实现技术栈为 Vue 3 + TypeScript、Java 17 + Spring Boot 3.x、PostgreSQL 18
 和 S3 兼容对象存储。当前 MVP 的图片保存在服务器的本地持久目录；Playwright Java 单页
-截图 worker 已实现。S3 适配器和 Waffo 桥接仍待完成。
+截图 worker 已实现。Waffo 桥接已按 `@waffo/pancake-ts@0.26.0` 收口；S3 适配器仍待完成。
 
 ## 核心文档
 

@@ -42,6 +42,7 @@ public final class BillingDtos {
 
   public record CatalogResponse(
       String environment,
+      boolean billingEnabled,
       String versionCode,
       List<PointPackResponse> packs,
       List<AiRateResponse> aiRates,

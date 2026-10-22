@@ -2,7 +2,7 @@
 
 **功能**：`002-ai-credit-billing`
 
-**日期**：2026-10-21
+**日期**：2026-10-22
 
 **规格**：[spec.md](spec.md)
 
@@ -93,16 +93,33 @@ Playwright、k6、Gitleaks、Trivy
     不读取或写入拾题 MySQL、Redis、Cookie、支付 sidecar、`/pay`、订单或密钥。识海回调固定
     为 `/kb/pay/webhooks/waffo`。
 
+## 正式支付接入收口（2026-10-22）
+
+- Node 桥接固定使用 `@waffo/pancake-ts@0.26.0`，收银台请求的 `metadata` 同时携带
+  `orderId`、`itemCode` 和 `waffoProductId`；SDK 幂等键固定为本地订单 ID。
+- 收银台会话默认 15 分钟，以 SDK 返回的 `expiresAt` 写入本地会话表；前端返回地址自动附带
+  `orderId`，缺少参数时从最近待支付订单恢复。
+- Webhook 事件按 `orderMetadata`、`chargedAmount`、`refundedAmount`、
+  `refundTicketMerchantExternalId` 等 0.26 字段归一化，并兼容旧字段。
+- 主动查询使用 `snapshotAmountDetails` 和 `onetimeOrder.onetimeProduct.id`，支付状态
+  `failed/canceled` 映射为关闭。
+- Webhook 验签先自动识别环境，再由 Spring 根据事件环境拒绝跨环境入账。
+- 价格接口返回 `billingEnabled`；前端在支付关闭时禁用购买并明确说明免费功能不受影响。
+- `KB_RUNTIME_ENV` 同步派生 `APP_ENV`、`BILLING_DB_ENV` 和 `WAFFO_ENV`，不匹配时部署失败。
+- 商品初始化与收银台冒烟脚本要求显式 `--apply`/`--confirm`，脚本不打印私钥或完整 token URL。
+
 ## 项目结构
 
 ```text
 backend/kb-core/src/main/java/site/seaunit/zhishiku/core/billing/
 backend/kb-app/src/main/java/site/seaunit/zhishiku/billing/
-backend/kb-app/src/main/resources/db/migration/V0002__billing.sql
-frontend/kb-web/src/features/billing/
+backend/kb-app/src/main/resources/db/migration/V0009__billing.sql
+backend/kb-app/src/main/resources/db/migration/V0014__billing_environment_guard.sql
+frontend/kb-web/src/views/BillingView.vue
+frontend/kb-web/src/api/client.ts
 bridges/waffo/src/
-contracts/billing-openapi.yaml
-contracts/waffo-bridge.yaml
+specs/002-ai-credit-billing/contracts/openapi.yaml
+specs/002-ai-credit-billing/contracts/waffo-bridge.yaml
 deploy/systemd/zhishiku-waffo-bridge.service
 ```
 

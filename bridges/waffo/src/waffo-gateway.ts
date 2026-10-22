@@ -1,14 +1,19 @@
-import { WaffoPancake } from "@waffo/pancake-ts";
+import { WaffoPancake, type TaxCategory } from "@waffo/pancake-ts";
 import type { BridgeConfig } from "./config.js";
 import type { CheckoutInput, OrderStatusInput, WaffoGateway } from "./types.js";
 
 interface PaymentNode {
   status?: string;
-  total?: { amount?: string | number; currency?: string };
-  amount?: string | number;
-  currency?: string;
-  productId?: string;
   orderMerchantExternalId?: string;
+  snapshotAmountDetails?: {
+    total?: string | number;
+    currency?: string;
+  };
+  onetimeOrder?: {
+    onetimeProduct?: {
+      id?: string;
+    };
+  };
 }
 
 export class SdkWaffoGateway implements WaffoGateway {
@@ -23,6 +28,7 @@ export class SdkWaffoGateway implements WaffoGateway {
       new WaffoPancake({
         merchantId: config.merchantId,
         privateKey: config.privateKey,
+        environment: config.environment === "production" ? "prod" : "test",
       });
   }
 
@@ -31,17 +37,32 @@ export class SdkWaffoGateway implements WaffoGateway {
   }
 
   async createCheckout(input: CheckoutInput, productId: string) {
-    const result = await this.client.checkout.authenticated.create({
-      productId,
-      currency: this.config.currency,
-      buyerIdentity: input.buyerIdentity,
-      orderMerchantExternalId: input.orderId,
-      successUrl: input.successUrl,
-    });
+    const result = await this.client.checkout.authenticated.create(
+      {
+        productId,
+        currency: this.config.currency,
+        buyerIdentity: input.buyerIdentity,
+        orderMerchantExternalId: input.orderId,
+        successUrl: input.successUrl,
+        metadata: {
+          orderId: input.orderId,
+          itemCode: input.sku,
+          waffoProductId: productId,
+        },
+        priceSnapshot: {
+          amount: toDisplayAmount(input.amountMinor),
+          taxCategory: "digital_goods" as TaxCategory,
+        },
+        expiresInSeconds: 900,
+      },
+      {
+        idempotencyKey: input.orderId,
+      },
+    );
     return {
       sessionId: result.sessionId,
       checkoutUrl: result.checkoutUrl,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: result.expiresAt,
     };
   }
 
@@ -49,13 +70,20 @@ export class SdkWaffoGateway implements WaffoGateway {
     const result = await this.client.graphql.query<{ payments: PaymentNode[] }>({
       query: `query ($ref: String!) {
         payments(filter: { orderMerchantExternalId: { eq: $ref } }) {
-          status amount currency productId orderMerchantExternalId
-          total { amount currency }
+          status orderMerchantExternalId
+          snapshotAmountDetails { total currency }
+          onetimeOrder { onetimeProduct { id } }
         }
       }`,
       variables: { ref: input.orderId },
     });
-    const payment = result.data?.payments?.[0];
+    const candidates = (result.data?.payments ?? []).filter(
+      (candidate) => candidate.orderMerchantExternalId === input.orderId,
+    );
+    const payment =
+      candidates.find((candidate) => normalizeStatus(candidate.status) === "paid") ??
+      candidates.find((candidate) => normalizeStatus(candidate.status) === "pending") ??
+      candidates[0];
     if (!payment) {
       return {
         status: "unavailable" as const,
@@ -64,20 +92,18 @@ export class SdkWaffoGateway implements WaffoGateway {
         productId: null,
       };
     }
-    const amount = payment.total?.amount ?? payment.amount;
-    const currency = payment.total?.currency ?? payment.currency ?? null;
+    const amount = payment.snapshotAmountDetails?.total;
+    const currency = payment.snapshotAmountDetails?.currency ?? null;
     return {
       status: normalizeStatus(payment.status),
       amountMinor: amount === undefined ? null : toMinor(amount),
       currency,
-      productId: payment.productId ?? null,
+      productId: payment.onetimeOrder?.onetimeProduct?.id ?? null,
     };
   }
 
   verifyWebhook(rawBody: string, signature: string | undefined): unknown {
-    return this.client.webhooks.verify(rawBody, signature ?? "", {
-      environment: this.config.environment === "production" ? "prod" : "test",
-    });
+    return this.client.webhooks.verify(rawBody, signature ?? "");
   }
 }
 
@@ -96,6 +122,8 @@ function normalizeStatus(status: string | undefined): "pending" | "paid" | "clos
     case "pending":
     case "confirming":
       return "pending";
+    case "failed":
+      return "closed";
     default:
       return "mismatch";
   }
@@ -105,4 +133,11 @@ function toMinor(value: string | number): number | null {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount < 0) return null;
   return Math.round(amount * 100);
+}
+
+function toDisplayAmount(amountMinor: number): string {
+  if (!Number.isInteger(amountMinor) || amountMinor < 0) {
+    throw new Error("Checkout amount must be a non-negative integer.");
+  }
+  return (amountMinor / 100).toFixed(2);
 }

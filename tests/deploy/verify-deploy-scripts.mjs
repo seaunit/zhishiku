@@ -45,6 +45,13 @@ if (
   failures.push('deploy.sh must build, install, start, and health-check the Waffo bridge')
 }
 if (
+  !deploy.includes('waffo-bridge/node_modules') ||
+  !deploy.includes('waffo-bridge/scripts') ||
+  !deploy.includes('waffo-bridge/package.json')
+) {
+  failures.push('deploy.sh must ship Waffo runtime dependencies and operator scripts')
+}
+if (
   !nginx.includes('location = /kb/pay/webhooks/waffo') ||
   !nginx.includes('proxy_pass http://127.0.0.1:8091/webhooks/waffo')
 ) {
@@ -52,6 +59,29 @@ if (
 }
 if (!provision.includes('waffo.env') || !provision.includes('Waffo 私钥 Base64')) {
   failures.push('provision-ubuntu.sh must interactively configure the isolated Waffo environment')
+}
+if (
+  !provision.includes('KB_RUNTIME_ENV') ||
+  !provision.includes('WAFFO_ENVIRONMENT') ||
+  provision.includes('WAFFO_ENV=production')
+) {
+  failures.push('provision-ubuntu.sh must keep billing and Waffo environments aligned')
+}
+if (!provision.includes('Waffo 店铺 ID')) {
+  failures.push('provision-ubuntu.sh must preserve the Waffo store id for catalog setup')
+}
+if (
+  !provision.includes('Existing WAFFO_ENV') ||
+  !provision.includes('Existing BILLING_DB_ENV')
+) {
+  failures.push('provision-ubuntu.sh must reject conflicting existing billing environments')
+}
+if (
+  !deploy.includes('ensure_environment_consistency') ||
+  !deploy.includes('read_waffo_env_value') ||
+  !deploy.includes('WAFFO_ENV and APP_ENV')
+) {
+  failures.push('deploy.sh must verify APP_ENV, BILLING_DB_ENV, and WAFFO_ENV before release')
 }
 if (!provision.includes("BILLING_ENABLED_VALUE=\"${BILLING_ENABLED:-false}\"")) {
   failures.push('production billing must require an explicit BILLING_ENABLED choice')

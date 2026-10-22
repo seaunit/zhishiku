@@ -3,6 +3,7 @@ export type BridgeEnvironment = "test" | "production";
 export interface BridgeConfig {
   port: number;
   environment: BridgeEnvironment;
+  storeId: string;
   merchantId: string;
   privateKey: string;
   productMap: Record<string, string>;
@@ -17,6 +18,15 @@ export interface BridgeConfig {
 export function loadConfig(env: NodeJS.ProcessEnv): BridgeConfig {
   const environment = parseEnvironment(env.WAFFO_ENV);
   const productMap = parseProductMap(env.WAFFO_PRODUCT_MAP ?? "");
+  const dryRun = env.WAFFO_DRY_RUN === "true";
+  const merchantId = env.WAFFO_MERCHANT_ID?.trim() ?? "";
+  const privateKey = normalizePrivateKeyInput(env.WAFFO_PRIVATE_KEY_BASE64 ?? "");
+  const storeId = env.WAFFO_STORE_ID?.trim() ?? "";
+  if (!dryRun) {
+    required(merchantId, "WAFFO_MERCHANT_ID");
+    required(privateKey, "WAFFO_PRIVATE_KEY_BASE64");
+    required(storeId, "WAFFO_STORE_ID");
+  }
   const appToBridgeSecret = required(env.APP_TO_BRIDGE_SECRET, "APP_TO_BRIDGE_SECRET");
   const bridgeToAppSecret = required(env.BRIDGE_TO_APP_SECRET, "BRIDGE_TO_APP_SECRET");
   if (appToBridgeSecret === bridgeToAppSecret) {
@@ -26,11 +36,12 @@ export function loadConfig(env: NodeJS.ProcessEnv): BridgeConfig {
   return {
     port: Number(env.WAFFO_BRIDGE_PORT ?? 8091),
     environment,
-    merchantId: env.WAFFO_MERCHANT_ID?.trim() ?? "",
-    privateKey: env.WAFFO_PRIVATE_KEY_BASE64?.trim() ?? "",
+    storeId,
+    merchantId,
+    privateKey,
     productMap,
     currency: "CNY",
-    dryRun: env.WAFFO_DRY_RUN === "true",
+    dryRun,
     appToBridgeSecret,
     bridgeToAppSecret,
     internalEventUrl,
@@ -39,6 +50,22 @@ export function loadConfig(env: NodeJS.ProcessEnv): BridgeConfig {
       .map((value) => value.trim())
       .filter(Boolean),
   };
+}
+
+export function normalizePrivateKeyInput(value: string): string {
+  const normalized = value.replace(/\\n/g, "\n").replace(/\r\n/g, "\n").trim();
+  if (!normalized || normalized.includes("-----BEGIN ")) {
+    return normalized;
+  }
+  const compact = normalized.replace(/\s+/g, "");
+  if (!/^[A-Za-z0-9+/]+=*$/.test(compact)) {
+    return normalized;
+  }
+  const decoded = Buffer.from(compact, "base64").toString("utf8").trim();
+  if (decoded.includes("-----BEGIN ") && decoded.includes("PRIVATE KEY-----")) {
+    return decoded.replace(/\r\n/g, "\n");
+  }
+  return normalized;
 }
 
 function parseEnvironment(value: string | undefined): BridgeEnvironment {

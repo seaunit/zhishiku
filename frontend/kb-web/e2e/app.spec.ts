@@ -26,6 +26,7 @@ const profile = {
 
 const billingCatalog = {
   environment: 'test',
+  billingEnabled: true,
   versionCode: '2026-10-mvp',
   packs: [
     {
@@ -69,6 +70,14 @@ const billingCatalog = {
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/kb/api/v1/auth/csrf', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ token: 'csrf-session', headerName: 'X-XSRF-TOKEN' }),
+    })
+  })
+
   await page.route('**/kb/api/v1/auth/me', async (route) => {
     await route.fulfill({
       status: 200,
@@ -721,6 +730,228 @@ test('shows pricing, balance, and automatic charging controls', async ({ page })
     maxPointsPerTask: 15,
     maxPointsPerDay: 100,
   })
+})
+
+test('disables point purchases when the payment channel is unavailable', async ({ page }) => {
+  await page.route('**/kb/api/v1/billing/catalog', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...billingCatalog, billingEnabled: false }),
+    })
+  })
+
+  await page.goto('/kb/billing')
+
+  await expect(page.getByText('支付通道暂不可用，现有知识、搜索和手动录入不受影响。')).toBeVisible()
+  for (const button of await page.getByRole('button', { name: '购买' }).all()) {
+    await expect(button).toBeDisabled()
+  }
+})
+
+test('keeps a recoverable checkout link when the browser blocks the payment tab', async ({
+  page,
+}) => {
+  const orderId = '123e4567-e89b-42d3-a456-426614174180'
+  await page.route('**/kb/api/v1/billing/orders', async (route) => {
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: orderId,
+        sku: 'kb_pack_9',
+        environment: 'test',
+        amountMinor: 900,
+        currency: 'CNY',
+        points: 400,
+        providerProductId: 'PROD_9',
+        status: 'PENDING',
+        checkoutUrl: null,
+        paidAt: null,
+        closedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    })
+  })
+  await page.route(`**/kb/api/v1/billing/orders/${orderId}/checkout`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        orderId,
+        checkoutUrl: 'https://pancake.waffo.ai/store/test/checkout/session',
+        expiresAt: '2026-10-22T09:00:00Z',
+        environment: 'test',
+      }),
+    })
+  })
+  await page.addInitScript(() => {
+    window.open = () => null
+  })
+
+  await page.goto('/kb/billing')
+  await page.getByRole('button', { name: '购买' }).first().click()
+
+  await expect(
+    page.getByText('浏览器阻止了新标签页，请使用下方“返回收银台”。'),
+  ).toBeVisible()
+  await expect(page.getByRole('link', { name: '返回收银台' })).toHaveAttribute(
+    'href',
+    'https://pancake.waffo.ai/store/test/checkout/session',
+  )
+})
+
+test('refreshes balance and ledger when a returned payment becomes paid', async ({ page }) => {
+  const orderId = '123e4567-e89b-42d3-a456-426614174180'
+  let paid = false
+  let accountRequests = 0
+  await page.route('**/kb/api/v1/billing/catalog', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(billingCatalog),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/account', async (route) => {
+    accountRequests += 1
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        availablePoints: paid ? 500 : 100,
+        reservedPoints: 0,
+        trialPoints: paid ? 100 : 100,
+        purchasedPoints: paid ? 400 : 0,
+        updatedAt: new Date().toISOString(),
+      }),
+    })
+  })
+  await page.route(`**/kb/api/v1/billing/orders/${orderId}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: orderId,
+        sku: 'kb_pack_9',
+        environment: 'test',
+        amountMinor: 900,
+        currency: 'CNY',
+        points: 400,
+        providerProductId: 'PROD_9',
+        status: paid ? 'PAID' : 'PENDING',
+        checkoutUrl: paid ? null : 'https://pancake.waffo.ai/store/test/checkout/session',
+        paidAt: paid ? new Date().toISOString() : null,
+        closedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/ledger**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: paid
+          ? [
+              {
+                id: '1',
+                operationType: 'purchase_grant',
+                availableDelta: 400,
+                reservedDelta: 0,
+                consumedDelta: 0,
+                availableAfter: 500,
+                reservedAfter: 0,
+                referenceType: 'order',
+                referenceId: orderId,
+                description: 'Purchase',
+                createdAt: new Date().toISOString(),
+              },
+            ]
+          : [],
+        nextCursor: null,
+      }),
+    })
+  })
+
+  await page.goto(`/kb/billing/return?orderId=${orderId}`)
+  await expect(page.getByText('待支付')).toBeVisible()
+  expect(accountRequests).toBeGreaterThan(0)
+
+  paid = true
+  await page.getByRole('button', { name: '刷新状态' }).click()
+
+  await expect(page.getByText('已支付', { exact: true })).toBeVisible()
+  await expect(page.locator('.billing-balance-value')).toHaveText('500')
+  await expect(page.getByText('购买点入账')).toBeVisible()
+})
+
+test('restores the newest pending order on a payment return without an order id', async ({
+  page,
+}) => {
+  await page.route('**/kb/api/v1/billing/orders**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: '123e4567-e89b-42d3-a456-426614174180',
+            sku: 'kb_pack_9',
+            environment: 'test',
+            amountMinor: 900,
+            currency: 'CNY',
+            points: 400,
+            providerProductId: 'PROD_9',
+            status: 'CONFIRMING',
+            checkoutUrl: null,
+            paidAt: null,
+            closedAt: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+        nextCursor: null,
+      }),
+    })
+  })
+
+  await page.goto('/kb/billing/return')
+
+  await expect(page.locator('.status-pill')).toHaveText('确认中')
+  await expect(page.getByRole('heading', { name: '支付状态' })).toBeVisible()
+})
+
+test('shows refund review deadline, unrecovered points, and final outcome', async ({ page }) => {
+  await page.route('**/kb/api/v1/billing/refunds', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: '123e4567-e89b-42d3-a456-426614174181',
+          orderId: '123e4567-e89b-42d3-a456-426614174180',
+          status: 'partially_recovered',
+          refundAmountMinor: 900,
+          expectedRecoveryPoints: 400,
+          recoveredPoints: 250,
+          unrecoveredPoints: 150,
+          reviewDueAt: '2026-10-25T08:00:00Z',
+          version: 2,
+          resolution: '部分点数已消费，转人工复核',
+          createdAt: '2026-10-22T08:00:00Z',
+          resolvedAt: null,
+        },
+      ]),
+    })
+  })
+
+  await page.goto('/kb/billing')
+
+  await expect(page.getByText('未回收 150')).toBeVisible()
+  await expect(page.getByText(/复核期限/)).toBeVisible()
+  await expect(page.getByText('结论：部分点数已消费，转人工复核')).toBeVisible()
 })
 
 test('persists AI consent per account and scope', async ({ page }) => {

@@ -10,14 +10,14 @@
 |------|------|
 | 操作到计费项映射 | `BillingP0PolicyTest` 9 项 |
 | 预检账号、环境和有效期 | `BillingP0PolicyTest`、`BillingService` |
-| 支付签名、商品、金额和币种 | `BillingP0PolicyTest`、`bridges/waffo/src/server.test.ts` |
-| 订单、账本、预留、退款 API | `BillingControllerTest`、后端全量 226 项 |
+| 支付签名、商品、金额和币种 | `BillingP0PolicyTest`、桥接 38 项 Vitest、官方 SDK 0.26 事件夹具 |
+| 订单、账本、预留、退款 API | `BillingControllerTest`、`BillingInternalControllerTest`、后端全量 230 项 |
 | 退款实际回收和人工复核 | `BillingService`、002 OpenAPI |
 | 管理员显式目标账号 | `ManualAdjustmentRequest.targetOwnerId` |
 | 物理数据库环境标识 | `V0014__billing_environment_guard.sql` |
 | AI 入口稳定幂等 | `V0013__api_idempotency.sql`、五类 AI 入口专项测试 |
 | 部署备份与配置回滚 | `deploy/scripts/deploy.sh`、`verify-deploy-scripts.mjs` |
-| 桥接构建 | lint、3 项 Vitest、typecheck、build 全部通过 |
+| 桥接构建 | lint、38 项 Vitest、typecheck、build 全部通过 |
 
 ## 未完成门禁
 

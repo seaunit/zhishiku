@@ -32,6 +32,24 @@ read_env_value() {
   ' "$ENV_FILE"
 }
 
+read_waffo_env_value() {
+  local key="$1"
+  if [[ ! -f "$WAFFO_ENV_FILE" ]]; then
+    return 0
+  fi
+  awk -v key="$key" -v sq="'" '
+    index($0, key "=") == 1 {
+      value = substr($0, length(key) + 2)
+      if ((substr(value, 1, 1) == sq && substr(value, length(value), 1) == sq) ||
+          (substr(value, 1, 1) == "\"" && substr(value, length(value), 1) == "\"")) {
+        value = substr(value, 2, length(value) - 2)
+      }
+      print value
+      exit
+    }
+  ' "$WAFFO_ENV_FILE"
+}
+
 prompt_secret() {
   local label="$1"
   local current="$2"
@@ -85,6 +103,44 @@ set_env_value() {
   chmod 0600 "$env_tmp"
   chown root:root "$env_tmp"
   mv "$env_tmp" "$ENV_FILE"
+}
+
+ensure_environment_consistency() {
+  local app_env billing_db_env waffo_env
+  app_env="$(read_env_value APP_ENV)"
+  billing_db_env="$(read_env_value BILLING_DB_ENV)"
+  if [[ -z "$app_env" ]]; then
+    printf 'APP_ENV is required in %s.\n' "$ENV_FILE" >&2
+    exit 1
+  fi
+  if [[ "$app_env" == "prod" ]]; then
+    app_env="production"
+  fi
+  if [[ "$app_env" != "test" && "$app_env" != "production" ]]; then
+    printf 'APP_ENV must be test or production.\n' >&2
+    exit 1
+  fi
+  if [[ -z "$billing_db_env" ]]; then
+    set_env_value BILLING_DB_ENV "$app_env"
+    billing_db_env="$app_env"
+  elif [[ "$billing_db_env" == "prod" ]]; then
+    billing_db_env="production"
+  fi
+  if [[ "$billing_db_env" != "$app_env" ]]; then
+    printf 'APP_ENV and BILLING_DB_ENV must identify the same environment.\n' >&2
+    exit 1
+  fi
+  if [[ -z "$(read_env_value BILLING_ENABLED)" ]]; then
+    set_env_value BILLING_ENABLED false
+  fi
+  waffo_env="$(read_waffo_env_value WAFFO_ENV)"
+  if [[ "$waffo_env" == "prod" ]]; then
+    waffo_env="production"
+  fi
+  if [[ -n "$waffo_env" && "$waffo_env" != "$app_env" ]]; then
+    printf 'WAFFO_ENV and APP_ENV must identify the same environment.\n' >&2
+    exit 1
+  fi
 }
 
 ensure_secrets() {
@@ -171,6 +227,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   printf 'Run provision-ubuntu.sh first.\n' >&2
   exit 1
 fi
+ensure_environment_consistency
 if [[ "$(read_env_value BILLING_ENABLED)" == "true" && ! -f "$WAFFO_ENV_FILE" ]]; then
   printf 'BILLING_ENABLED=true requires %s\n' "$WAFFO_ENV_FILE" >&2
   exit 1
@@ -304,7 +361,15 @@ install -m 0644 \
   "$SOURCE_DIR/backend/kb-browser-worker/target/kb-browser-worker-0.1.0-SNAPSHOT.jar" \
   "$STAGE_DIR/kb-browser-worker.jar"
 install -d "$STAGE_DIR/waffo-bridge"
+install -m 0644 \
+  "$SOURCE_DIR/bridges/waffo/package.json" \
+  "$STAGE_DIR/waffo-bridge/package.json"
+install -m 0644 \
+  "$SOURCE_DIR/bridges/waffo/pnpm-lock.yaml" \
+  "$STAGE_DIR/waffo-bridge/pnpm-lock.yaml"
 cp -a "$SOURCE_DIR/bridges/waffo/dist/." "$STAGE_DIR/waffo-bridge/"
+cp -a "$SOURCE_DIR/bridges/waffo/scripts" "$STAGE_DIR/waffo-bridge/scripts"
+cp -a "$SOURCE_DIR/bridges/waffo/node_modules" "$STAGE_DIR/waffo-bridge/node_modules"
 cp -a "$SOURCE_DIR/frontend/kb-web/dist/." "$STAGE_DIR/frontend/kb/"
 printf '%s\n' "$SOURCE_SHA" > "$STAGE_DIR/VERSION"
 chown -R "$SERVICE_USER:$SERVICE_USER" "$STAGE_DIR"

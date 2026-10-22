@@ -41,6 +41,7 @@ class BillingControllerTest {
         .thenReturn(
             new CatalogResponse(
                 "test",
+                false,
                 "2026-10-mvp",
                 List.of(),
                 List.of(),
@@ -49,6 +50,7 @@ class BillingControllerTest {
     mvc.perform(get("/api/v1/billing/catalog"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.environment").value("test"))
+        .andExpect(jsonPath("$.billingEnabled").value(false))
         .andExpect(jsonPath("$.versionCode").value("2026-10-mvp"));
   }
 

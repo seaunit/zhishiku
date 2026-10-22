@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
   API_BASE,
+  createBillingOrder,
   getCaptcha,
   getRegistrationStatus,
   importDocument,
@@ -22,8 +23,21 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
+const sessionStore = new Map<string, string>()
+
+beforeEach(() => {
+  sessionStore.clear()
+  vi.stubGlobal('sessionStorage', {
+    getItem: (key: string) => sessionStore.get(key) ?? null,
+    setItem: (key: string, value: string) => sessionStore.set(key, value),
+    removeItem: (key: string) => sessionStore.delete(key),
+    clear: () => sessionStore.clear(),
+  })
+})
+
 afterEach(() => {
   resetCsrfToken()
+  sessionStore.clear()
   vi.unstubAllGlobals()
 })
 
@@ -187,6 +201,38 @@ describe('CSRF handling', () => {
       externalAiConsent: true,
       note: '文字备注',
     })
+  })
+})
+
+describe('billing request idempotency', () => {
+  it('reuses the same order key after a retryable network failure', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-billing', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 'BILLING_BRIDGE_UNAVAILABLE', message: 'retry' }, 503),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: '123e4567-e89b-42d3-a456-426614174180',
+          sku: 'kb_pack_9',
+          status: 'PENDING',
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(createBillingOrder('kb_pack_9')).rejects.toBeInstanceOf(ApiError)
+    await createBillingOrder('kb_pack_9')
+
+    const orderCalls = fetchMock.mock.calls.filter(
+      (call) => call[0] === `${API_BASE}/billing/orders`,
+    )
+    const firstKey = orderCalls[0][1].headers.get('Idempotency-Key')
+    const retryKey = orderCalls[1][1].headers.get('Idempotency-Key')
+    expect(firstKey).toBeTruthy()
+    expect(retryKey).toBe(firstKey)
   })
 })
 

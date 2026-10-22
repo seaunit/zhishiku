@@ -40,6 +40,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 let csrfToken = ''
 let csrfHeader = 'X-XSRF-TOKEN'
+const billingOrderKeys = new Map<string, string>()
 
 export class ApiError extends Error {
   readonly status: number
@@ -247,12 +248,42 @@ export function getBillingOrder(orderId: string): Promise<BillingOrder> {
   return request<BillingOrder>(`/billing/orders/${encodeURIComponent(orderId)}`)
 }
 
-export function createBillingOrder(sku: string): Promise<BillingOrder> {
-  return request<BillingOrder>('/billing/orders', {
+function billingOrderKey(sku: string): string {
+  const storageKey = `kb:billing-order-key:${sku}`
+  try {
+    const stored = sessionStorage.getItem(storageKey)
+    if (stored) return stored
+    const created = createIdempotencyKey(`billing-order-${sku}`)
+    sessionStorage.setItem(storageKey, created)
+    return created
+  } catch {
+    const existing = billingOrderKeys.get(storageKey)
+    if (existing) return existing
+    const created = createIdempotencyKey(`billing-order-${sku}`)
+    billingOrderKeys.set(storageKey, created)
+    return created
+  }
+}
+
+function clearBillingOrderKey(sku: string) {
+  const storageKey = `kb:billing-order-key:${sku}`
+  billingOrderKeys.delete(storageKey)
+  try {
+    sessionStorage.removeItem(storageKey)
+  } catch {
+    // In-memory fallback already cleared.
+  }
+}
+
+export async function createBillingOrder(sku: string): Promise<BillingOrder> {
+  const key = billingOrderKey(sku)
+  const order = await request<BillingOrder>('/billing/orders', {
     method: 'POST',
-    headers: { 'Idempotency-Key': createIdempotencyKey(`billing-order-${sku}`) },
+    headers: { 'Idempotency-Key': key },
     body: JSON.stringify({ sku }),
   })
+  clearBillingOrderKey(sku)
+  return order
 }
 
 export function openBillingCheckout(

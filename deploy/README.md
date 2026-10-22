@@ -61,6 +61,35 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
   | sudo bash -s -- --ref <tag-or-commit>
 ```
 
+## Waffo 测试与生产配置
+
+首次安装会交互输入 `WAFFO_MERCHANT_ID`、`WAFFO_STORE_ID`、
+`WAFFO_PRIVATE_KEY_BASE64`、`WAFFO_PRODUCT_MAP` 和双向内部密钥，写入
+`/etc/zhishiku/waffo.env`。`KB_RUNTIME_ENV` 与 `WAFFO_ENV` 必须同为 `test` 或
+`production`；生产服务器不得接受测试支付，测试服务器也不得写生产账本。
+
+三个一次性商品使用独立编码 `kb_pack_9`、`kb_pack_29`、`kb_pack_99`，不得复用拾题
+`pack_*` 商品。商品初始化不会自动执行，必须在明确确认后运行：
+
+```bash
+cd /opt/zhishiku/current/waffo-bridge
+set -a
+. /etc/zhishiku/waffo.env
+set +a
+pnpm catalog:setup -- --apply
+```
+
+确认商品 ID 后更新 `WAFFO_PRODUCT_MAP`。创建一次真实测试收银台前，先使用现有本地待支付
+订单号：
+
+```bash
+KB_SMOKE_ORDER_ID=<existing-pending-order-id> \
+  pnpm smoke:checkout -- --confirm
+```
+
+冒烟脚本不会打印带 token 的完整收银台地址。完成测试卡支付、通知、主动查询、重复通知、
+退款和乱序事件验收前，`/etc/zhishiku/kb.env` 中的 `BILLING_ENABLED` 必须保持 `false`。
+
 ## 路由边界
 
 - `/`：SEAUNIT 静态门户，提供拾题和识海两个入口。

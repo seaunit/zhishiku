@@ -10,9 +10,11 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "lint": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit && node --check scripts/smoke-checkout.mjs && node --check scripts/setup-catalog.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "smoke:checkout": "node scripts/smoke-checkout.mjs",
+    "catalog:setup": "node scripts/setup-catalog.mjs"
   },
   "dependencies": {
     "@waffo/pancake-ts": "0.26.0"

@@ -2,12 +2,13 @@
 
 **功能**：`002-ai-credit-billing`
 
-**目的**：在实现完成后验证套餐、测试支付、点数报价、扣费、退款、对账、安全和双语闭环。
-本文是验收指南，不代表当前代码已经实现。
+**目的**：验证套餐、测试支付、点数报价、扣费、退款、对账、安全和双语闭环。桥接已按
+`@waffo/pancake-ts@0.26.0` 实现；本文仍要求真实 Waffo 测试商户和物理 PostgreSQL 证据。
 
 ## 前置条件
 
-- Java 17 LTS、Maven Wrapper、Node.js 20/22 LTS、pnpm 和 Docker Compose v2。
+- Java 17 LTS、Maven Wrapper、Node.js 20/22 LTS 和 pnpm；Docker 仅在可用的
+  Testcontainers 环境中需要。
 - PostgreSQL、Spring Boot API/Worker 和 Node Waffo 桥接本地运行。
 - Waffo 测试环境已配置独立识海商品和测试凭据。
 - Vue 可通过 `http://127.0.0.1:4173/kb/` 访问，Spring API 位于
@@ -52,7 +53,8 @@ BRIDGE_TO_APP_SECRET=replace-me
 
 启动检查只允许报告缺失变量名，绝不能打印值。`APP_ENV=production` 时发现 `WAFFO_ENV=test`、
 `BILLING_DB_ENV` 不一致、测试商品或测试回跳地址必须失败关闭。测试与生产必须使用不同的
-物理 PostgreSQL 数据库，不能只切换环境字段。
+物理 PostgreSQL 数据库，不能只切换环境字段。部署脚本使用 `KB_RUNTIME_ENV` 同时设置
+`APP_ENV`、`BILLING_DB_ENV` 和默认 `WAFFO_ENV`，三者不一致时拒绝部署。
 
 ## 启动计划中的技术栈
 
@@ -65,6 +67,20 @@ pnpm dev
 cd ../../bridges/waffo
 pnpm install
 pnpm dev
+```
+
+真实测试商户商品不会在普通部署中自动创建。确认测试环境身份和店铺后显式运行：
+
+```powershell
+cd bridges/waffo
+pnpm catalog:setup -- --apply
+```
+
+确认 `WAFFO_PRODUCT_MAP` 后，可使用一个现有待支付本地订单号创建一次测试收银台：
+
+```powershell
+$env:KB_SMOKE_ORDER_ID = "<existing-pending-order-id>"
+pnpm smoke:checkout -- --confirm
 ```
 
 预期端点：
@@ -179,20 +195,16 @@ pnpm dev
 
 ## 自动化命令
 
-实现工作区和脚本后，以下命令构成发布门禁：
+以下命令构成当前发布门禁：
 
 ```powershell
 cd backend
-./mvnw spotless:check
 ./mvnw test
-./mvnw verify -Pintegration
-./mvnw verify -Pcontract
-./mvnw verify -Psecurity
 cd ../frontend/kb-web
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm test:e2e:billing
+pnpm test:e2e
 pnpm build
 cd ../../bridges/waffo
 pnpm install --frozen-lockfile

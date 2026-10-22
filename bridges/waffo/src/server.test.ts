@@ -70,8 +70,12 @@ describe("waffo bridge", () => {
         mode: "test",
         data: {
           orderMerchantExternalId: checkout().orderId,
-          productId: "PROD_9",
-          amount: "9.00",
+          orderMetadata: {
+            orderId: checkout().orderId,
+            itemCode: "kb_pack_9",
+            waffoProductId: "PROD_9",
+          },
+          chargedAmount: "9.00",
           currency: "CNY",
         },
       }),
@@ -84,6 +88,84 @@ describe("waffo bridge", () => {
         headers: expect.objectContaining({ "X-Internal-Secret": "bridge-secret" }),
       }),
     );
+  });
+
+  it("uses verified webhook events outside dry-run mode", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    const verifiedEvent = {
+      id: "DELIVERY_1",
+      timestamp: new Date().toISOString(),
+      eventId: "EVT_1",
+      eventType: "order.completed",
+      storeId: "STO_1234567890123456789012",
+      mode: "test",
+      data: {
+        orderMerchantExternalId: checkout().orderId,
+        orderMetadata: {
+          orderId: checkout().orderId,
+          itemCode: "kb_pack_9",
+          waffoProductId: "PROD_9",
+        },
+        chargedAmount: "9.00",
+        currency: "CNY",
+      },
+    };
+    const verifyWebhook = vi.fn().mockReturnValue(verifiedEvent);
+    const { baseUrl } = await start(fetchImpl, {
+      dryRun: false,
+      gateway: {
+        configured: () => true,
+        createCheckout: vi.fn(),
+        queryOrder: vi.fn(),
+        verifyWebhook,
+      },
+    });
+
+    const response = await fetch(`${baseUrl}/webhooks/waffo`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Waffo-Signature": "signed-header",
+      },
+      body: JSON.stringify(verifiedEvent),
+    });
+
+    expect(response.status).toBe(200);
+    expect(verifyWebhook).toHaveBeenCalledWith(JSON.stringify(verifiedEvent), "signed-header");
+    const forwarded = JSON.parse(String((fetchImpl.mock.calls[0]?.[1] as RequestInit).body));
+    expect(forwarded).toMatchObject({
+      environment: "test",
+      eventType: "paid",
+      productMatch: true,
+      amountMinor: 900,
+    });
+  });
+
+  it("rejects invalid signatures without forwarding them", async () => {
+    const fetchImpl = vi.fn();
+    const { baseUrl } = await start(fetchImpl, {
+      dryRun: false,
+      gateway: {
+        configured: () => true,
+        createCheckout: vi.fn(),
+        queryOrder: vi.fn(),
+        verifyWebhook: vi.fn(() => {
+          throw new Error("invalid signature");
+        }),
+      },
+    });
+
+    const response = await fetch(`${baseUrl}/webhooks/waffo`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Waffo-Signature": "tampered",
+      },
+      body: "{}",
+    });
+
+    expect(response.status).toBe(401);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("never treats a missing query product id as a product match", async () => {
@@ -109,10 +191,17 @@ describe("waffo bridge", () => {
   });
 });
 
-async function start(fetchImpl?: typeof fetch) {
+async function start(
+  fetchImpl?: typeof fetch,
+  overrides: {
+    dryRun?: boolean;
+    gateway?: WaffoGateway;
+  } = {},
+) {
   const config: BridgeConfig = {
     port: 0,
     environment: "test",
+    storeId: "STO_1234567890123456789012",
     merchantId: "",
     privateKey: "",
     productMap: {
@@ -121,13 +210,13 @@ async function start(fetchImpl?: typeof fetch) {
       kb_pack_99: "PROD_99",
     },
     currency: "CNY",
-    dryRun: true,
+    dryRun: overrides.dryRun ?? true,
     appToBridgeSecret: "app-secret",
     bridgeToAppSecret: "bridge-secret",
     internalEventUrl: "http://127.0.0.1:8082/kb/api/internal/billing/waffo-events",
     successUrlAllowlist: ["http://127.0.0.1:4173/kb/billing/return"],
   };
-  const gateway: WaffoGateway = {
+  const gateway: WaffoGateway = overrides.gateway ?? {
     configured: () => true,
     createCheckout: vi.fn(),
     queryOrder: vi.fn(),
