@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ledgerBusinessLabel,
   ledgerIsCharge,
   ledgerMovementLabel,
   ledgerPositionLabel,
+  ledgerStageLabel,
 } from './billing-ledger'
 import type { BillingLedgerEntry } from '@/types/api'
 
@@ -17,6 +19,7 @@ function entry(overrides: Partial<BillingLedgerEntry>): BillingLedgerEntry {
     reservedAfter: 0,
     referenceType: 'ai_task',
     referenceId: 'task-1',
+    businessOperation: null,
     description: null,
     createdAt: '2026-10-22T11:26:57Z',
     ...overrides,
@@ -57,5 +60,24 @@ describe('billing ledger presentation', () => {
 
     expect(ledgerMovementLabel(grant, 'en')).toBe('+100 available')
     expect(ledgerPositionLabel(grant, 'en')).toBe('Available 100 · Frozen 0')
+  })
+
+  it('uses the billing task business name for search charges', () => {
+    const settle = entry({ businessOperation: 'internet_search' })
+
+    expect(ledgerBusinessLabel(settle, 'zh')).toBe('搜索花费')
+    expect(ledgerStageLabel(settle, 'zh')).toBe('扣点')
+    expect(ledgerBusinessLabel(settle, 'en')).toBe('Internet search')
+  })
+
+  it('uses the point pack name for purchases', () => {
+    const purchase = entry({
+      operationType: 'purchase_grant',
+      referenceType: 'order',
+      businessOperation: null,
+    })
+
+    expect(ledgerBusinessLabel(purchase, 'zh', '轻量加量包')).toBe('轻量加量包')
+    expect(ledgerStageLabel(purchase, 'zh')).toBe('购买到账')
   })
 })

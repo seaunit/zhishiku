@@ -1014,6 +1014,7 @@ test('shows reservation and settlement without double-counting a charge', async 
             reservedAfter: 0,
             referenceType: 'ai_task',
             referenceId: 'task-2',
+            businessOperation: 'internet_search',
             description: null,
             createdAt: '2026-10-22T11:26:57Z',
           },
@@ -1027,6 +1028,7 @@ test('shows reservation and settlement without double-counting a charge', async 
             reservedAfter: 3,
             referenceType: 'ai_task',
             referenceId: 'task-2',
+            businessOperation: 'internet_search',
             description: null,
             createdAt: '2026-10-22T11:26:56Z',
           },
@@ -1041,6 +1043,8 @@ test('shows reservation and settlement without double-counting a charge', async 
   await expect(page.locator('.billing-balance-value')).toHaveText('94')
   await expect(page.getByText('冻结 3', { exact: true })).toBeVisible()
   await expect(page.getByText('已扣 3', { exact: true })).toBeVisible()
+  await expect(page.getByText('搜索花费', { exact: true })).toHaveCount(2)
+  await expect(page.locator('.billing-row small').filter({ hasText: '扣点' })).toHaveCount(1)
   await expect(page.getByText('可用 94 · 冻结 3', { exact: true })).toBeVisible()
   await expect(page.getByText('可用 94 · 冻结 0', { exact: true })).toBeVisible()
   await expect(page.getByText('-3', { exact: true })).toHaveCount(0)
@@ -1179,6 +1183,7 @@ test('refreshes balance and ledger when a returned payment becomes paid', async 
                 reservedAfter: 0,
                 referenceType: 'order',
                 referenceId: orderId,
+                businessOperation: null,
                 description: 'Purchase',
                 createdAt: new Date().toISOString(),
               },
@@ -1188,17 +1193,52 @@ test('refreshes balance and ledger when a returned payment becomes paid', async 
       }),
     })
   })
+  await page.route(
+    (url) => url.pathname === '/kb/api/v1/billing/orders',
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [
+            {
+              id: orderId,
+              sku: 'kb_pack_9',
+              environment: 'test',
+              amountMinor: 900,
+              currency: 'CNY',
+              points: 400,
+              providerProductId: 'PROD_9',
+              status: paid ? 'PAID' : 'PENDING',
+              checkoutUrl: null,
+              paidAt: paid ? new Date().toISOString() : null,
+              closedAt: null,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ],
+          nextCursor: null,
+        }),
+      })
+    },
+  )
 
   await page.goto(`/kb/billing/return?orderId=${orderId}`)
-  await expect(page.getByText('待支付')).toBeVisible()
+  const paymentStatus = page.locator('.billing-return .status-pill')
+  await expect(paymentStatus).toHaveText('待支付')
   expect(accountRequests).toBeGreaterThan(0)
 
   paid = true
   await page.getByRole('button', { name: '刷新状态' }).click()
 
-  await expect(page.getByText('已支付', { exact: true })).toBeVisible()
+  await expect(paymentStatus).toHaveText('已支付')
   await expect(page.locator('.billing-balance-value')).toHaveText('500')
-  await expect(page.getByText('购买点入账')).toBeVisible()
+  await expect(page.getByText('购买到账', { exact: false })).toBeVisible()
+  await expect(
+    page.locator('.billing-columns > section').first().getByText('轻量加量包', {
+      exact: true,
+    }),
+  ).toBeVisible()
 })
 
 test('restores the newest pending order on a payment return without an order id', async ({

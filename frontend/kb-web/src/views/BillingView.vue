@@ -94,7 +94,7 @@
         <header class="panel-heading compact">
           <div>
             <h2 id="billing-return-title">{{ tx('支付状态', 'Payment status') }}</h2>
-            <p>{{ activeOrder.sku }} · ¥{{ money(activeOrder.amountMinor) }} · {{ activeOrder.points }} {{ tx('点', 'points') }}</p>
+            <p>{{ packName(activeOrder.sku) }} · ¥{{ money(activeOrder.amountMinor) }} · {{ activeOrder.points }} {{ tx('点', 'points') }}</p>
           </div>
           <span class="status-pill" :class="orderTone(activeOrder.status)">
             {{ orderStatus(activeOrder.status) }}
@@ -127,7 +127,7 @@
           <div class="billing-list">
             <article v-for="order in orders" :key="order.id" class="billing-row">
               <span>
-                <strong>{{ order.sku }}</strong>
+                <strong>{{ packName(order.sku) }}</strong>
                 <small>{{ formatDate(order.createdAt) }} · ¥{{ money(order.amountMinor) }}</small>
               </span>
               <span class="billing-row-side">
@@ -149,8 +149,8 @@
           <div class="billing-list">
             <article v-for="entry in ledger" :key="entry.id" class="billing-row">
               <span>
-                <strong>{{ operationLabel(entry.operationType) }}</strong>
-                <small>{{ formatDate(entry.createdAt) }} · {{ entry.referenceType }}</small>
+                <strong>{{ ledgerBusinessLabel(entry, locale, purchasePackName(entry)) }}</strong>
+                <small>{{ formatDate(entry.createdAt) }} · {{ ledgerStageLabel(entry, locale) }}</small>
               </span>
               <span class="billing-row-side">
                 <b class="num" :class="{ negative: ledgerIsCharge(entry) }">
@@ -245,9 +245,11 @@ import {
   updateAutoChargePolicy,
 } from '@/api/client'
 import {
+  ledgerBusinessLabel,
   ledgerIsCharge,
   ledgerMovementLabel,
   ledgerPositionLabel,
+  ledgerStageLabel,
 } from '@/lib/billing-ledger'
 import type {
   BillingAccount,
@@ -335,17 +337,23 @@ function refundStatus(status: string) {
   return tx(...(labels[status] ?? [status, status]))
 }
 
-function operationLabel(operation: string) {
-  const labels: Record<string, [string, string]> = {
-    trial_grant: ['体验点到账', 'Trial points'],
-    purchase_grant: ['购买点入账', 'Purchased points'],
-    reserve: ['预留点数', 'Points reserved'],
-    reserve_release: ['释放预留', 'Reservation released'],
-    settle: ['任务结算', 'Task settled'],
-    refund_recover: ['退款回收', 'Refund recovery'],
-    manual_adjustment: ['人工调整', 'Manual adjustment'],
+function packName(sku: string) {
+  const pack = catalog.value?.packs.find((candidate) => candidate.sku === sku)
+  if (pack) {
+    return locale.value === 'en' ? pack.nameEn || pack.nameZh : pack.nameZh || pack.name
   }
-  return tx(...(labels[operation] ?? [operation, operation]))
+  const fallbacks: Record<string, [string, string]> = {
+    kb_pack_9: ['轻量加量包', 'Starter pack'],
+    kb_pack_29: ['常用加量包', 'Standard pack'],
+    kb_pack_99: ['超值加量包', 'Value pack'],
+  }
+  return tx(...(fallbacks[sku] ?? [sku, sku]))
+}
+
+function purchasePackName(entry: BillingLedgerEntry) {
+  if (entry.operationType !== 'purchase_grant') return undefined
+  const order = orders.value.find((candidate) => candidate.id === entry.referenceId)
+  return order ? packName(order.sku) : undefined
 }
 
 async function load() {

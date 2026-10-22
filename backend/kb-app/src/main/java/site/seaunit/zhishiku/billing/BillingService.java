@@ -271,12 +271,17 @@ public class BillingService {
     List<LedgerEntryResponse> items =
         jdbc.query(
             """
-            SELECT id, operation_type, available_delta, reserved_delta, consumed_delta,
-                   available_after, reserved_after, reference_type, reference_id,
-                   description_safe, created_at
-            FROM billing_ledger_entry
-            WHERE owner_id = ? AND id < ?
-            ORDER BY id DESC
+            SELECT e.id, e.operation_type, e.available_delta, e.reserved_delta,
+                   e.consumed_delta, e.available_after, e.reserved_after,
+                   e.reference_type, e.reference_id, bt.operation AS business_operation,
+                   e.description_safe, e.created_at
+            FROM billing_ledger_entry e
+            LEFT JOIN billing_task bt
+              ON e.reference_type = 'ai_task'
+             AND bt.owner_id = e.owner_id
+             AND bt.id::text = e.reference_id
+            WHERE e.owner_id = ? AND e.id < ?
+            ORDER BY e.id DESC
             LIMIT ?
             """,
             (rs, row) ->
@@ -290,6 +295,7 @@ public class BillingService {
                     rs.getInt("reserved_after"),
                     rs.getString("reference_type"),
                     rs.getString("reference_id"),
+                    rs.getString("business_operation"),
                     rs.getString("description_safe"),
                     instant(rs, "created_at")),
             owner.getId(),

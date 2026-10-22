@@ -65,6 +65,7 @@ public final class BillingDtos {
       int reservedAfter,
       String referenceType,
       String referenceId,
+      String businessOperation,
       String description,
       Instant createdAt) {}
 

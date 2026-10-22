@@ -276,6 +276,7 @@ export interface BillingLedgerEntry {
   reservedAfter: number
   referenceType: string
   referenceId: string
+  businessOperation: string | null
   description: string | null
   createdAt: string
 }

@@ -808,6 +808,11 @@ components:
           type: string
         referenceId:
           type: string
+        businessOperation:
+          type:
+            - string
+            - "null"
+          description: 关联计费任务的业务操作代码，用于展示搜索、采集、整理等业务名称。
         description:
           type: string
         createdAt:

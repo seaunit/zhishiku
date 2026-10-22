@@ -494,22 +494,44 @@
                 <button class="primary-button" type="button" data-i18n="billingBuy">购买</button>
               </article>
             </section>
-            <section class="panel billing-orders">
-              <header>
-                <h2 data-i18n="billingOrders">订单历史</h2>
-                <span data-i18n="billingOrdersHint">可靠支付结果到达后自动到账</span>
-              </header>
-              <div class="billing-order-row">
-                <span>kb_pack_29 · 2026-10-22</span>
-                <b class="num">+1,400</b>
-                <small data-i18n="billingPaid">已支付</small>
-              </div>
-              <div class="billing-order-row">
-                <span>kb_pack_9 · 2026-10-18</span>
-                <b class="num">+400</b>
-                <small data-i18n="billingRefunded">已退款</small>
-              </div>
-            </section>
+            <div class="billing-records">
+              <section class="panel billing-orders">
+                <header>
+                  <h2 data-i18n="billingOrders">订单历史</h2>
+                  <span data-i18n="billingOrdersHint">可靠支付结果到达后自动到账</span>
+                </header>
+                <div class="billing-order-row">
+                  <span><span data-i18n="billingPackStandard">常用加量包</span> · 2026-10-22</span>
+                  <b class="num">+1,400</b>
+                  <small data-i18n="billingPaid">已支付</small>
+                </div>
+                <div class="billing-order-row">
+                  <span><span data-i18n="billingPackStarter">轻量加量包</span> · 2026-10-18</span>
+                  <b class="num">+400</b>
+                  <small data-i18n="billingRefunded">已退款</small>
+                </div>
+              </section>
+              <section class="panel billing-orders">
+                <header>
+                  <h2 data-i18n="billingLedgerTitle">点数明细</h2>
+                  <span data-i18n="billingLedgerHint">搜索、采集和整理花费均可追溯</span>
+                </header>
+                <div class="billing-order-row">
+                  <span>
+                    <strong data-i18n="billingSearchCost">搜索花费</strong>
+                    <small><span data-i18n="billingSettledStage">扣点</span> · 2026-10-22</small>
+                  </span>
+                  <b class="num" data-i18n="billingChargedOne">已扣 1</b>
+                </div>
+                <div class="billing-order-row">
+                  <span>
+                    <strong data-i18n="billingDocumentCaptureCost">文档采集花费</strong>
+                    <small><span data-i18n="billingSettledStage">扣点</span> · 2026-10-22</small>
+                  </span>
+                  <b class="num" data-i18n="billingChargedTen">已扣 10</b>
+                </div>
+              </section>
+            </div>
           </section>
 
           <section class="view" id="view-settings" hidden>

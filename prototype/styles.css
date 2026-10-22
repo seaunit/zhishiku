@@ -3210,6 +3210,17 @@ input[type="checkbox"]:checked::before {
   margin-top: 16px;
 }
 
+.billing-records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.billing-records .billing-orders {
+  margin-top: 0;
+}
+
 .billing-orders header,
 .billing-order-row {
   display: flex;
@@ -3235,6 +3246,10 @@ input[type="checkbox"]:checked::before {
   }
 
   .billing-pack-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-records {
     grid-template-columns: 1fr;
   }
 }
