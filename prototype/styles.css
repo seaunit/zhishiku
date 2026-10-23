@@ -807,7 +807,65 @@ svg {
 }
 
 .workspace {
+  position: relative;
+  isolation: isolate;
   min-width: 0;
+}
+
+.ocean-chart-backdrop {
+  position: fixed;
+  z-index: 0;
+  inset: 0 0 0 var(--rail-width);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ocean-chart-backdrop svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ocean-contours {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.ocean-contours--far {
+  opacity: 0.075;
+  animation: ocean-contour-drift-far 64s ease-in-out infinite alternate;
+}
+
+.ocean-contours--near {
+  opacity: 0.14;
+  animation: ocean-contour-drift-near 52s ease-in-out infinite alternate;
+}
+
+.workspace > .topbar,
+.workspace > .canvas {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes ocean-contour-drift-far {
+  from {
+    transform: translate3d(-12px, -5px, 0) scale(1.01);
+  }
+
+  to {
+    transform: translate3d(14px, 7px, 0) scale(1.025);
+  }
+}
+
+@keyframes ocean-contour-drift-near {
+  from {
+    transform: translate3d(10px, 4px, 0) scale(1.02);
+  }
+
+  to {
+    transform: translate3d(-14px, -8px, 0) scale(1.035);
+  }
 }
 
 .topbar {

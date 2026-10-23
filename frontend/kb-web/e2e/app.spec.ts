@@ -648,6 +648,8 @@ test('searches from the prototype-aligned home screen', async ({ page }) => {
   await page.goto('/kb/')
   await expect(page.getByRole('heading', { level: 1, name: '识海' })).toBeVisible()
   await expect(page.getByText('深海检索笔记')).toBeVisible()
+  await expect(page.locator('.ocean-chart-backdrop')).toBeVisible()
+  await expect(page.locator('.ocean-chart-backdrop path')).toHaveCount(13)
   await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(6, 21, 34)')
   const resultsBox = await page.locator('.home-grid > .results-panel').boundingBox()
   const railBox = await page.locator('.home-grid > .right-rail').boundingBox()
@@ -665,6 +667,8 @@ test('searches from the prototype-aligned home screen', async ({ page }) => {
   await page.getByRole('button', { name: '潜入检索' }).click()
   await expect(page.getByText('找到 1 条知识')).toBeVisible()
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/home-mobile-ocean.png', fullPage: true })
 })
 
 test('answers from local knowledge with one cited item and one point', async ({ page }) => {
