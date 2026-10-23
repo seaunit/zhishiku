@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>登录识海</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./login.css" />
+  </head>
+  <body class="login-prototype-page">
+    <main class="login-prototype-shell">
+      <section class="login-prototype-visual" aria-labelledby="login-visual-title">
+        <div class="login-ocean-map" aria-hidden="true">
+          <svg viewBox="0 0 1600 1100" preserveAspectRatio="xMidYMid slice">
+            <g class="ocean-contours ocean-contours--far">
+              <path d="M-120 112C108 67 253 145 430 122S740 31 925 89s330 86 795 -4" />
+              <path d="M-140 176C88 118 268 210 454 178S760 72 956 137s346 97 792 4" />
+              <path d="M-110 246C113 178 305 274 508 234S816 126 1006 194s322 110 742 36" />
+              <path d="M-150 326C96 246 286 356 514 304S824 205 1034 268s306 126 744 36" />
+              <path d="M-100 406C127 336 335 428 533 392S858 286 1050 350s282 122 682 54" />
+              <path d="M-130 492C122 405 338 522 562 462S876 363 1073 427s280 130 674 48" />
+              <path d="M-120 588C133 495 362 604 574 554S908 450 1100 516s258 128 640 50" />
+              <path d="M-100 700C144 606 367 724 600 665S932 566 1127 631s254 135 618 45" />
+            </g>
+            <g class="ocean-contours ocean-contours--near">
+              <path d="M-180 368C118 276 298 424 538 364S904 192 1154 286s356 142 740 14" />
+              <path d="M-150 462C156 360 338 516 594 446S950 284 1206 372s306 142 694 12" />
+              <path d="M-170 566C140 454 342 622 608 544S978 382 1236 470s272 138 648 12" />
+              <path d="M-160 684C154 566 356 742 628 655S1002 486 1264 578s260 142 620 14" />
+              <path d="M-140 812C168 684 376 868 652 778S1028 602 1292 694s244 146 596 14" />
+            </g>
+          </svg>
+        </div>
+
+        <a class="login-prototype-brand" href="./index.html" aria-label="返回识海原型">
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <path d="M3 11c5-4 10-4 15 0s10 4 15 0" />
+            <path d="M3 18c5-4 10-4 15 0s10 4 15 0" />
+            <path d="M3 25c5-4 10-4 15 0s10 4 15 0" />
+          </svg>
+          <span>
+            <strong>识海</strong>
+            <small>个人知识库</small>
+          </span>
+        </a>
+
+        <div class="login-prototype-copy">
+          <h1 id="login-visual-title">
+            让知识沉下来，也<br />
+            随时找得到。
+          </h1>
+          <p>
+            搜索自己的知识，整理文字与图片，并把重要内容留在可追溯的私人空间里。
+          </p>
+        </div>
+
+        <p class="login-prototype-version">zhishiku / 0.1</p>
+      </section>
+
+      <section class="login-prototype-form-panel" aria-labelledby="login-form-title">
+        <button class="login-prototype-locale" type="button" aria-label="切换语言">EN</button>
+
+        <form class="login-prototype-form" onsubmit="event.preventDefault()">
+          <header>
+            <h2 id="login-form-title">登录识海</h2>
+            <p>继续管理你的私人知识。</p>
+          </header>
+
+          <label class="login-prototype-field">
+            <span>邮箱</span>
+            <input type="email" autocomplete="username" placeholder="输入邮箱地址" />
+          </label>
+
+          <label class="login-prototype-field">
+            <span>密码</span>
+            <input type="password" autocomplete="current-password" placeholder="输入密码" />
+          </label>
+
+          <div class="login-prototype-field">
+            <label for="prototype-login-captcha">验证码</label>
+            <div class="login-prototype-captcha">
+              <input
+                id="prototype-login-captcha"
+                type="text"
+                autocomplete="off"
+                placeholder="输入图中字符"
+              />
+              <button type="button" class="login-prototype-captcha-image" aria-label="刷新验证码">
+                8Kjv2
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="login-prototype-submit">登录</button>
+          <a class="login-prototype-register" href="./login.html">注册账户</a>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

@@ -2832,6 +2832,8 @@ test('logs in after fetching a CSRF token', async ({ page }) => {
   })
 
   await page.goto('/kb/login')
+  await expect(page.locator('.login-ocean-map')).toBeVisible()
+  await expect(page.locator('.login-ocean-map path')).toHaveCount(13)
   await page.getByLabel('邮箱').fill('owner@seaunit.site')
   await page.getByLabel('密码').fill('password')
   await page.getByLabel('验证码', { exact: true }).fill('A1B2C')

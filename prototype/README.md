@@ -88,6 +88,7 @@ implementation.
 Open these URLs while the prototype server is running:
 
 ```text
+http://127.0.0.1:8088/login.html
 http://127.0.0.1:8088/?view=capture&mode=screenshot
 http://127.0.0.1:8088/?view=capture&mode=screenshot&demoScreenshot=1
 http://127.0.0.1:8088/?view=capture&mode=document
