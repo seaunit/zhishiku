@@ -133,6 +133,7 @@ public class AiConsentService {
     values.put(
         "screenshot", new ScopeDefinition("deepseek:chat", "screenshot_ocr", "ai-consent-v1"));
     values.put("search", new ScopeDefinition("deepseek:search", "search_query", "ai-consent-v1"));
+    values.put("chat", new ScopeDefinition("deepseek:chat", "knowledge_chat", "ai-consent-v1"));
     return Map.copyOf(values);
   }
 

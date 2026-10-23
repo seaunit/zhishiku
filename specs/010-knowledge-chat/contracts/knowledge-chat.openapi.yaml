@@ -1,0 +1,460 @@
+openapi: 3.0.3
+info:
+  title: 识海知识库聊天 API
+  version: 1.0.0
+paths:
+  /api/v1/chat/retrieval:
+    post:
+      summary: 检索当前账号中可回答问题的知识
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetrievalRequest'
+      responses:
+        '200':
+          description: 本地检索结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetrievalResponse'
+  /api/v1/chat/answers:
+    post:
+      summary: 小识优先检索本地知识；未命中或依据不足时继续通用 AI 对话
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnswerRequest'
+      responses:
+        '200':
+          description: 回答或联网建议
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerResponse'
+  /api/v1/chat/answers/stream:
+    post:
+      summary: 流式生成知识增强或通用 AI 回答；完成后按回答类型校验并结算
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnswerRequest'
+      responses:
+        '200':
+          description: >-
+            SSE 事件流。token 事件包含增量文本；complete 事件包含最终 AnswerResponse；
+            error 事件包含 code、message 和 retryable。
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /api/v1/chat/internet:
+    post:
+      summary: 知识库和通用 AI 均无法可靠回答后，用户确认联网搜索并回答
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnswerRequest'
+      responses:
+        '200':
+          description: 带互联网来源的回答或明确的零结果状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerResponse'
+  /api/v1/chat/internet/stream:
+    post:
+      summary: 用户确认后流式联网搜索并回答，搜索 1 点、回答 1 点
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnswerRequest'
+      responses:
+        '200':
+          description: token、complete 和 error 组成的 SSE 事件流
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /api/v1/chat/conversations:
+    get:
+      summary: 获取当前账号最近 20 个聊天对话
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 20
+      responses:
+        '200':
+          description: 按最近更新时间倒序返回对话
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPage'
+    post:
+      summary: 新建当前账号的聊天对话
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+      responses:
+        '201':
+          description: 对话已创建
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+  /api/v1/chat/conversations/{conversationId}:
+    get:
+      summary: 恢复一个对话及其最近 200 条消息
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: 对话与消息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetail'
+        '404':
+          description: 对话不存在或不属于当前账号
+    delete:
+      summary: 永久删除当前账号的一个对话及其消息
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteConversationResponse'
+  /api/v1/chat/conversations/{conversationId}/messages:
+    post:
+      summary: 持久化一条用户或小识消息
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppendMessageRequest'
+      responses:
+        '201':
+          description: 消息已保存
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+        '404':
+          description: 对话不存在或不属于当前账号
+components:
+  parameters:
+    ConversationId:
+      in: path
+      name: conversationId
+      required: true
+      schema:
+        type: string
+        format: uuid
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: SHIHAI_SESSION
+  schemas:
+    RetrievalRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 500
+    Source:
+      type: object
+      required: [kind, title, excerpt, matchedFields]
+      properties:
+        kind:
+          type: string
+          enum: [knowledge, internet]
+        knowledgeId:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        excerpt:
+          type: string
+        url:
+          type: string
+          format: uri
+          nullable: true
+        provider:
+          type: string
+          nullable: true
+        matchedFields:
+          type: array
+          items:
+            type: string
+    Conversation:
+      type: object
+      required:
+        - id
+        - title
+        - lastMessage
+        - messageCount
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastMessage:
+          type: string
+        messageCount:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ConversationPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+    CreateConversationRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+    AppendMessageRequest:
+      type: object
+      required: [role, content, sources, needsInternet]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 8000
+        sources:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/Source'
+        needsInternet:
+          type: boolean
+        reason:
+          type: string
+          maxLength: 100
+          nullable: true
+    ChatMessage:
+      type: object
+      required: [id, role, content, sources, needsInternet, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        sources:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/Source'
+        needsInternet:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    ConversationDetail:
+      type: object
+      required: [conversation, messages]
+      properties:
+        conversation:
+          $ref: '#/components/schemas/Conversation'
+        messages:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+    DeleteConversationResponse:
+      type: object
+      required: [deleted]
+      properties:
+        deleted:
+          type: boolean
+    StreamTokenEvent:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+    StreamErrorEvent:
+      type: object
+      required: [code, message, retryable]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+    RetrievalResponse:
+      type: object
+      required: [hasContext, sources]
+      properties:
+        hasContext:
+          type: boolean
+        sources:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/Source'
+    AnswerRequest:
+      type: object
+      required: [query, externalAiConsent, billingTaskId]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 500
+        history:
+          type: array
+          maxItems: 6
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+                maxLength: 2000
+        externalAiConsent:
+          type: boolean
+        billingTaskId:
+          type: string
+          format: uuid
+          nullable: true
+    AnswerResponse:
+      type: object
+      required: [answer, needsInternet, sources]
+      description: >-
+        知识增强回答会返回实际使用的知识来源；通用 AI 回答返回空 sources；
+        needsInternet=true 时 answer 为空且不结算回答点数。
+      properties:
+        answer:
+          type: string
+          maxLength: 8000
+        needsInternet:
+          type: boolean
+        sources:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/Source'
+        reason:
+          type: string
+          nullable: true
+          enum:
+            - knowledge_insufficient
+            - internet_no_results
+            - internet_insufficient_evidence

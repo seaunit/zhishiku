@@ -39,7 +39,7 @@ public final class BillingModel {
     DOCUMENT_EXTRACT("document_extract", Unit.PER_10K_CHARS, 10, "document_text_extracted"),
     SCREENSHOT_OCR("screenshot_ocr", Unit.IMAGE, 10, "screenshot_text_extracted"),
     INTERNET_SEARCH("internet_search", Unit.QUERY, 1, "search_completed"),
-    AI_ANSWER("ai_answer", Unit.ANSWER, 2, "answer_displayed");
+    AI_ANSWER("ai_answer", Unit.ANSWER, 1, "answer_displayed");
 
     private final String wireValue;
     private final Unit unit;

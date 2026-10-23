@@ -139,6 +139,12 @@ class BillingP0PolicyTest {
         null,
         0);
     BillingService.validateRequestedOperationLines(
+        "knowledge_chat",
+        List.of(new QuoteLineRequest(Feature.AI_ANSWER.wireValue(), 1)),
+        null,
+        null,
+        0);
+    BillingService.validateRequestedOperationLines(
         "internet_import",
         List.of(
             new QuoteLineRequest(Feature.WEBPAGE_VISION.wireValue(), 1),
@@ -168,6 +174,17 @@ class BillingP0PolicyTest {
     assertThat(BillingService.operationRequirements("internet_import", null, null, 0))
         .containsEntry(Feature.WEBPAGE_VISION, 1)
         .containsEntry(Feature.CLASSIFY, 1);
+  }
+
+  @Test
+  void answerAndInternetAnswerUseOnePointPerSuccessfulStep() {
+    assertThat(Feature.AI_ANSWER.defaultPoints()).isEqualTo(1);
+    assertThat(Feature.INTERNET_SEARCH.defaultPoints()).isEqualTo(1);
+    assertThat(BillingService.operationRequirements("knowledge_chat", null, null, 0))
+        .containsExactly(Map.entry(Feature.AI_ANSWER, 1));
+    assertThat(BillingService.operationRequirements("internet_search_with_answer", null, null, 0))
+        .containsEntry(Feature.INTERNET_SEARCH, 1)
+        .containsEntry(Feature.AI_ANSWER, 1);
   }
 
   @Test

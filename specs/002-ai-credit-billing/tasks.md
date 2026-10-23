@@ -270,12 +270,12 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
 - Git commit：`95ef1d3`
 - 摘要：纯互联网搜索固定 1 点，入口单击即自动确认报价并直接搜索，取消搜索本身的二次确认。
 - 详情：002 规格、计划、研究、数据模型、OpenAPI、快速验证、需求和验收清单已统一为
-  `internet_search=1` 点；`ai_answer` 仍为 2 点，组合报价上限为 3 点。用户单击
+  `internet_search=1` 点；`ai_answer` 为 1 点，组合报价上限为 2 点。用户单击
   “互联网搜索 · 1 点”即表示本次扣费同意，客户端自动串联创建报价、确认报价和搜索；
   服务端仍保留报价、确认、预留、幂等和结算事实。生产价格调整必须新增后续迁移，不得改写
   已应用的 `V0009__billing.sql`。
 - 验证：检索 001/002 中文 SDD、OpenAPI 和原型说明中的旧 3 点、5 点组合及搜索二次确认表述；
-  检查任务编号、文档层级和跨文档 1 + 2 = 3 组合口径。未运行生产代码、数据库迁移或测试代码的
+  检查任务编号、文档层级和跨文档 1 + 1 = 2 组合口径。未运行生产代码、数据库迁移或测试代码的
   自动化验证。
 - 证据：`specs/001-ai-personal-knowledge-base/`、`specs/002-ai-credit-billing/`、
   `prototype/README.md`。
@@ -390,7 +390,7 @@ Vitest/Vue Test Utils，Node 桥接使用 Vitest/WireMock 风格夹具，E2E 使
   `billing_ai_rate`；历史报价、任务、预留、结算和账本快照保持不变。生产前端仍是旧 release，
   因而一键确认与新的账本文案仍需后续 GitHub 固定提交部署。
 - 验证：事务返回 `UPDATE 2` 并提交；复核 active 目录结果为 production `internet_search=1`、
-  test `internet_search=1`；`ai_answer` 仍为 2 点。
+  test `internet_search=1`；`ai_answer` 为 1 点。
 - 证据：`backend/kb-app/src/main/resources/db/migration/V0015__internet_search_one_point.sql`；
   生产数据库 active 目录查询。
 - 覆盖：FR-035、FR-038、FR-085、SC-026。

@@ -113,6 +113,11 @@ const consentRows: Array<{
     title: 'settings.searchTitle',
     description: 'settings.searchDescription',
   },
+  {
+    scope: 'chat',
+    title: 'settings.chatTitle',
+    description: 'settings.chatDescription',
+  },
 ]
 
 async function load() {

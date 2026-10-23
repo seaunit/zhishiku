@@ -1052,6 +1052,7 @@ components:
             - reanalyze
             - internet_search
             - internet_search_with_answer
+            - knowledge_chat
         itemId:
           type:
             - string

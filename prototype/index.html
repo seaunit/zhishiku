@@ -27,6 +27,10 @@
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
       </symbol>
+      <symbol id="icon-message" viewBox="0 0 24 24">
+        <path d="M5 6h14v10H9l-4 3z" />
+        <path d="M9 10h6M9 13h4" />
+      </symbol>
       <symbol id="icon-plus" viewBox="0 0 24 24">
         <path d="M12 5v14M5 12h14" />
       </symbol>
@@ -131,6 +135,10 @@
           <button class="rail-item" data-view="library" aria-label="知识库" data-tooltip="知识库">
             <svg><use href="#icon-library"></use></svg>
             <span>知识库</span>
+          </button>
+          <button class="rail-item" data-view="chat" aria-label="聊天" data-tooltip="聊天">
+            <svg><use href="#icon-message"></use></svg>
+            <span>聊天</span>
           </button>
           <button class="rail-item" data-view="capture" aria-label="采集" data-tooltip="采集">
             <svg><use href="#icon-plus"></use></svg>
@@ -375,6 +383,123 @@
             <section class="panel library-panel">
               <div class="knowledge-table" id="knowledgeTable"></div>
             </section>
+          </section>
+
+          <section class="view" id="view-chat" hidden>
+            <div class="title-row">
+              <div>
+                <h1 data-i18n="chatTitle">与小识聊聊</h1>
+                <p class="title-subtitle" data-i18n="chatSubtitle">
+                  先在你的知识深处寻找答案，再决定是否驶向互联网。
+                </p>
+              </div>
+              <div class="chat-heading-actions">
+                <span class="chat-ai-state"><i></i>小识在线</span>
+                <button class="outline-button chat-new-button" type="button" data-new-chat>
+                  <svg><use href="#icon-plus"></use></svg>
+                  <span data-i18n="chatNew">新对话</span>
+                </button>
+              </div>
+            </div>
+            <div class="chat-prototype-layout">
+              <aside class="panel chat-history" aria-label="历史对话">
+                <header>
+                  <div>
+                    <h2 data-i18n="chatHistoryTitle">历史对话</h2>
+                    <small data-i18n="chatHistoryCount">2 个对话</small>
+                  </div>
+                  <button class="icon-button" type="button" aria-label="新对话" data-new-chat>
+                    <svg><use href="#icon-plus"></use></svg>
+                  </button>
+                </header>
+                <div class="chat-history-list">
+                  <article class="chat-history-row is-active" data-chat-history="wishful">
+                    <button type="button">
+                      <strong>什么是许愿式编程？</strong>
+                      <small>它强调让模型持续规划、编码和自检。</small>
+                      <time>16:22</time>
+                    </button>
+                    <button class="chat-history-delete" type="button" aria-label="删除对话">
+                      <svg><use href="#icon-trash"></use></svg>
+                    </button>
+                  </article>
+                  <article class="chat-history-row" data-chat-history="capture">
+                    <button type="button">
+                      <strong>知识采集流程</strong>
+                      <small>网页、文档和截图都会先由 AI 整理。</small>
+                      <time>昨天</time>
+                    </button>
+                    <button class="chat-history-delete" type="button" aria-label="删除对话">
+                      <svg><use href="#icon-trash"></use></svg>
+                    </button>
+                  </article>
+                </div>
+              </aside>
+
+              <div class="chat-prototype-main">
+                <div class="chat-mobile-history">
+                  <label>
+                    <span data-i18n="chatHistoryTitle">历史对话</span>
+                    <select aria-label="选择历史对话" data-i18n-aria-label="chatHistorySelect">
+                      <option>什么是许愿式编程？</option>
+                      <option>知识采集流程</option>
+                    </select>
+                  </label>
+                  <button class="icon-button" type="button" aria-label="新对话" data-new-chat>
+                    <svg><use href="#icon-plus"></use></svg>
+                  </button>
+                </div>
+
+                <section class="panel chat-prototype" aria-label="知识库聊天">
+              <header class="chat-prototype-head">
+                <span class="chat-mark" aria-hidden="true">
+                  <svg><use href="#icon-message"></use></svg>
+                </span>
+                <span>
+                  <strong>小识</strong>
+                  <small>优先依据当前账号的知识库回答</small>
+                </span>
+              </header>
+              <div class="chat-prototype-stream" id="prototypeChatStream" aria-live="polite">
+                <section class="chat-prototype-empty">
+                  <span class="chat-mark" aria-hidden="true">
+                    <svg><use href="#icon-message"></use></svg>
+                  </span>
+                  <h2>从一个问题开始</h2>
+                  <p data-i18n="chatWelcome">
+                    小识会先检索当前账号的知识，再给出带引用的回答。
+                  </p>
+                  <div class="chat-prototype-prompts">
+                    <button type="button" data-chat-prompt="总结我最近收藏的知识">
+                      总结我最近收藏的知识
+                    </button>
+                    <button type="button" data-chat-prompt="帮我找出关于产品设计的核心观点">
+                      帮我找出关于产品设计的核心观点
+                    </button>
+                    <button type="button" data-chat-prompt="我记录过哪些可执行的方法？">
+                      我记录过哪些可执行的方法？
+                    </button>
+                  </div>
+                </section>
+              </div>
+              <form class="chat-prototype-composer" id="prototypeChatForm">
+                <label class="visually-hidden" for="prototypeChatInput">向小识提问</label>
+                <textarea
+                  id="prototypeChatInput"
+                  rows="2"
+                  placeholder="问问你的知识库……"
+                  data-i18n-placeholder="chatPlaceholder"
+                ></textarea>
+                <div>
+                  <small>先检索知识库，回答成功 1 点</small>
+                  <button class="primary-button" type="submit" data-i18n="chatSend">
+                    发送 · 1 点
+                  </button>
+                </div>
+              </form>
+                </section>
+              </div>
+            </div>
           </section>
 
           <section class="view" id="view-detail" hidden>

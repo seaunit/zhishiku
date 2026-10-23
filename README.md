@@ -24,6 +24,17 @@ AI 整理成功后才入库，不会直接保存搜索摘要、整页截图或�
 `SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI=false`，在 002 点数门禁完成前会返回 `AI_BILLING_REQUIRED`，
 不会执行未计费的外部 AI 调用。扫描版 PDF 自动 OCR 和超长文档分块属于 P2。
 
+“聊天”页面提供名为“小识”的 AI 助手：先检索当前账号的知识并优先返回带引用的回答，本地
+检索免费，成功回答扣 1 点；知识库未命中或依据不足时仍会进行通用 AI 自然对话，而不是直接
+变成检索提示。只有知识库和通用 AI 都无法可靠回答时才由用户主动选择联网，搜索 1 点、
+联网回答 1 点，共 2 点。
+快速字符串召回未命中时，小识会先生成实体和同义词检索计划，再阅读候选知识正文，不把逐字匹配
+当作知识是否存在的前提。
+小识回答通过 SSE 流式显示，完成后才结算并写入历史；用户和助手共用无气泡正文排版，用户
+头像与名称位于消息右侧。
+聊天历史按账号持久化，刷新或重新登录后可以恢复；用户可以新建、切换和删除历史对话。
+用户与小识消息分别显示账号首字头像和固定品牌头像。
+
 已批准的实现技术栈为 Vue 3 + TypeScript、Java 17 + Spring Boot 3.x、PostgreSQL 18
 和 S3 兼容对象存储。当前 MVP 的图片保存在服务器的本地持久目录；Playwright Java 单页
 截图 worker 已实现。Waffo 桥接已按 `@waffo/pancake-ts@0.26.0` 收口；S3 适配器仍待完成。
@@ -72,6 +83,9 @@ AI 整理成功后才入库，不会直接保存搜索摘要、整页截图或�
 - [截图 OCR AI 拆分任务表](specs/008-screenshot-ai-import/tasks.md)
 - [截图 OCR AI 拆分验证指南](specs/008-screenshot-ai-import/quickstart.md)
 - [AI 辅助采集统一规则](specs/009-ai-assisted-capture/spec.md)
+- [知识库聊天规格](specs/010-knowledge-chat/spec.md)
+- [知识库聊天计划](specs/010-knowledge-chat/plan.md)
+- [知识库聊天任务表](specs/010-knowledge-chat/tasks.md)
 
 ## 交互原型
 
@@ -158,6 +172,8 @@ powershell -ExecutionPolicy Bypass -File .\deploy\local-test\stop.ps1
   环境字段隔离。
 - AI 付费采用一次性点数制。所有付费 AI 必须经过服务端报价、确认、预留和成功步骤结算；
   自动整理扣点默认关闭，余额不足不得阻止内容保存和本地检索。
+- 小识知识增强回答和通用 AI 回答各 1 点；联网搜索和联网回答各 1 点。用户在点击联网入口前
+  不得发起搜索，也不得因通用 AI 和知识库均无法回答或零结果回答扣费。
 
 ## GitHub 部署
 

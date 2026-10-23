@@ -14,6 +14,7 @@ import {
   resetCsrfToken,
   searchKnowledge,
   sendRegistrationEmailCode,
+  streamKnowledgeChat,
   uploadRichImage,
 } from './client'
 
@@ -88,6 +89,56 @@ describe('API client errors', () => {
       code: 'HTTP_503',
       message: 'gateway unavailable',
     })
+  })
+})
+
+describe('knowledge chat streaming', () => {
+  it('parses token and completion events from the SSE response', async () => {
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            'event: token\ndata: {"text":"根据知识"}\n\n' +
+              'event: token\ndata: {"text":"库回答[1]。"}\n\n' +
+              'event: complete\ndata: {"answer":"根据知识库回答[1]。","needsInternet":false,"sources":[],"reason":null}\n\n',
+          ),
+        )
+        controller.close()
+      },
+    })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-stream', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(
+        new Response(stream, {
+          status: 200,
+          headers: { 'Content-Type': 'text/event-stream' },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const tokens: string[] = []
+
+    const answer = await streamKnowledgeChat(
+      {
+        query: '问题',
+        history: [],
+        externalAiConsent: true,
+        billingTaskId: '123e4567-e89b-42d3-a456-426614174999',
+      },
+      {
+        idempotencyKey: 'chat-stream-key-0001',
+        onToken: (text) => {
+          tokens.push(text)
+        },
+      },
+    )
+
+    expect(tokens).toEqual(['根据知识', '库回答[1]。'])
+    expect(answer.answer).toBe('根据知识库回答[1]。')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -10,6 +10,7 @@ const BUSINESS_OPERATION_LABELS: Record<string, readonly [string, string]> = {
   screenshot_import: ['截图采集花费', 'Screenshot capture'],
   internet_search: ['搜索花费', 'Internet search'],
   internet_search_with_answer: ['搜索与回答花费', 'Search and answer'],
+  knowledge_chat: ['知识库回答花费', 'Knowledge chat answer'],
 }
 
 function signed(value: number) {

@@ -40,6 +40,12 @@ export const router = createRouter({
           meta: { titleKey: 'route.library' },
         },
         {
+          path: 'chat',
+          name: 'chat',
+          component: () => import('@/views/ChatView.vue'),
+          meta: { titleKey: 'route.chat' },
+        },
+        {
           path: 'processing',
           name: 'processing',
           component: () => import('@/views/ProcessingView.vue'),

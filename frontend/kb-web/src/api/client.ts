@@ -14,6 +14,10 @@ import type {
   BillingTask,
   BulkRecycleResponse,
   CaptchaResponse,
+  ChatConversation,
+  ChatConversationDetail,
+  ChatConversationPage,
+  ChatMessage,
   CreateKnowledgeItemRequest,
   CsrfResponse,
   DocumentImportResponse,
@@ -21,6 +25,9 @@ import type {
   ExternalSearchSaveResponse,
   KnowledgeItem,
   KnowledgeItemPage,
+  KnowledgeChatAnswer,
+  KnowledgeChatRequest,
+  KnowledgeChatRetrieval,
   ProfileResponse,
   RegistrationEmailCodeResponse,
   RegistrationRequest,
@@ -34,6 +41,7 @@ import type {
   UpdateKnowledgeItemRequest,
   UpdateProfileRequest,
   WebPageImportResponse,
+  AppendChatMessageRequest,
 } from '@/types/api'
 
 export const API_BASE = '/kb/api/v1'
@@ -455,6 +463,199 @@ export function searchInternet(
       billingTaskId,
     }),
   })
+}
+
+export function retrieveKnowledgeChat(query: string): Promise<KnowledgeChatRetrieval> {
+  return request<KnowledgeChatRetrieval>('/chat/retrieval', {
+    method: 'POST',
+    body: JSON.stringify({ query }),
+  })
+}
+
+export function answerKnowledgeChat(
+  payload: KnowledgeChatRequest,
+  idempotencyKey = createIdempotencyKey('knowledge-chat'),
+): Promise<KnowledgeChatAnswer> {
+  return request<KnowledgeChatAnswer>('/chat/answers', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(payload),
+  })
+}
+
+export function answerKnowledgeChatWithInternet(
+  payload: KnowledgeChatRequest,
+  idempotencyKey = createIdempotencyKey('knowledge-chat-internet'),
+): Promise<KnowledgeChatAnswer> {
+  return request<KnowledgeChatAnswer>('/chat/internet', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function streamKnowledgeChat(
+  payload: KnowledgeChatRequest,
+  options: {
+    internet?: boolean
+    idempotencyKey?: string
+    onToken: (text: string) => void | Promise<void>
+    signal?: AbortSignal
+  },
+): Promise<KnowledgeChatAnswer> {
+  const token = await getCsrfToken()
+  const path = options.internet ? '/chat/internet/stream' : '/chat/answers/stream'
+  const csrfHeaders: Record<string, string> = { [csrfHeader]: token }
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    signal: options.signal,
+    headers: {
+      Accept: 'text/event-stream',
+      'Content-Type': 'application/json',
+      'Idempotency-Key':
+        options.idempotencyKey ||
+        createIdempotencyKey(options.internet ? 'knowledge-chat-internet-stream' : 'knowledge-chat-stream'),
+      ...csrfHeaders,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (response.status === 401) {
+    notifyUnauthorized(path)
+  }
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorPayload(response))
+  }
+  if (!response.body) {
+    throw new ApiError(502, {
+      code: 'CHAT_STREAM_UNAVAILABLE',
+      message: 'The server did not return a chat stream.',
+      retryable: true,
+    })
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let completed: KnowledgeChatAnswer | null = null
+
+  const processFrame = async (frame: string) => {
+    let event = 'message'
+    const data: string[] = []
+    for (const line of frame.replaceAll('\r', '').split('\n')) {
+      if (line.startsWith('event:')) {
+        event = line.slice(6).trim()
+      } else if (line.startsWith('data:')) {
+        data.push(line.slice(5).trimStart())
+      }
+    }
+    if (!data.length) {
+      return
+    }
+    const parsed = JSON.parse(data.join('\n')) as Record<string, unknown>
+    if (event === 'token') {
+      const text = typeof parsed.text === 'string' ? parsed.text : ''
+      if (text) {
+        await options.onToken(text)
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      }
+      return
+    }
+    if (event === 'complete') {
+      completed = parsed as unknown as KnowledgeChatAnswer
+      return
+    }
+    if (event === 'error') {
+      throw new ApiError(502, {
+        code: typeof parsed.code === 'string' ? parsed.code : 'CHAT_STREAM_FAILED',
+        message:
+          typeof parsed.message === 'string'
+            ? parsed.message
+            : 'The chat stream could not be completed.',
+        retryable: parsed.retryable !== false,
+      })
+    }
+  }
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read()
+      buffer += decoder.decode(value, { stream: !done })
+      let separator = buffer.search(/\r?\n\r?\n/)
+      while (separator >= 0) {
+        const frame = buffer.slice(0, separator)
+        const matched = buffer.slice(separator).match(/^\r?\n\r?\n/)
+        buffer = buffer.slice(separator + (matched?.[0].length || 2))
+        await processFrame(frame)
+        separator = buffer.search(/\r?\n\r?\n/)
+      }
+      if (done) {
+        break
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+
+  if (buffer.trim()) {
+    await processFrame(buffer)
+  }
+  if (!completed) {
+    throw new ApiError(502, {
+      code: 'CHAT_STREAM_INCOMPLETE',
+      message: 'The chat stream ended before the answer was complete.',
+      retryable: true,
+    })
+  }
+  return completed
+}
+
+export function listChatConversations(limit = 20): Promise<ChatConversationPage> {
+  return request<ChatConversationPage>(`/chat/conversations?limit=${limit}`)
+}
+
+export function createChatConversation(
+  title: string,
+  idempotencyKey = createIdempotencyKey('chat-conversation'),
+): Promise<ChatConversation> {
+  return request<ChatConversation>('/chat/conversations', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({ title }),
+  })
+}
+
+export function getChatConversation(id: string): Promise<ChatConversationDetail> {
+  return request<ChatConversationDetail>(`/chat/conversations/${encodeURIComponent(id)}`)
+}
+
+export function appendChatConversationMessage(
+  conversationId: string,
+  payload: AppendChatMessageRequest,
+  idempotencyKey = createIdempotencyKey('chat-message'),
+): Promise<ChatMessage> {
+  return request<ChatMessage>(
+    `/chat/conversations/${encodeURIComponent(conversationId)}/messages`,
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export function deleteChatConversation(
+  id: string,
+  idempotencyKey = createIdempotencyKey('chat-delete'),
+): Promise<{ deleted: boolean }> {
+  return request<{ deleted: boolean }>(
+    `/chat/conversations/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    },
+  )
 }
 
 export function saveInternetCandidate(

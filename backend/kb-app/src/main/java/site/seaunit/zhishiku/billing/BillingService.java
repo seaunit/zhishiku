@@ -2601,6 +2601,7 @@ public class BillingService {
         requirements.put(Feature.INTERNET_SEARCH, 1);
         requirements.put(Feature.AI_ANSWER, 1);
       }
+      case "knowledge_chat" -> requirements.put(Feature.AI_ANSWER, 1);
       default ->
           throw new BillingException(
               HttpStatus.UNPROCESSABLE_ENTITY,

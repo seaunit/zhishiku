@@ -69,6 +69,15 @@ const billingCatalog = {
   },
 }
 
+function sseBody(events: Array<{ event: string; data: unknown }>) {
+  return events
+    .map(
+      ({ event, data }) =>
+        `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+    )
+    .join('')
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route('**/kb/api/v1/auth/csrf', async (route) => {
     await route.fulfill({
@@ -167,6 +176,14 @@ test.beforeEach(async ({ page }) => {
           consentVersion: 'ai-consent-v1',
           updatedAt: null,
         },
+        {
+          scope: 'chat',
+          service: 'deepseek:chat',
+          contentType: 'knowledge_chat',
+          granted: false,
+          consentVersion: 'ai-consent-v1',
+          updatedAt: null,
+        },
       ]),
     })
   })
@@ -183,6 +200,82 @@ test.beforeEach(async ({ page }) => {
         granted: body.granted,
         consentVersion: 'ai-consent-v1',
         updatedAt: new Date().toISOString(),
+      }),
+    })
+  })
+
+  await page.route('**/kb/api/v1/chat/conversations**', async (route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+    const conversationId = '123e4567-e89b-42d3-a456-426614174510'
+    if (url.pathname.endsWith('/messages') && request.method() === 'POST') {
+      const payload = request.postDataJSON() as {
+        role: 'user' | 'assistant'
+        content: string
+        sources?: unknown[]
+        needsInternet?: boolean
+        reason?: string | null
+      }
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: `123e4567-e89b-42d3-a456-${String(Date.now()).slice(-12)}`,
+          role: payload.role,
+          content: payload.content,
+          sources: payload.sources || [],
+          needsInternet: payload.needsInternet || false,
+          reason: payload.reason || null,
+          createdAt: new Date().toISOString(),
+        }),
+      })
+      return
+    }
+    if (url.pathname.endsWith('/conversations') && request.method() === 'POST') {
+      const payload = request.postDataJSON() as { title: string }
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: conversationId,
+          title: payload.title,
+          lastMessage: '',
+          messageCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
+      })
+      return
+    }
+    if (url.pathname.endsWith('/conversations') && request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [] }),
+      })
+      return
+    }
+    if (request.method() === 'DELETE') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ deleted: true }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        conversation: {
+          id: conversationId,
+          title: '历史对话',
+          lastMessage: '',
+          messageCount: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        messages: [],
       }),
     })
   })
@@ -574,6 +667,404 @@ test('searches from the prototype-aligned home screen', async ({ page }) => {
   await page.screenshot({ path: 'test-results/home-desktop.png', fullPage: true })
 })
 
+test('answers from local knowledge with one cited item and one point', async ({ page }) => {
+  let quotePayload: Record<string, unknown> | undefined
+  let answerPayload: Record<string, unknown> | undefined
+  const knowledgeId = '123e4567-e89b-42d3-a456-426614174501'
+
+  await page.route('**/kb/api/v1/chat/retrieval', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        hasContext: true,
+        sources: [
+          {
+            kind: 'knowledge',
+            knowledgeId,
+            title: '深度检索原则',
+            excerpt: '先查自己的知识，再决定是否联网。',
+            matchedFields: ['body'],
+          },
+        ],
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/quotes', async (route) => {
+    quotePayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        quoteId: '123e4567-e89b-42d3-a456-426614174502',
+        status: 'QUOTED',
+        lines: [
+          {
+            feature: 'ai_answer',
+            unit: 'answer',
+            quantity: 1,
+            pointsPerUnit: 1,
+            maxPoints: 1,
+            successRule: 'answer_displayed',
+          },
+        ],
+        imageResources: [],
+        maxPoints: 1,
+        availablePoints: 100,
+        projectedRemainingPoints: 99,
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+        autoChargeEligible: false,
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/chat/answers/stream', async (route) => {
+    const answerText = '先检索自己的知识，可以避免重复查找，也更容易保留上下文。'
+    answerPayload = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sseBody([
+        { event: 'token', data: { text: '先检索自己的知识，' } },
+        { event: 'token', data: { text: '可以避免重复查找，也更容易保留上下文。' } },
+        {
+          event: 'complete',
+          data: {
+            answer: answerText,
+            needsInternet: false,
+            sources: [
+              {
+                kind: 'knowledge',
+                knowledgeId,
+                title: '深度检索原则',
+                excerpt: '先查自己的知识，再决定是否联网。',
+                matchedFields: ['body'],
+              },
+            ],
+            reason: null,
+          },
+        },
+      ]),
+    })
+  })
+
+  await page.goto('/kb/chat')
+  await expect(page.getByRole('heading', { level: 1, name: '与小识聊聊' })).toBeVisible()
+  await expect(
+    page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '聊天' }),
+  ).toBeVisible()
+  await page.getByLabel('向小识提问').fill('为什么要优先检索自己的知识？')
+  await page.getByRole('button', { name: '发送 · 1 点' }).click()
+
+  await expect(
+    page.locator('.chat-message-body').filter({ hasText: '先检索自己的知识，可以避免重复查找' }),
+  ).toBeVisible()
+  await expect(page.getByRole('link', { name: /深度检索原则/ })).toBeVisible()
+  const userMessage = page.locator('.chat-message.is-user').first()
+  await expect(userMessage).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(userMessage).toHaveCSS('border-radius', '0px')
+  await expect(userMessage.locator('.chat-message-meta strong')).toHaveText('你')
+  await expect(userMessage.locator('.chat-message-body')).toHaveCSS('text-align', 'right')
+  const userTime = await userMessage.locator('time').boundingBox()
+  const userLabel = await userMessage.locator('.chat-message-meta strong').boundingBox()
+  const userAvatar = await page.locator('.chat-message.is-user .chat-avatar').first().boundingBox()
+  const assistantAvatar = await page
+    .locator('.chat-message.is-assistant .chat-avatar')
+    .first()
+    .boundingBox()
+  expect(userTime).not.toBeNull()
+  expect(userLabel).not.toBeNull()
+  expect(userAvatar).not.toBeNull()
+  expect(assistantAvatar).not.toBeNull()
+  expect(userTime!.x + userTime!.width).toBeLessThan(userLabel!.x)
+  expect(Math.abs(userTime!.y + userTime!.height / 2 - (userLabel!.y + userLabel!.height / 2))).toBeLessThan(2)
+  expect(userAvatar!.x).toBeGreaterThan(assistantAvatar!.x)
+  expect(quotePayload).toMatchObject({
+    operation: 'knowledge_chat',
+    lines: [{ feature: 'ai_answer', quantity: 1 }],
+  })
+  expect(answerPayload).toMatchObject({
+    query: '为什么要优先检索自己的知识？',
+    externalAiConsent: true,
+  })
+})
+
+test('answers a natural conversation without knowledge evidence and stays offline', async ({
+  page,
+}) => {
+  let quoteOperation: string | undefined
+  await page.route('**/kb/api/v1/billing/quotes', async (route) => {
+    quoteOperation = (route.request().postDataJSON() as { operation: string }).operation
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        quoteId: '123e4567-e89b-42d3-a456-426614174511',
+        status: 'QUOTED',
+        lines: [],
+        imageResources: [],
+        maxPoints: 1,
+        availablePoints: 100,
+        projectedRemainingPoints: 99,
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+        autoChargeEligible: false,
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/chat/answers/stream', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sseBody([
+        { event: 'token', data: { text: '你好，' } },
+        { event: 'token', data: { text: '我是小识。' } },
+        {
+          event: 'complete',
+          data: {
+            answer: '你好，我是小识。',
+            needsInternet: false,
+            sources: [],
+            reason: null,
+          },
+        },
+      ]),
+    })
+  })
+
+  await page.goto('/kb/chat')
+  await page.getByLabel('向小识提问').fill('你好')
+  await page.getByRole('button', { name: '发送 · 1 点' }).click()
+
+  await expect(
+    page.locator('.chat-message-body').filter({ hasText: '你好，我是小识。' }),
+  ).toBeVisible()
+  await expect(page.getByRole('button', { name: /联网搜索并回答/ })).toHaveCount(0)
+  expect(quoteOperation).toBe('knowledge_chat')
+})
+
+test('waits for internet confirmation and charges two points only after the click', async ({
+  page,
+}) => {
+  const quoteOperations: string[] = []
+  let internetRequests = 0
+  let internetPayload:
+    | { history?: Array<{ role: string; content: string }> }
+    | undefined
+
+  await page.route('**/kb/api/v1/chat/retrieval', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ hasContext: false, sources: [] }),
+    })
+  })
+  await page.route('**/kb/api/v1/billing/quotes', async (route) => {
+    const payload = route.request().postDataJSON() as { operation: string }
+    quoteOperations.push(payload.operation)
+    const maxPoints = payload.operation === 'knowledge_chat' ? 1 : 2
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        quoteId: '123e4567-e89b-42d3-a456-426614174503',
+        status: 'QUOTED',
+        lines: [],
+        imageResources: [],
+        maxPoints,
+        availablePoints: 100,
+        projectedRemainingPoints: 100 - maxPoints,
+        expiresAt: new Date(Date.now() + 600000).toISOString(),
+        autoChargeEligible: false,
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/chat/answers/stream', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sseBody([
+        {
+          event: 'complete',
+          data: {
+            answer: '',
+            needsInternet: true,
+            sources: [],
+            reason: 'knowledge_insufficient',
+          },
+        },
+      ]),
+    })
+  })
+  await page.route('**/kb/api/v1/chat/internet/stream', async (route) => {
+    internetRequests += 1
+    internetPayload = route.request().postDataJSON() as typeof internetPayload
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sseBody([
+        { event: 'token', data: { text: '这是基于公开互联网' } },
+        { event: 'token', data: { text: '来源整理的回答。' } },
+        {
+          event: 'complete',
+          data: {
+            answer: '这是基于公开互联网来源整理的回答。',
+            needsInternet: false,
+            sources: [
+              {
+                kind: 'internet',
+                title: '公开参考资料',
+                excerpt: '来源摘要',
+                url: 'https://example.com/reference',
+                provider: 'Example',
+                matchedFields: [],
+              },
+            ],
+            reason: null,
+          },
+        },
+      ]),
+    })
+  })
+
+  await page.goto('/kb/chat')
+  await page.getByLabel('向小识提问').fill('知识库里没有的新问题')
+  await page.getByRole('button', { name: '发送 · 1 点' }).click()
+
+  await expect(
+    page
+      .locator('.chat-message-body')
+      .filter({ hasText: '这个问题需要更多或更及时的信息' }),
+  ).toBeVisible()
+  expect(quoteOperations).toEqual(['knowledge_chat'])
+  expect(internetRequests).toBe(0)
+
+  await page.getByRole('button', { name: /联网搜索并回答 · 2 点/ }).click()
+  await expect(
+    page.locator('.chat-message-body').filter({ hasText: '这是基于公开互联网来源整理的回答。' }),
+  ).toBeVisible()
+  await expect(page.getByRole('link', { name: /公开参考资料/ })).toHaveAttribute(
+    'href',
+    'https://example.com/reference',
+  )
+  expect(quoteOperations).toEqual(['knowledge_chat', 'internet_search_with_answer'])
+  expect(internetRequests).toBe(1)
+  expect(internetPayload?.history).not.toContainEqual({
+    role: 'user',
+    content: '知识库里没有的新问题',
+  })
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
+  await page.screenshot({ path: 'test-results/chat-internet-390.png', fullPage: true })
+})
+
+test('keeps the chat workspace bilingual and usable at 320 pixels', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 })
+  await page.goto('/kb/chat')
+  await page.getByRole('button', { name: '切换到英文' }).click()
+
+  await expect(page.getByRole('heading', { level: 1, name: 'Chat with Xiaoshi' })).toBeVisible()
+  await expect(
+    page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', {
+      name: 'Chat',
+      exact: true,
+    }),
+  ).toBeVisible()
+  await expect(page.getByLabel('Ask Xiaoshi')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Send · 1 point' })).toBeVisible()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
+})
+
+test('restores saved conversations and shows distinct user and assistant avatars', async ({
+  page,
+}) => {
+  const conversationId = '123e4567-e89b-42d3-a456-426614174520'
+  const conversation = {
+    id: conversationId,
+    title: '许愿式编程',
+    lastMessage: '它强调让模型持续规划、编码和自检。',
+    messageCount: 2,
+    createdAt: '2026-10-23T08:20:00Z',
+    updatedAt: '2026-10-23T08:22:00Z',
+  }
+  await page.route('**/kb/api/v1/chat/conversations?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [conversation] }),
+    })
+  })
+  await page.route(`**/kb/api/v1/chat/conversations/${conversationId}`, async (route) => {
+    if (route.request().method() === 'DELETE') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ deleted: true }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        conversation,
+        messages: [
+          {
+            id: '123e4567-e89b-42d3-a456-426614174521',
+            role: 'user',
+            content: '什么是许愿式编程？',
+            sources: [],
+            needsInternet: false,
+            reason: null,
+            createdAt: '2026-10-23T08:20:00Z',
+          },
+          {
+            id: '123e4567-e89b-42d3-a456-426614174522',
+            role: 'assistant',
+            content: '它强调让模型持续规划、编码和自检。',
+            sources: [],
+            needsInternet: false,
+            reason: null,
+            createdAt: '2026-10-23T08:22:00Z',
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/kb/chat')
+  await expect(page.getByRole('button', { name: /许愿式编程/ }).first()).toBeVisible()
+  await expect(
+    page.locator('.chat-message-body').filter({ hasText: '什么是许愿式编程？' }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.chat-message-body').filter({ hasText: '它强调让模型持续规划、编码和自检。' }),
+  ).toBeVisible()
+  await expect(page.locator('.chat-avatar.is-user')).toHaveText('林')
+  await expect(page.locator('.chat-avatar.is-assistant svg')).toHaveCount(1)
+
+  await page.reload()
+  await expect(
+    page.locator('.chat-message-body').filter({ hasText: '什么是许愿式编程？' }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.chat-message-body').filter({ hasText: '它强调让模型持续规划、编码和自检。' }),
+  ).toBeVisible()
+
+  await page.getByRole('button', { name: '删除对话“许愿式编程”' }).click()
+  const dialog = page.getByRole('alertdialog', { name: '删除这个对话？' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: '删除对话' }).click()
+  await expect(page.getByText('还没有历史对话。发出第一个问题后会自动保存。')).toBeVisible()
+})
+
 test('corrects locked classification and restores an item from the trash', async ({ page }) => {
   const itemId = '123e4567-e89b-42d3-a456-426614174901'
   let current: KnowledgeItem = {
@@ -674,7 +1165,7 @@ test('uses the prototype bottom navigation on a phone', async ({ page }) => {
   await expect(page.getByRole('button', { name: '打开菜单' })).toHaveCount(0)
   const navigation = page.getByRole('navigation', { name: '主导航' })
   await expect(navigation).toBeVisible()
-  await expect(navigation.getByRole('link')).toHaveCount(7)
+  await expect(navigation.getByRole('link')).toHaveCount(8)
   await expect(navigation.getByRole('link', { name: '设置', exact: true })).toBeVisible()
   const targets = await navigation.getByRole('link').evaluateAll((links) =>
     links.map((link) => {
@@ -693,6 +1184,10 @@ test('opens every prototype navigation destination', async ({ page }) => {
   await navigation.getByRole('link', { name: '知识库', exact: true }).click()
   await expect(page).toHaveURL(/\/kb\/library$/)
   await expect(page.getByRole('heading', { level: 1, name: '知识库' })).toBeVisible()
+
+  await navigation.getByRole('link', { name: '聊天', exact: true }).click()
+  await expect(page).toHaveURL(/\/kb\/chat$/)
+  await expect(page.getByRole('heading', { level: 1, name: '与小识聊聊' })).toBeVisible()
 
   await navigation.getByRole('link', { name: '待处理', exact: true }).click()
   await expect(page).toHaveURL(/\/kb\/processing$/)

@@ -38,7 +38,7 @@ Open `http://127.0.0.1:8088/`.
 - 互联网搜索入口显示“互联网搜索 · 1 点”（英文为“Internet search · 1 point”）。
 - 点击该入口一次即构成明确的扣费同意：客户端自动创建并确认 1 点报价后立即搜索，不再显示
   搜索本身的二次确认。
-- 如果同时选择 AI 回答，单击前必须显示“搜索 1 点 + 回答 2 点，共 3 点”的分项与总价。
+- 如果同时选择 AI 回答，单击前必须显示“搜索 1 点 + 回答 1 点，共 2 点”的分项与总价。
 - 查询完成后即使零结果也扣 1 点；超时、服务不可用或协议失败不扣点。
 - Save an internet candidate only through an AI-organized Fetch result flow.
 - Open a knowledge item, edit its rich text, or trigger re-analysis.

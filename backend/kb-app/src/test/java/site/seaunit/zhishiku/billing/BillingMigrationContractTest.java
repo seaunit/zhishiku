@@ -26,4 +26,17 @@ class BillingMigrationContractTest {
         .contains("UNIQUE (environment, source_event_key)")
         .contains("UNIQUE (owner_id, idempotency_key)");
   }
+
+  @Test
+  void onePointAnswerMigrationOnlyUpdatesTheActiveCatalog() throws Exception {
+    String sql =
+        new ClassPathResource("db/migration/V0016__ai_answer_one_point.sql")
+            .getContentAsString(StandardCharsets.UTF_8);
+
+    assertThat(sql)
+        .contains("UPDATE billing_ai_rate")
+        .contains("SET points_per_unit = 1")
+        .contains("catalog.status = 'active'")
+        .contains("rate.feature = 'ai_answer'");
+  }
 }

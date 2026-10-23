@@ -68,6 +68,10 @@ describe('billing ledger presentation', () => {
     expect(ledgerBusinessLabel(settle, 'zh')).toBe('搜索花费')
     expect(ledgerStageLabel(settle, 'zh')).toBe('扣点')
     expect(ledgerBusinessLabel(settle, 'en')).toBe('Internet search')
+
+    const chat = entry({ businessOperation: 'knowledge_chat' })
+    expect(ledgerBusinessLabel(chat, 'zh-CN')).toBe('知识库回答花费')
+    expect(ledgerBusinessLabel(chat, 'en')).toBe('Knowledge chat answer')
   })
 
   it('uses the point pack name for purchases', () => {

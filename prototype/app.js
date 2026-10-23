@@ -361,6 +361,21 @@ const translations = {
     trashKicker: "可恢复区",
     trashTitle: "回收站",
     trashSubtitle: "删除后立即退出检索，30 天后永久清理。",
+    navChat: "聊天",
+    chatTitle: "与小识聊聊",
+    chatSubtitle: "先检索你的知识，也可以像普通 AI 一样自然对话，需要时再驶向互联网。",
+    chatWelcome: "从一个问题开始。小识会优先检索当前账号的知识；没有命中时，也能继续自然对话。",
+    chatHistoryTitle: "历史对话",
+    chatHistoryCount: "2 个对话",
+    chatNew: "新对话",
+    chatHistorySelect: "选择历史对话",
+    chatPlaceholder: "问问小识，或聊聊你的知识……",
+    chatSend: "发送 · 1 点",
+    chatNoContext: "这个问题需要更多或更及时的信息，本次未扣点。可以继续联网搜索，结果会单独标注来源。",
+    chatInternetAction: "联网搜索并回答 · 2 点",
+    chatAnswer: "先检索自己的知识，可以避免重复查找，也更容易保留上下文。",
+    chatGeneralAnswer: "你好，我是小识。我可以陪你自然对话，也可以优先结合你的知识库回答问题。",
+    chatInternetAnswer: "这是基于公开互联网来源整理的回答。",
     navBilling: "点数",
     billingTitle: "点数与支付",
     billingSubtitle: "一次性点数包，按实际成功的 AI 步骤结算。",
@@ -593,6 +608,25 @@ const translations = {
     trashKicker: "Recoverable",
     trashTitle: "Trash",
     trashSubtitle: "Deleted items leave search immediately and purge after 30 days.",
+    navChat: "Chat",
+    chatTitle: "Chat with Xiaoshi",
+    chatSubtitle:
+      "Search your knowledge first, chat naturally like a general AI assistant, and go online only when needed.",
+    chatWelcome:
+      "Start with a question. Xiaoshi searches this account’s knowledge first and keeps chatting when the library has no match.",
+    chatHistoryTitle: "Chat history",
+    chatHistoryCount: "2 conversations",
+    chatNew: "New chat",
+    chatHistorySelect: "Choose a conversation",
+    chatPlaceholder: "Ask Xiaoshi or talk about your knowledge…",
+    chatSend: "Send · 1 point",
+    chatNoContext:
+      "This question needs more or more current information, so no points were charged. Continue with an internet search and sources will be shown separately.",
+    chatInternetAction: "Search the internet and answer · 2 points",
+    chatAnswer: "Searching your own knowledge first avoids duplicate work and keeps more context.",
+    chatGeneralAnswer:
+      "Hello, I’m Xiaoshi. I can chat naturally and also answer with your knowledge library first.",
+    chatInternetAnswer: "This answer was organized from public internet sources.",
     navBilling: "Points",
     billingTitle: "Points and billing",
     billingSubtitle: "One-time point packs settled by successful AI steps.",
@@ -2113,9 +2147,16 @@ function setLanguage(lang) {
   $$("[data-i18n]").forEach((node) => {
     node.textContent = t(node.dataset.i18n);
   });
+  $$("[data-i18n-placeholder]").forEach((node) => {
+    node.placeholder = t(node.dataset.i18nPlaceholder);
+  });
+  $$("[data-i18n-aria-label]").forEach((node) => {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
+  });
   const navLabels = {
     home: lang === "en" ? "Home" : "首页",
     library: lang === "en" ? "Library" : "知识库",
+    chat: lang === "en" ? "Chat" : "聊天",
     capture: lang === "en" ? "Capture" : "采集",
     processing: lang === "en" ? "In progress" : "待处理",
     billing: lang === "en" ? "Points" : "点数",
@@ -2616,7 +2657,138 @@ function syncProfileButtons() {
   if (dirty) $("#profileSaveStatus").textContent = "";
 }
 
+function renderPrototypeChatHead(className) {
+  const user = className === "is-user";
+  const time = state.lang === "en" ? "Now" : "现在";
+  return `
+    <header class="chat-prototype-message-head">
+      ${user ? `<time class="chat-prototype-message-time">${time}</time>` : ""}
+      <span class="chat-prototype-avatar ${user ? "is-user" : "is-assistant"}" aria-hidden="true">
+        ${user ? accountInitial(state.accountName) : '<svg><use href="#icon-message"></use></svg>'}
+      </span>
+      <span class="chat-prototype-message-meta">
+        <strong>${user ? (state.lang === "en" ? "You" : "你") : "小识"}</strong>
+        ${user ? "" : `<time>${time}</time>`}
+      </span>
+    </header>
+  `;
+}
+
+function appendPrototypeChatMessage(content, className, extra = "") {
+  const stream = $("#prototypeChatStream");
+  const article = document.createElement("article");
+  article.className = `chat-prototype-message ${className}`;
+  article.innerHTML = `
+    ${renderPrototypeChatHead(className)}
+    <p>${content}</p>
+    ${extra}
+  `;
+  stream.append(article);
+  stream.scrollTop = stream.scrollHeight;
+  return article;
+}
+
+function streamPrototypeAnswer(article, text, extra = "") {
+  article.innerHTML = `
+    ${renderPrototypeChatHead("is-assistant")}
+    <p class="chat-prototype-message-body is-streaming"></p>
+    <div class="chat-prototype-stream-extra" hidden>${extra}</div>
+  `;
+  const body = $(".chat-prototype-message-body", article);
+  const extraNode = $(".chat-prototype-stream-extra", article);
+  let index = 0;
+  const timer = window.setInterval(() => {
+    index = Math.min(text.length, index + 3);
+    body.textContent = text.slice(0, index);
+    $("#prototypeChatStream").scrollTop = $("#prototypeChatStream").scrollHeight;
+    if (index >= text.length) {
+      window.clearInterval(timer);
+      body.classList.remove("is-streaming");
+      if (extraNode) extraNode.hidden = false;
+    }
+  }, 24);
+}
+
+function handlePrototypeChatSubmit(event) {
+  event.preventDefault();
+  const input = $("#prototypeChatInput");
+  const query = input.value.trim();
+  if (!query) return;
+  input.value = "";
+  appendPrototypeChatMessage(escapeHtml(query), "is-user");
+  const pending = appendPrototypeChatMessage(
+    state.lang === "en" ? "Searching your knowledge" : "正在检索你的知识",
+    "is-assistant",
+  );
+  window.setTimeout(() => {
+    const needsInternet = /没有|不存在|最新|今天|unknown|missing|latest|today/i.test(query);
+    if (needsInternet) {
+      pending.innerHTML = `
+        ${renderPrototypeChatHead("is-assistant")}
+        <p>${escapeHtml(t("chatNoContext"))}</p>
+        <button class="chat-internet-trigger" type="button" data-prototype-internet>
+          <span>${escapeHtml(t("chatInternetAction"))}</span>
+          <small>${state.lang === "en" ? "1 point search + 1 point answer" : "搜索 1 点 + 回答 1 点"}</small>
+        </button>
+      `;
+      return;
+    }
+    const knowledgeIntent =
+      /知识|总结|记录|收藏|检索|方法|观点|knowledge|saved|library|notes|retrieval|method|idea/i.test(
+        query,
+      );
+    const answer = knowledgeIntent ? t("chatAnswer") : t("chatGeneralAnswer");
+    const source = knowledgeIntent
+      ? `<a class="chat-prototype-source" href="#view-library">
+        <span>1</span>
+        <strong>${state.lang === "en" ? "Depth-first retrieval principle" : "深度检索原则"}</strong>
+        <small>${state.lang === "en" ? "Search your own knowledge before the internet." : "先查自己的知识，再决定是否联网。"}</small>
+      </a>`
+      : "";
+    streamPrototypeAnswer(
+      pending,
+      answer,
+      source,
+    );
+    $("#prototypeChatStream").scrollTop = $("#prototypeChatStream").scrollHeight;
+  }, 520);
+}
+
 function bindEvents() {
+  document.addEventListener("click", (event) => {
+    const newChat = event.target.closest("[data-new-chat]");
+    if (!newChat) return;
+    $("#prototypeChatInput").value = "";
+    $("#prototypeChatInput").focus();
+  });
+  $$("[data-chat-history]").forEach((row) => {
+    $(":scope > button:first-child", row)?.addEventListener("click", () => {
+      $$("[data-chat-history]").forEach((item) => item.classList.toggle("is-active", item === row));
+    });
+  });
+  $("#prototypeChatForm")?.addEventListener("submit", handlePrototypeChatSubmit);
+  $("#prototypeChatStream")?.addEventListener("click", (event) => {
+    const prompt = event.target.closest("[data-chat-prompt]");
+    if (!prompt) return;
+    const input = $("#prototypeChatInput");
+    input.value = prompt.dataset.chatPrompt || "";
+    input.focus();
+  });
+  $("#prototypeChatStream")?.addEventListener("click", (event) => {
+    const internet = event.target.closest("[data-prototype-internet]");
+    if (!internet || internet.disabled) return;
+    internet.disabled = true;
+    const article = appendPrototypeChatMessage("", "is-assistant");
+    streamPrototypeAnswer(
+      article,
+      t("chatInternetAnswer"),
+      `<a class="chat-prototype-source" href="https://seaunit.site/kb/" target="_blank" rel="noopener noreferrer">
+        <span>1</span>
+        <strong>${state.lang === "en" ? "Shihai online service" : "识海在线服务说明"}</strong>
+        <small>seaunit.site</small>
+      </a>`,
+    );
+  });
   document.addEventListener("click", (event) => {
     const accountButton = event.target.closest("#accountMenuButton");
     if (accountButton) {
@@ -2919,7 +3091,7 @@ function initialize() {
   $$(".capture-tab").forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.captureMode === state.captureMode);
   });
-  if (["home", "library", "capture", "processing", "billing", "trash", "settings", "profile"].includes(requestedView)) {
+  if (["home", "library", "chat", "capture", "processing", "billing", "trash", "settings", "profile"].includes(requestedView)) {
     showView(requestedView);
   }
   if (["manual", "ai-text", "webpage", "document", "screenshot"].includes(requestedDialog)) {

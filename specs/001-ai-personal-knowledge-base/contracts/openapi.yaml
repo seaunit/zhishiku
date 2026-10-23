@@ -27,6 +27,7 @@ tags:
   - name: 授权
   - name: 计费集成
   - name: 回收站
+  - name: 聊天
   - name: 健康检查
 paths:
   /api/v1/auth/csrf:
@@ -1055,6 +1056,241 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /api/v1/chat/retrieval:
+    post:
+      tags: [聊天]
+      operationId: retrieveKnowledgeChat
+      summary: 检索当前账号中可回答问题的知识，不调用外部 AI，也不扣点。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+      responses:
+        "200":
+          description: 返回最多 5 条当前账号的 active 知识引用。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeChatRetrieval"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/chat/answers:
+    post:
+      tags: [聊天]
+      operationId: answerKnowledgeChat
+      summary: 小识优先检索当前账号知识；未命中或依据不足时继续通用 AI 对话并结算 1 点。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeChatAnswerRequest"
+      responses:
+        "200":
+          description: 知识增强或通用 AI 回答；两者都无法可靠回答时返回联网建议且不扣回答点数。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeChatAnswer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          description: 点数不足或付费门禁未满足。
+  /api/v1/chat/answers/stream:
+    post:
+      tags: [聊天]
+      operationId: streamKnowledgeChatAnswer
+      summary: 流式返回知识增强或通用 AI 回答，完成后按回答类型校验并结算。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeChatAnswerRequest"
+      responses:
+        "200":
+          description: token、complete 和 error 组成的 SSE 事件流。
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /api/v1/chat/internet:
+    post:
+      tags: [聊天]
+      operationId: answerKnowledgeChatWithInternet
+      summary: 用户确认后联网搜索并回答，搜索 1 点、回答 1 点，共 2 点。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeChatAnswerRequest"
+      responses:
+        "200":
+          description: 返回带互联网来源的回答；零结果时只结算搜索 1 点。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeChatAnswer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          description: 点数不足或付费门禁未满足。
+  /api/v1/chat/internet/stream:
+    post:
+      tags: [聊天]
+      operationId: streamKnowledgeChatInternetAnswer
+      summary: 流式执行联网搜索与回答。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeChatAnswerRequest"
+      responses:
+        "200":
+          description: token、complete 和 error 组成的 SSE 事件流。
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /api/v1/chat/conversations:
+    get:
+      tags: [聊天]
+      operationId: listKnowledgeChatConversations
+      summary: 列出当前账号最近 20 个聊天对话。
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 20
+      responses:
+        "200":
+          description: 按最近更新时间倒序返回。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeChatConversationPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [聊天]
+      operationId: createKnowledgeChatConversation
+      summary: 新建当前账号的聊天对话。
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+      responses:
+        "201":
+          description: 对话已创建。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeChatConversation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/chat/conversations/{conversationId}:
+    get:
+      tags: [聊天]
+      operationId: getKnowledgeChatConversation
+      summary: 恢复当前账号的一个对话与最近 200 条消息。
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: 对话详情。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeChatConversationDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [聊天]
+      operationId: deleteKnowledgeChatConversation
+      summary: 删除当前账号的一个对话及其消息。
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: 删除结果。
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: boolean
+  /api/v1/chat/conversations/{conversationId}/messages:
+    post:
+      tags: [聊天]
+      operationId: appendKnowledgeChatMessage
+      summary: 保存一条用户或小识消息。
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeChatAppendMessage"
+      responses:
+        "201":
+          description: 消息已保存。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeChatStoredMessage"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     sessionCookie:
@@ -1154,6 +1390,180 @@ components:
           schema:
             $ref: "#/components/schemas/InsufficientPointsError"
   schemas:
+    KnowledgeChatSource:
+      type: object
+      required: [kind, title, excerpt, matchedFields]
+      properties:
+        kind:
+          type: string
+          enum: [knowledge, internet]
+        knowledgeId:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        excerpt:
+          type: string
+        url:
+          type: string
+          format: uri
+          nullable: true
+        provider:
+          type: string
+          nullable: true
+        matchedFields:
+          type: array
+          items:
+            type: string
+    KnowledgeChatRetrieval:
+      type: object
+      required: [hasContext, sources]
+      properties:
+        hasContext:
+          type: boolean
+        sources:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/KnowledgeChatSource"
+    KnowledgeChatAnswerRequest:
+      type: object
+      required: [query, externalAiConsent, billingTaskId]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 300
+        history:
+          type: array
+          maxItems: 6
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+                maxLength: 2000
+        externalAiConsent:
+          type: boolean
+        billingTaskId:
+          type: string
+          format: uuid
+    KnowledgeChatAnswer:
+      type: object
+      required: [answer, needsInternet, sources]
+      properties:
+        answer:
+          type: string
+          maxLength: 6000
+        needsInternet:
+          type: boolean
+        sources:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/KnowledgeChatSource"
+        reason:
+          type: string
+          nullable: true
+          enum:
+            - knowledge_insufficient
+            - internet_no_results
+            - internet_insufficient_evidence
+    KnowledgeChatConversation:
+      type: object
+      required:
+        - id
+        - title
+        - lastMessage
+        - messageCount
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 100
+        lastMessage:
+          type: string
+        messageCount:
+          type: integer
+          minimum: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    KnowledgeChatConversationPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeChatConversation"
+    KnowledgeChatAppendMessage:
+      type: object
+      required: [role, content, sources, needsInternet]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 8000
+        sources:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/KnowledgeChatSource"
+        needsInternet:
+          type: boolean
+        reason:
+          type: string
+          maxLength: 100
+    KnowledgeChatStoredMessage:
+      type: object
+      required: [id, role, content, sources, needsInternet, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeChatSource"
+        needsInternet:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    KnowledgeChatConversationDetail:
+      type: object
+      required: [conversation, messages]
+      properties:
+        conversation:
+          $ref: "#/components/schemas/KnowledgeChatConversation"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeChatStoredMessage"
     CsrfResponse:
       type: object
       required: [token, headerName]
@@ -1961,7 +2371,7 @@ components:
           type: boolean
           default: false
           description: >-
-            false 为纯搜索，固定 1 点；true 为搜索 1 点加单次回答 2 点，共 3 点。
+            false 为纯搜索，固定 1 点；true 为搜索 1 点加单次回答 1 点，共 2 点。
             组合价格也必须在唯一一次点击前展示。
     ExternalSearchCandidate:
       type: object

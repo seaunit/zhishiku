@@ -282,7 +282,8 @@ try {
     Write-Host "API: http://127.0.0.1:8082/kb/api/actuator/health"
     Write-Host "Bridge: http://127.0.0.1:8091/health"
     Write-Host "Database: jdbc:postgresql://127.0.0.1:5432/zhishiku_test"
-    Write-Host "Waffo: $($env:SHIHAI_WAFFO_DRY_RUN -eq 'true' ? 'dry-run' : 'test checkout')"
+    $waffoMode = if ($env:SHIHAI_WAFFO_DRY_RUN -eq "true") { "dry-run" } else { "test checkout" }
+    Write-Host "Waffo: $waffoMode"
     if ($env:SHIHAI_WAFFO_TEST_WEBHOOK_URL) {
         Write-Host "Waffo test webhook: $env:SHIHAI_WAFFO_TEST_WEBHOOK_URL"
     }

@@ -86,7 +86,16 @@
 </template>
 
 <script setup lang="ts">
-import { CreditCard, Home, Inbox, Library, Plus, Settings, Trash2 } from 'lucide-vue-next'
+import {
+  CreditCard,
+  Home,
+  Inbox,
+  Library,
+  MessageCircleMore,
+  Plus,
+  Settings,
+  Trash2,
+} from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -114,6 +123,7 @@ let pendingCountRequest = 0
 const primaryItems = computed(() => [
   { name: 'home', to: '/', label: t('nav.home'), icon: Home },
   { name: 'library', to: '/library', label: t('nav.library'), icon: Library },
+  { name: 'chat', to: '/chat', label: t('nav.chat'), icon: MessageCircleMore },
   { name: 'capture', to: '/capture', label: t('nav.capture'), icon: Plus },
   { name: 'processing', to: '/processing', label: t('nav.processing'), icon: Inbox },
   { name: 'billing', to: '/billing', label: t('nav.billing'), icon: CreditCard },

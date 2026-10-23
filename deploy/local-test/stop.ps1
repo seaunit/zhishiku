@@ -18,7 +18,13 @@ $signatures = @{
     frontend = "node_modules/vite/bin/vite.js"
 }
 foreach ($property in $pids.PSObject.Properties) {
+    if ($null -eq $property.Value) {
+        continue
+    }
     $processId = [int]$property.Value
+    if ($processId -le 0) {
+        continue
+    }
     $process = Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction SilentlyContinue
     if (-not $process) {
         continue

@@ -125,7 +125,7 @@ erDiagram
 **约束**：`UNIQUE(catalog_version_id, feature)`。
 
 **当前商业点率**：`internet_search` 每 `query` 固定 1 点，`ai_answer` 每成功 `answer`
-为 2 点。纯搜索与回答必须是两个独立报价行；组合时报价上限为 3 点。价格变更必须创建新的
+为 1 点。纯搜索与回答必须是两个独立报价行；组合时报价上限为 2 点。价格变更必须创建新的
 目录版本和后续 Flyway 迁移，不得改写已应用迁移或历史报价快照。
 
 ## 实体：支付订单
@@ -708,8 +708,8 @@ verifying -> manual_review -> recovered/partially_recovered/rejected
 10. 支付、账本和退款证据不得包含真实密钥、签名原文或完整支付载荷。
 11. 所有订单、批次、预留、账本、退款和自动扣点授权只对所属账号可见和可操作；跨账号引用
     必须视为无效或安全拒绝。
-12. 纯互联网搜索的报价快照和结算点数均为 1 点；搜索与 AI 回答组合时，两行上限之和为 3 点，
-    不得把 1 点搜索任务扩大为 3 点纯搜索任务。
+12. 纯互联网搜索的报价快照和结算点数均为 1 点；搜索与 AI 回答组合时，两行上限之和为 2 点，
+    不得把 1 点搜索任务扩大为 2 点纯搜索任务。
 
 ## 当前实现映射（2026-10-22）
 
@@ -718,8 +718,9 @@ verifying -> manual_review -> recovered/partially_recovered/rejected
 - `V0013__api_idempotency.sql` 提供服务端请求哈希和安全响应重放，供 AI 导入与计费治理共用。
 - `V0014__billing_environment_guard.sql` 在物理数据库中写入唯一环境标识；应用启动时若
   `SHIHAI_APP_ENV` 与数据库标识不一致必须失败。
-- 将 `internet_search` 从历史 3 点调整为 1 点必须新增后续迁移，例如
-  `V0015__internet_search_one_point.sql`；不得修改生产已应用的 `V0009__billing.sql`。
+- 将 `internet_search` 从历史 3 点调整为 1 点必须新增后续迁移
+  `V0015__internet_search_one_point.sql`；将 `ai_answer` 从历史 2 点调整为 1 点必须新增
+  `V0016__ai_answer_one_point.sql`；不得修改生产已应用的 `V0009__billing.sql`。
 - 管理员点数调整请求必须显式携带 `targetOwnerId`；信用调整新增 manual batch，扣减调整按
   体验点优先、购买点最早批次顺序消费并逐批次写只追加账本。
 - 退款结论以实际可回收批次点数为准，客户端提交的 recovered/unrecovered 数值只作为请求

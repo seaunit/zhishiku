@@ -54,7 +54,7 @@ export interface UpdateProfileRequest {
   displayName: string
 }
 
-export type AiConsentScope = 'text' | 'webpage' | 'document' | 'screenshot' | 'search'
+export type AiConsentScope = 'text' | 'webpage' | 'document' | 'screenshot' | 'search' | 'chat'
 
 export interface AiConsent {
   scope: AiConsentScope
@@ -169,6 +169,80 @@ export interface DocumentImportResponse {
 
 export interface ScreenshotImportResponse {
   items: KnowledgeItem[]
+}
+
+export interface KnowledgeChatSource {
+  kind: 'knowledge' | 'internet'
+  knowledgeId?: string | null
+  title: string
+  excerpt: string
+  url?: string | null
+  provider?: string | null
+  matchedFields: string[]
+}
+
+export interface KnowledgeChatRetrieval {
+  hasContext: boolean
+  sources: KnowledgeChatSource[]
+}
+
+export interface KnowledgeChatAnswer {
+  answer: string
+  needsInternet: boolean
+  sources: KnowledgeChatSource[]
+  reason?:
+    | 'knowledge_insufficient'
+    | 'internet_no_results'
+    | 'internet_insufficient_evidence'
+    | null
+}
+
+export interface KnowledgeChatHistoryMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface KnowledgeChatRequest {
+  query: string
+  history: KnowledgeChatHistoryMessage[]
+  externalAiConsent: boolean
+  billingTaskId?: string | null
+}
+
+export interface ChatConversation {
+  id: string
+  title: string
+  lastMessage: string
+  messageCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ChatConversationPage {
+  items: ChatConversation[]
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  sources: KnowledgeChatSource[]
+  needsInternet: boolean
+  reason?: string | null
+  createdAt: string
+}
+
+export interface ChatConversationDetail {
+  conversation: ChatConversation
+  messages: ChatMessage[]
+}
+
+export interface AppendChatMessageRequest {
+  role: 'user' | 'assistant'
+  content: string
+  sources: KnowledgeChatSource[]
+  needsInternet: boolean
+  reason?: string | null
 }
 
 export interface CreateKnowledgeItemRequest {
