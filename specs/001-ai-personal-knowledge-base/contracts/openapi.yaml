@@ -384,8 +384,12 @@ paths:
       parameters:
         - name: status
           in: query
+          description: >
+            单一处理状态，或逗号分隔的处理状态集合。待处理队列使用
+            `pending,queued,running,processing,review,failed`，以便服务端过滤后再分页。
           schema:
-            $ref: "#/components/schemas/ProcessingStatus"
+            type: string
+            example: review,processing,failed
         - name: source
           in: query
           schema:
@@ -608,6 +612,32 @@ paths:
           $ref: "#/components/responses/Conflict"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/knowledge-items/{itemId}/review:
+    post:
+      tags: [知识]
+      operationId: confirmKnowledgeReview
+      summary: 确认 AI 整理或 AI 采集结果的复核。
+      description: >
+        仅当前账号拥有且状态为 `review` 的 active 知识可以转为 `succeeded`。重复确认返回当前
+        已整理状态且不产生重复状态事实；手动 `not_requested`、处理中或失败状态返回 409。
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: 复核已确认，返回更新后的知识条目。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/knowledge-items/{itemId}/reanalyze:
     post:
       tags: [知识, 任务]
@@ -632,7 +662,7 @@ paths:
                   format: uuid
       responses:
         "200":
-          description: 已更新摘要、分类与标签；用户锁定字段保持不变。
+          description: 已更新摘要、分类与标签并重新进入 `review`；用户锁定字段保持不变。
           content:
             application/json:
               schema:
@@ -1270,6 +1300,7 @@ components:
         - blocked_billing
         - pending
         - running
+        - review
         - partial
         - succeeded
         - failed

@@ -64,7 +64,7 @@ The prototype currently contains:
 - 3 simulated internet results
 - 2 recycled items
 - 5 automatic categories
-- 4 pending classification/review jobs
+- 9 AI review, processing, or retry jobs; manual entries never enter this queue
 
 The item titles, summaries, source labels, external results, and authorization state are sample
 content for design review. They must be replaced with real user data or API-driven content during

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
   API_BASE,
+  confirmKnowledgeReview,
   createBillingOrder,
   getCaptcha,
   getRegistrationStatus,
@@ -91,6 +92,23 @@ describe('API client errors', () => {
 })
 
 describe('CSRF handling', () => {
+  it('confirms an AI review through the CSRF-protected item endpoint', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-review', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ processingStatus: 'succeeded' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await confirmKnowledgeReview('item-1')
+
+    const request = fetchMock.mock.calls[1]
+    expect(request[0]).toBe(`${API_BASE}/knowledge-items/item-1/review`)
+    expect(request[1].method).toBe('POST')
+    expect(request[1].headers.get('X-XSRF-TOKEN')).toBe('csrf-review')
+  })
+
   it('fetches a token before multipart uploads and sends it in the configured header', async () => {
     const fetchMock = vi
       .fn()

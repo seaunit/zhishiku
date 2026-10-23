@@ -159,6 +159,16 @@ BCrypt 或 Argon2 强哈希。注册只要求邮箱验证码、两次一致密�
 `processing_status` 从不作为默认搜索的过滤条件。只要条目处于 active 状态，即使处理正在
 等待、暂定或已失败，仍然可被搜索。
 
+`processing_status` 的复核规则：
+
+- 手动创建、手动编辑和手动纠错不会触发 AI 复核，普通手动知识保持 `not_requested`。
+- AI 文字、网页、文档、文档图片、截图和互联网结果成功整理后创建为 `review`。
+- 用户确认复核后转为 `succeeded`；重复确认是幂等的，不产生重复状态事实。
+- 对已整理条目重新分析成功后必须回到 `review`，旧摘要、分类或标签不得让条目跳过复核。
+- 生命周期为 `active` 的 `review` 条目仍可搜索、打开和编辑，但不得显示为已整理。
+- 待复核队列查询使用处理状态索引，在数据库中按状态集合过滤后再分页；不得先取普通知识首页
+  再由客户端筛选。
+
 ### 富文本正文扩展
 
 功能 [004 富文本编辑器](../004-rich-text-editor/data-model.md) 在保留 `body` 纯文本投影的
@@ -593,7 +603,10 @@ recycled -> active
 ### 条目处理
 
 ```text
-not_requested -> pending -> running -> succeeded
+手动：not_requested
+AI 成功：review -> succeeded       （用户确认复核；重复确认幂等）
+AI 重新分析：review -> succeeded   （已有 succeeded 重新进入 review）
+异步任务：pending -> running -> review
                          -> partial
                          -> failed
 pending -> awaiting_authorization
@@ -601,7 +614,9 @@ failed -> pending                 （重试）
 pending/running -> cancelled
 ```
 
-只要 `lifecycle_state = active`，每种状态都保持可搜索。
+只要 `lifecycle_state = active`，每种状态都保持可搜索。只有 `review` 可以执行确认复核；
+`succeeded` 的重复确认返回当前状态，`not_requested`、`pending`、`running`、`failed` 等状态
+必须拒绝，避免手动或未完成内容被误标为复核完成。
 
 ### 任务
 

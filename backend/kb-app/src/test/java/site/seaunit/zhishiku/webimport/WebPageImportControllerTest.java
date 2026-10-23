@@ -80,7 +80,7 @@ class WebPageImportControllerTest {
                         "completed",
                         "AI 摘要",
                         null,
-                        "succeeded",
+                        "review",
                         "active",
                         false,
                         new SourceSummary(

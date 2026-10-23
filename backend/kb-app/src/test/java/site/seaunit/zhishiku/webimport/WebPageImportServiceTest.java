@@ -165,7 +165,7 @@ class WebPageImportServiceTest {
         "completed",
         "",
         null,
-        "succeeded",
+        "review",
         "active",
         false,
         null,

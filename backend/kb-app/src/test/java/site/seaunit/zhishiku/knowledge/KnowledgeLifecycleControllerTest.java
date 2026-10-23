@@ -50,7 +50,7 @@ class KnowledgeLifecycleControllerTest {
   @WithMockUser(username = "alice@example.com")
   void passesPageSizeAndSourceFilterToLibraryPagination() throws Exception {
     Instant now = Instant.parse("2026-10-22T00:00:00Z");
-    when(service.list(eq(2), eq(10), eq("webpage"), any()))
+    when(service.list(eq(2), eq(10), eq("webpage"), eq("review"), any()))
         .thenReturn(
             new KnowledgeItemPage(
                 List.of(
@@ -74,14 +74,15 @@ class KnowledgeLifecycleControllerTest {
             get("/api/v1/knowledge-items")
                 .param("page", "2")
                 .param("limit", "10")
-                .param("source", "webpage"))
+                .param("source", "webpage")
+                .param("status", "review"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.pageInfo.page").value(2))
         .andExpect(jsonPath("$.pageInfo.totalItems").value(24))
         .andExpect(jsonPath("$.pageInfo.sourceCounts.webpage").value(12));
 
-    verify(service).list(eq(2), eq(10), eq("webpage"), any());
+    verify(service).list(eq(2), eq(10), eq("webpage"), eq("review"), any());
   }
 
   @Test
@@ -266,6 +267,15 @@ class KnowledgeLifecycleControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "alice@example.com")
+  void confirmsAnAiResultReviewWithOwnerScopedServiceState() throws Exception {
+    mvc.perform(post("/api/v1/knowledge-items/{itemId}/review", ITEM_ID).with(csrf()))
+        .andExpect(status().isOk());
+
+    verify(service).confirmReview(eq(ITEM_ID), any());
+  }
+
+  @Test
   void rejectsUnauthenticatedTrashAccess() throws Exception {
     mvc.perform(get("/api/v1/knowledge-items/trash")).andExpect(status().isUnauthorized());
   }
@@ -278,6 +288,8 @@ class KnowledgeLifecycleControllerTest {
     mvc.perform(post("/api/v1/knowledge-items/{itemId}/restore", ITEM_ID))
         .andExpect(status().isForbidden());
     mvc.perform(delete("/api/v1/knowledge-items/{itemId}/permanent", ITEM_ID))
+        .andExpect(status().isForbidden());
+    mvc.perform(post("/api/v1/knowledge-items/{itemId}/review", ITEM_ID))
         .andExpect(status().isForbidden());
   }
 }

@@ -105,6 +105,7 @@ public class KnowledgeReanalysisService {
       OrganizedKnowledge result = organized.get(0);
       classifications.assignAi(owner.getId(), itemId, result.category(), result.tags(), 0.9);
       item.updateGeneratedSummary(result.summary());
+      item.markForReview();
       items.saveAndFlush(item);
       if (request.billingTaskId() != null) {
         billing.settle(authentication, request.billingTaskId(), Set.of(Feature.CLASSIFY), null);

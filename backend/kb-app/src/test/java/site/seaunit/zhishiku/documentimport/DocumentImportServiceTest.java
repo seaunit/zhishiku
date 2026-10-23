@@ -179,7 +179,7 @@ class DocumentImportServiceTest {
         "completed",
         "",
         null,
-        "succeeded",
+        "review",
         "active",
         false,
         null,

@@ -174,7 +174,7 @@ class ScreenshotImportServiceTest {
         "completed",
         "",
         null,
-        "succeeded",
+        "review",
         "active",
         false,
         null,

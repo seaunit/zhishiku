@@ -174,6 +174,9 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   取消搜索本身的二次确认；同步 001 规格、计划、数据模型、OpenAPI、快速验证、检查清单、原型说明，
   并在 002 同步价格、报价事务和验收任务。本文档任务只记录 SDD 同步完成，代码、迁移和自动化测试
   仍由后续开发/测试任务执行。
+- [x] T109 [P0] 将 AI 整理、AI 采集和重新分析结果统一置为 `review`，新增账号隔离且受 CSRF
+  保护的确认复核接口；确认后转为 `succeeded`。手动录入保持 `not_requested` 且不进入待复核
+  队列。同步待处理页、详情页、中英文文案、交互原型、OpenAPI、数据模型和自动化验收。
 
 ## 依赖关系
 
@@ -713,3 +716,31 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 覆盖：FR-010、FR-012、FR-080。
 - 风险与回滚：可整理性基于 Search Provider 返回正文长度阈值 200 字符；阈值调整可能改变按钮状态。
   回滚会恢复隐藏不可整理候选的旧行为。
+
+### 完成记录：T109
+
+- 日期：2026-10-23
+- 状态：本地实现与自动化验收完成
+- 执行主体：Codex
+- Git commit：未提交
+- 摘要：AI 整理和 AI 采集结果必须人工确认复核，手动录入不进入复核队列。
+- 详情：所有 AI 文字、网页、文档、文档图片、截图和互联网候选通过统一
+  `KnowledgeService.createOrganized` 以 `review` 入库；重新分析成功后同样回到 `review`。
+  新增 `POST /api/v1/knowledge-items/{itemId}/review`，按当前账号和 active 状态加锁确认，
+  将条目转为 `succeeded`，重复确认幂等，非法状态返回 409。手动创建继续使用 `not_requested`。
+  待处理页和详情页均增加“确认复核”，AI 采集完成后进入待处理页；原型同步五列桌面结构和
+  移动端复核操作。知识列表接口支持服务端处理状态过滤，待处理页以 20 条分页请求
+  `pending,queued,running,processing,review,failed`，避免超过首批 100 条后漏项。
+- 验证：后端完整 Maven 测试 260 项通过（`kb-core` 23、`kb-app` 236、worker 1）；前端 54 项
+  Vitest、55 项 Playwright 通过、2 项真实服务用例跳过；ESLint、TypeScript、生产构建和原型
+  `node --check` 通过。Taste 原型 lint 为 `0 FAIL / 0 WARN`，待处理页 1440/768/390 浏览器
+  inspector 为 `0 FAIL / 1` 个既有小字号警告；前端复核队列和详情页三档截图检查通过。
+  本地测试栈重启健康，实际 API 创建手动知识返回 `not_requested`，直接调用复核接口返回 409，
+  状态过滤查询可从 `not_requested` 结果命中但不会进入复核队列，临时数据已回收并永久清除。
+- 证据：`KnowledgeItemEntity.java`、`KnowledgeService.java`、`KnowledgeReanalysisService.java`、
+  `KnowledgeController.java`、`ProcessingView.vue`、`DetailView.vue`、`prototype/app.js`、
+  `contracts/openapi.yaml`、`frontend/kb-web/e2e/app.spec.ts`。
+- 覆盖：FR-015、FR-067、FR-082。
+- 风险与回滚：上线前已经处于 `succeeded` 的历史 AI 条目不会自动回退，因为旧数据无法可靠区分
+  全部手动富文本来源；需要复核时可重新分析或由后续受控迁移处理。回滚代码会恢复 AI 结果直接
+  `succeeded`；已确认复核的数据仍按现有状态保留。

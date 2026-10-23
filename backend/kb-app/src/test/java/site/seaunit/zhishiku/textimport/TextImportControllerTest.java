@@ -56,7 +56,7 @@ class TextImportControllerTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.items[0].source.kind").value("text"))
-        .andExpect(jsonPath("$.items[0].processingStatus").value("succeeded"));
+        .andExpect(jsonPath("$.items[0].processingStatus").value("review"));
 
     verify(service).importText(any(), eq("text-controller"), any());
   }
@@ -72,7 +72,7 @@ class TextImportControllerTest {
         "completed",
         "来源格式：AI 文字",
         "摘要",
-        "succeeded",
+        "review",
         "active",
         false,
         new SourceSummary("text", "text", null, now),

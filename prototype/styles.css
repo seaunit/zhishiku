@@ -2473,6 +2473,12 @@ mark {
   font-size: 11px;
 }
 
+.detail-review-action {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 14px;
+}
+
 .row-actions {
   display: flex;
   justify-content: flex-end;

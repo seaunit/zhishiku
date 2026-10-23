@@ -210,6 +210,19 @@
               <span>{{ t('detail.processingStatus') }}</span>
               <strong>{{ statusLabel(item.processingStatus) }}</strong>
             </div>
+            <button
+              v-if="item.processingStatus === 'review'"
+              type="button"
+              class="button primary detail-review-action"
+              :disabled="reviewing"
+              @click="confirmReview"
+            >
+              <LoaderCircle v-if="reviewing" class="spin" :size="16" />
+              <Check v-else :size="16" />
+              <span>{{ t('detail.confirmReview') }}</span>
+            </button>
+            <p v-if="reviewNotice" class="success-message" role="status">{{ reviewNotice }}</p>
+            <p v-if="reviewError" class="field-error" role="alert">{{ reviewError }}</p>
           </section>
         </aside>
       </div>
@@ -230,12 +243,13 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, CircleAlert, LoaderCircle, Pencil, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Check, CircleAlert, LoaderCircle, Pencil, Trash2 } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
   confirmBillingQuote,
+  confirmKnowledgeReview,
   createBillingQuote,
   getKnowledgeItem,
   reanalyzeKnowledgeItem,
@@ -270,6 +284,9 @@ const reanalyzeBusy = ref(false)
 const reanalyzeNotice = ref('')
 const reanalyzeError = ref('')
 const reanalyzeKey = ref('')
+const reviewing = ref(false)
+const reviewNotice = ref('')
+const reviewError = ref('')
 
 function statusClass(status: string) {
   return knowledgeStatusTone(status)
@@ -430,6 +447,21 @@ function cancelReanalysis() {
   reanalyzeQuote.value = null
   reanalyzeKey.value = ''
   reanalyzeError.value = ''
+}
+
+async function confirmReview() {
+  if (!item.value || reviewing.value) return
+  reviewing.value = true
+  reviewError.value = ''
+  reviewNotice.value = ''
+  try {
+    item.value = await confirmKnowledgeReview(item.value.id)
+    reviewNotice.value = t('detail.reviewConfirmed')
+  } catch (caught) {
+    reviewError.value = caught instanceof Error ? caught.message : t('detail.reviewFailed')
+  } finally {
+    reviewing.value = false
+  }
 }
 
 function closeDelete() {

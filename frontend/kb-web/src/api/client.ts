@@ -380,11 +380,13 @@ export function listKnowledgeItems(
   limit = 20,
   page = 1,
   source = 'all',
+  status = 'all',
 ): Promise<KnowledgeItemPage> {
   const params = new URLSearchParams({
     limit: String(limit),
     page: String(page),
     source,
+    status,
   })
   return request<KnowledgeItemPage>(`/knowledge-items?${params.toString()}`)
 }
@@ -587,6 +589,15 @@ export function reanalyzeKnowledgeItem(
       method: 'POST',
       headers: { 'Idempotency-Key': idempotencyKey },
       body: JSON.stringify({ externalAiConsent: true, billingTaskId }),
+    },
+  )
+}
+
+export function confirmKnowledgeReview(id: string): Promise<KnowledgeItem> {
+  return request<KnowledgeItem>(
+    `/knowledge-items/${encodeURIComponent(id)}/review`,
+    {
+      method: 'POST',
     },
   )
 }

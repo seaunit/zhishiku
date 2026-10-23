@@ -726,7 +726,7 @@ async function saveImportedCapture(billingTaskId?: string) {
         billingTaskId,
         requestKey,
       )
-      await router.replace('/library')
+      await router.replace('/processing')
     } catch (caught) {
       formError.value = textImportError(caught)
     } finally {
@@ -753,7 +753,7 @@ async function saveImportedCapture(billingTaskId?: string) {
         billingTaskId,
         requestKey,
       )
-      await router.replace('/library')
+      await router.replace('/processing')
     } catch (caught) {
       formError.value = webpageImportError(caught)
     } finally {
@@ -775,7 +775,7 @@ async function saveImportedCapture(billingTaskId?: string) {
         billingTaskId,
         requestKey,
       )
-      await router.replace('/library')
+      await router.replace('/processing')
     } catch (caught) {
       formError.value = documentImportError(caught)
     } finally {
@@ -797,7 +797,7 @@ async function saveImportedCapture(billingTaskId?: string) {
         billingTaskId,
         requestKey,
       )
-      await router.replace('/library')
+      await router.replace('/processing')
     } catch (caught) {
       formError.value = screenshotImportError(caught)
     } finally {

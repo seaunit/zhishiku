@@ -130,7 +130,7 @@ class TextImportServiceTest {
         "completed",
         "来源格式：AI 文字",
         "摘要",
-        "succeeded",
+        "review",
         "active",
         true,
         null,

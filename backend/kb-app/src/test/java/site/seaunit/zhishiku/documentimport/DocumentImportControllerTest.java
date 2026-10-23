@@ -81,7 +81,7 @@ class DocumentImportControllerTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.items[0].source.kind").value("document"))
-        .andExpect(jsonPath("$.items[0].processingStatus").value("succeeded"));
+        .andExpect(jsonPath("$.items[0].processingStatus").value("review"));
 
     verify(service)
         .importDocument(
@@ -123,7 +123,7 @@ class DocumentImportControllerTest {
         "completed",
         "来源格式：TXT",
         null,
-        "succeeded",
+        "review",
         "active",
         false,
         new SourceSummary("document", "upload", null, now),

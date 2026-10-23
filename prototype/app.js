@@ -20,7 +20,7 @@ const items = [
     tags: ["知识管理", "分类", "工作流"],
     source: "webpage",
     sourceLabel: "producttalk.cn",
-    status: "done",
+    status: "review",
     updated: "今天 08:42",
     depth: "surface",
     confidence: 0.94,
@@ -71,7 +71,7 @@ const items = [
     tags: ["访谈", "知识工作", "用户研究"],
     source: "document",
     sourceLabel: "interviews-2026-10.md",
-    status: "done",
+    status: "review",
     updated: "10 月 19 日",
     depth: "middle",
     confidence: 0.89,
@@ -88,7 +88,7 @@ const items = [
     tags: ["截图", "OCR", "脱敏"],
     source: "screenshot",
     sourceLabel: "security-flow.png",
-    status: "done",
+    status: "review",
     updated: "10 月 18 日",
     depth: "deep",
     confidence: 0.91,
@@ -105,7 +105,7 @@ const items = [
     tags: ["搜索", "Meilisearch", "中文"],
     source: "document",
     sourceLabel: "search-benchmark.xlsx",
-    status: "done",
+    status: "review",
     updated: "10 月 17 日",
     depth: "deep",
     confidence: 0.95,
@@ -156,7 +156,7 @@ const items = [
     tags: ["色彩", "界面", "设计系统"],
     source: "screenshot",
     sourceLabel: "deep-blue-tokens.png",
-    status: "done",
+    status: "review",
     updated: "10 月 14 日",
     depth: "deep",
     confidence: 0.93,
@@ -205,7 +205,7 @@ const items = [
     tags: ["结构化输出", "schema", "校验"],
     source: "document",
     sourceLabel: "structured-output.md",
-    status: "done",
+    status: "review",
     updated: "10 月 11 日",
     depth: "deep",
     confidence: 0.92,
@@ -322,7 +322,7 @@ const translations = {
     internetSearchHintPending: "先完成一次本地检索，再继续搜索互联网",
     depthHint: "自动分类在深度中的分布",
     processingQueue: "待处理",
-    processingHint: "AI 正在识别与归类",
+    processingHint: "AI 结果需要确认复核",
     openQueue: "打开队列",
     libraryKicker: "所有收藏",
     libraryTitle: "知识库",
@@ -356,7 +356,8 @@ const translations = {
     captureSubtitle: "手动原文与 AI 整理结果。",
     processingKicker: "自动整理",
     processingTitle: "待处理",
-    processingSubtitle: "低置信度会以暂定结果保存，不会阻塞检索。",
+    processingPagination: "待处理分页",
+    processingSubtitle: "AI 整理和 AI 采集结果需要确认复核；手动录入不会进入这里。",
     trashKicker: "可恢复区",
     trashTitle: "回收站",
     trashSubtitle: "删除后立即退出检索，30 天后永久清理。",
@@ -444,6 +445,8 @@ const translations = {
     saveToSea: "收入识海",
     internetNotOrganizable: "该来源内容不足，无法通过 AI 整理收入。",
     review: "复核",
+    confirmReview: "确认复核",
+    reviewConfirmed: "复核已确认，这条知识已标记为已整理。",
     retry: "重试",
     open: "查看",
     processingTitleCell: "正在处理",
@@ -551,7 +554,7 @@ const translations = {
     internetSearchHintPending: "Complete a local search before continuing to the internet.",
     depthHint: "Automatic categories by depth",
     processingQueue: "In progress",
-    processingHint: "AI is reading and organizing",
+    processingHint: "AI results need a final review",
     openQueue: "Open queue",
     libraryKicker: "All saved knowledge",
     libraryTitle: "Library",
@@ -585,7 +588,8 @@ const translations = {
     captureSubtitle: "Source text and organized knowledge.",
     processingKicker: "Automatic organization",
     processingTitle: "In progress",
-    processingSubtitle: "Low-confidence results are provisional and never block retrieval.",
+    processingPagination: "Review queue pagination",
+    processingSubtitle: "AI-organized and AI-captured results need review. Manual entries never appear here.",
     trashKicker: "Recoverable",
     trashTitle: "Trash",
     trashSubtitle: "Deleted items leave search immediately and purge after 30 days.",
@@ -673,6 +677,8 @@ const translations = {
     saveToSea: "Save to Sea",
     internetNotOrganizable: "This source does not contain enough content for AI organization.",
     review: "Review",
+    confirmReview: "Confirm review",
+    reviewConfirmed: "Review confirmed. This item is now marked as organized.",
     retry: "Retry",
     open: "Open",
     processingTitleCell: "Processing",
@@ -977,8 +983,11 @@ function renderQueuePreview() {
         <strong>${escapeHtml(item.title)}</strong>
         <small>${escapeHtml(item.sourceLabel)} · ${statusLabel(item.status)}</small>
       </div>
-      <button class="mini-action" data-review-id="${item.id}">
-        ${item.status === "failed" ? t("retry") : t("review")}
+      <button
+        class="mini-action"
+        ${item.status === "review" || item.status === "failed" ? `data-review-id="${item.id}"` : `data-open-id="${item.id}"`}
+      >
+        ${item.status === "failed" ? t("retry") : item.status === "review" ? t("confirmReview") : t("open")}
       </button>
     </div>
   `).join("");
@@ -1278,6 +1287,11 @@ function renderDetail(itemId) {
           <span>${state.lang === "en" ? "Confidence" : "分类置信度"} ${Math.round(item.confidence * 100)}%</span>
           <div class="meter"><span style="--confidence:${item.confidence * 100}%"></span></div>
         </div>
+        ${item.status === "review" ? `
+          <button class="primary-button detail-review-action" data-review-id="${item.id}">
+            ${t("confirmReview")}
+          </button>
+        ` : ""}
       </section>
       <section class="aside-section">
         <h2>${state.lang === "en" ? "Source trail" : "来源与处理"}</h2>
@@ -1311,21 +1325,42 @@ function renderProcessing() {
     container.innerHTML = `<div class="empty-state">${t("queueEmpty")}</div>`;
     return;
   }
-  container.innerHTML = list.map((item) => `
-    <div class="processing-row">
-      <div class="processing-info">
-        <strong>${escapeHtml(item.title)}</strong>
-        <small>${escapeHtml(item.sourceLabel)} · ${escapeHtml(item.category)}</small>
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  container.innerHTML = `
+    ${list.map((item) => `
+      <div class="processing-row">
+        <div class="processing-info">
+          <strong>${escapeHtml(item.title)}</strong>
+          <small>${escapeHtml(item.sourceLabel)} · ${escapeHtml(item.category)}</small>
+        </div>
+        <span class="processing-type table-label">${escapeHtml(sourceName(item.source))}</span>
+        <span class="status-pill ${statusClass(item.status)}">${statusLabel(item.status)}</span>
+        <span class="processing-time">${escapeHtml(item.updated)}</span>
+        <div class="row-actions">
+          ${item.status === "review" || item.status === "failed" ? `
+            <button class="mini-action" data-review-id="${item.id}">${item.status === "failed" ? t("retry") : t("confirmReview")}</button>
+          ` : ""}
+          <button class="mini-action" data-open-id="${item.id}">${t("open")}</button>
+        </div>
       </div>
-      <span class="processing-type table-label">${escapeHtml(sourceName(item.source))}</span>
-      <span class="status-pill ${statusClass(item.status)}">${statusLabel(item.status)}</span>
-      <span class="processing-time">${escapeHtml(item.updated)}</span>
-      <div class="row-actions">
-        <button class="mini-action" data-review-id="${item.id}">${item.status === "failed" ? t("retry") : t("review")}</button>
-        <button class="mini-action" data-open-id="${item.id}">${t("open")}</button>
+    `).join("")}
+    <footer class="library-pagination" aria-label="${t("processingPagination")}">
+      <span class="pagination-summary">${t("pageSummary", {
+        page: 1,
+        pages: totalPages,
+        total: list.length,
+      })}</span>
+      <div class="pagination-controls">
+        <button class="pagination-button" type="button" aria-label="${t("previousPage")}" disabled>
+          <svg style="transform: rotate(180deg)"><use href="#icon-arrow"></use></svg>
+        </button>
+        <button class="pagination-button" type="button" aria-label="${t("nextPage")}" disabled>
+          <svg><use href="#icon-arrow"></use></svg>
+        </button>
       </div>
-    </div>
-  `).join("");
+    </footer>
+  `;
 }
 
 function renderTrash() {
@@ -2661,7 +2696,14 @@ function bindEvents() {
           renderProcessing();
         }, 1900);
       } else {
-        openDetail(review.dataset.reviewId);
+        item.status = "done";
+        renderQueuePreview();
+        renderProcessing();
+        updateAllCounts();
+        if (state.currentDetailId === item.id && !$("#view-detail").hidden) {
+          renderDetail(item.id);
+        }
+        showToast(t("reviewConfirmed"));
       }
       return;
     }

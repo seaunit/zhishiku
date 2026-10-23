@@ -49,8 +49,9 @@ public class KnowledgeController {
       @RequestParam(name = "limit", defaultValue = "20") int limit,
       @RequestParam(name = "page", defaultValue = "1") int page,
       @RequestParam(name = "source", defaultValue = "all") String source,
+      @RequestParam(name = "status", defaultValue = "all") String status,
       Authentication authentication) {
-    return service.list(page, limit, source, authentication);
+    return service.list(page, limit, source, status, authentication);
   }
 
   @GetMapping({"/knowledge-items/trash", "/trash"})
@@ -97,6 +98,11 @@ public class KnowledgeController {
       @RequestHeader("Idempotency-Key") String idempotencyKey,
       Authentication authentication) {
     return service.bulkRecycle(request.itemIds(), idempotencyKey, authentication);
+  }
+
+  @PostMapping("/knowledge-items/{itemId}/review")
+  KnowledgeItemResponse confirmReview(@PathVariable UUID itemId, Authentication authentication) {
+    return service.confirmReview(itemId, authentication);
   }
 
   @DeleteMapping("/knowledge-items/{itemId}")

@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.util.Set;
 import java.util.UUID;
 import site.seaunit.zhishiku.persistence.AuditedEntity;
 
@@ -52,7 +53,9 @@ public class KnowledgeItemEntity extends AuditedEntity {
 
   public static KnowledgeItemEntity create(
       UUID ownerId, String title, String body, String note, String processingStatus) {
-    if (!"not_requested".equals(processingStatus) && !"succeeded".equals(processingStatus)) {
+    if (!"not_requested".equals(processingStatus)
+        && !"review".equals(processingStatus)
+        && !"succeeded".equals(processingStatus)) {
       throw new IllegalArgumentException("Unsupported knowledge processing status.");
     }
     KnowledgeItemEntity item = new KnowledgeItemEntity();
@@ -77,6 +80,25 @@ public class KnowledgeItemEntity extends AuditedEntity {
 
   public void updateGeneratedSummary(String summary) {
     this.summary = summary == null || summary.isBlank() ? null : summary.strip();
+  }
+
+  public void markForReview() {
+    if (!Set.of("not_requested", "review", "succeeded").contains(processingStatus)) {
+      throw new IllegalStateException(
+          "Knowledge item cannot enter review from its current status.");
+    }
+    this.processingStatus = "review";
+  }
+
+  public void markReviewed() {
+    if ("succeeded".equals(processingStatus)) {
+      return;
+    }
+    if (!"review".equals(processingStatus)) {
+      throw new IllegalStateException(
+          "Only AI-organized knowledge awaiting review can be confirmed.");
+    }
+    this.processingStatus = "succeeded";
   }
 
   public UUID getId() {

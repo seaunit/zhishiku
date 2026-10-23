@@ -699,6 +699,64 @@ test('opens every prototype navigation destination', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: '设置' })).toBeVisible()
 })
 
+test('confirms AI reviews and excludes manual entries from the review queue', async ({ page }) => {
+  const aiItem = {
+    ...summary,
+    id: '123e4567-e89b-42d3-a456-426614174151',
+    title: 'AI 整理的网页知识',
+    processingStatus: 'review',
+    source: { kind: 'webpage', inputMethod: 'url', url: 'https://example.com/article' },
+  }
+  let reviewRequests = 0
+  let queueStatus = ''
+
+  await page.route('**/kb/api/v1/knowledge-items?**', async (route) => {
+    queueStatus = new URL(route.request().url()).searchParams.get('status') || ''
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [aiItem],
+        nextCursor: null,
+        pageInfo: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1, sourceCounts: {} },
+      }),
+    })
+  })
+  await page.route(
+    '**/kb/api/v1/knowledge-items/123e4567-e89b-42d3-a456-426614174151/review',
+    async (route) => {
+      reviewRequests += 1
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...aiItem, processingStatus: 'succeeded' }),
+      })
+    },
+  )
+
+  await page.goto('/kb/processing')
+
+  await expect(page.getByText('AI 整理的网页知识')).toBeVisible()
+  await expect(page.getByText('手动录入的知识')).toHaveCount(0)
+  expect(queueStatus).toBe('pending,queued,running,processing,review,failed')
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 768, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.screenshot({
+      path: `test-results/review-queue-${viewport.width}.png`,
+      fullPage: true,
+    })
+  }
+  await page.getByRole('button', { name: '确认复核' }).click()
+
+  expect(reviewRequests).toBe(1)
+  await expect(page.getByText('AI 整理的网页知识')).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('复核已确认')
+})
+
 test('searches knowledge from the library and keeps source filters', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   let searchQuery = ''
@@ -1500,7 +1558,7 @@ test('organizes explicitly authorized AI text without using manual creation', as
   await page.getByLabel('允许外部 AI 整理这段文字').check()
   await page.getByRole('button', { name: 'AI 整理文字' }).click()
   await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
-  await expect(page).toHaveURL(/\/kb\/library$/)
+  await expect(page).toHaveURL(/\/kb\/processing$/)
   expect(textBodies).toHaveLength(1)
   expect(JSON.parse(textBodies[0])).toMatchObject({
     externalAiConsent: true,
@@ -1604,7 +1662,7 @@ test('saves webpage and parsed document capture sources', async ({ page }) => {
   await page.getByLabel('允许外部 AI 处理本页文字').check()
   await page.getByRole('button', { name: 'AI截图拆分入库' }).click()
   await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
-  await expect(page).toHaveURL(/\/kb\/library$/)
+  await expect(page).toHaveURL(/\/kb\/processing$/)
   expect(webImportPayloads).toHaveLength(1)
   expect(webImportPayloads[0]).toMatchObject({
     url: 'https://example.com/article',
@@ -1624,7 +1682,7 @@ test('saves webpage and parsed document capture sources', async ({ page }) => {
   await page.getByLabel('允许外部 AI 解析并整理此文件').check()
   await page.getByRole('button', { name: '解析并整理' }).click()
   await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
-  await expect(page).toHaveURL(/\/kb\/library$/)
+  await expect(page).toHaveURL(/\/kb\/processing$/)
   expect(payloads).toHaveLength(0)
   expect(documentImportBodies).toHaveLength(1)
   expect(documentImportBodies[0]).toContain('brief.pdf')
@@ -1690,7 +1748,7 @@ test('sends document images to AI import without attachment uploads', async ({ p
   await page.getByLabel('允许外部 AI 解析并整理此文件').check()
   await page.getByRole('button', { name: '解析并整理' }).click()
   await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
-  await expect(page).toHaveURL(/\/kb\/library$/)
+  await expect(page).toHaveURL(/\/kb\/processing$/)
   expect(documentImportRequests).toBe(1)
   expect(imageUploadRequests).toBe(0)
   expect(directCreateRequests).toBe(0)
@@ -1776,7 +1834,7 @@ test('recognizes and splits a clipboard screenshot without saving the image', as
   await page.getByLabel('允许外部 AI 解析并整理这张截图').check()
   await page.getByRole('button', { name: '识别并拆分' }).click()
   await page.getByRole('button', { name: /确认 \d+ 点并继续/ }).click()
-  await expect(page).toHaveURL(/\/kb\/library$/)
+  await expect(page).toHaveURL(/\/kb\/processing$/)
   expect(screenshotBodies).toHaveLength(1)
   expect(screenshotBodies[0]).toContain('clipboard.png')
   expect(screenshotBodies[0]).toContain('externalAiConsent')
@@ -2740,6 +2798,60 @@ test('keeps an absent category separate from an unrequested processing status', 
   await expect(aside.getByText('未整理')).toHaveCount(1)
   await expect(page.locator('.detail-meta').getByText('未整理')).toBeVisible()
   await expect(page.getByText('待整理')).toHaveCount(0)
+})
+
+test('confirms an AI review from the knowledge detail page', async ({ page }) => {
+  const id = '123e4567-e89b-42d3-a456-426614174153'
+  const item: KnowledgeItem = {
+    ...summary,
+    id,
+    title: '待复核的截图知识',
+    processingStatus: 'review',
+    source: { kind: 'screenshot', inputMethod: 'screenshot' },
+    body: '截图 OCR 后由 AI 整理的知识。',
+    bodyDocument: null,
+    bodySchemaVersion: null,
+    bodyMigrationState: 'not_required',
+    note: '',
+    redactionApplied: false,
+  }
+  let reviewRequests = 0
+
+  await page.route(`**/kb/api/v1/knowledge-items/${id}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(item),
+    })
+  })
+  await page.route(`**/kb/api/v1/knowledge-items/${id}/review`, async (route) => {
+    reviewRequests += 1
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...item, processingStatus: 'succeeded' }),
+    })
+  })
+
+  await page.goto(`/kb/library/${id}`)
+  await expect(page.getByRole('button', { name: '确认复核' })).toBeVisible()
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 768, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.screenshot({
+      path: `test-results/review-detail-${viewport.width}.png`,
+      fullPage: true,
+    })
+  }
+  await page.getByRole('button', { name: '确认复核' }).click()
+
+  expect(reviewRequests).toBe(1)
+  await expect(page.locator('.detail-meta').getByText('已整理')).toBeVisible()
+  await expect(page.getByRole('button', { name: '确认复核' })).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('复核已确认')
 })
 
 test('offers reload, copy, and explicit overwrite after a version conflict', async ({ page }) => {

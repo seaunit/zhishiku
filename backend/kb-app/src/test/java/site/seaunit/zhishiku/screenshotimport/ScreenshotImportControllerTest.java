@@ -80,7 +80,7 @@ class ScreenshotImportControllerTest {
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.items.length()").value(1))
         .andExpect(jsonPath("$.items[0].source.kind").value("screenshot"))
-        .andExpect(jsonPath("$.items[0].processingStatus").value("succeeded"));
+        .andExpect(jsonPath("$.items[0].processingStatus").value("review"));
   }
 
   @Test
@@ -116,7 +116,7 @@ class ScreenshotImportControllerTest {
         "completed",
         "来源格式：PNG 截图",
         null,
-        "succeeded",
+        "review",
         "active",
         false,
         new SourceSummary("screenshot", "clipboard", null, now),

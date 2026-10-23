@@ -34,8 +34,8 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BodySourceRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.ClassificationSummary;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
-import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemPage;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeSummaryResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.PageInfo;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchHit;
@@ -64,6 +64,18 @@ public class KnowledgeService {
       Set.of("native", "clipboard", "word", "google_docs", "webpage", "legacy_text");
   private static final Set<String> FILTERABLE_SOURCE_KINDS =
       Set.of("webpage", "document", "screenshot", "text", "internet_result");
+  private static final Set<String> FILTERABLE_PROCESSING_STATUSES =
+      Set.of(
+          "not_requested",
+          "awaiting_authorization",
+          "blocked_billing",
+          "pending",
+          "running",
+          "review",
+          "partial",
+          "succeeded",
+          "failed",
+          "cancelled");
   private static final long MAX_TOTAL_IMAGE_BYTES = 50L * 1024 * 1024;
   private static final String ACTIVE = "active";
   private static final String BULK_RECYCLE_OPERATION = "knowledge_bulk_recycle";
@@ -125,13 +137,13 @@ public class KnowledgeService {
   @Transactional
   public KnowledgeItemResponse createOrganized(
       CreateKnowledgeRequest request, Authentication authentication) {
-    return createWithStatus(request, authentication, "succeeded");
+    return createWithStatus(request, authentication, "review");
   }
 
   @Transactional
   public KnowledgeItemResponse createOrganized(
       CreateKnowledgeRequest request, OrganizedKnowledge organized, Authentication authentication) {
-    KnowledgeItemResponse created = createWithStatus(request, authentication, "succeeded");
+    KnowledgeItemResponse created = createWithStatus(request, authentication, "review");
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
     classifications.assignAi(
         owner.getId(), created.id(), organized.category(), organized.tags(), 0.9);
@@ -143,6 +155,18 @@ public class KnowledgeService {
         item,
         documents.findById(created.id()).orElseThrow(),
         source == null ? SourceSummary.manual() : source.summary());
+  }
+
+  @Transactional
+  public KnowledgeItemResponse confirmReview(UUID itemId, Authentication authentication) {
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    KnowledgeItemEntity item =
+        items
+            .findByIdAndOwnerIdAndLifecycleStateForUpdate(itemId, owner.getId(), ACTIVE)
+            .orElseThrow(() -> new IllegalArgumentException("Knowledge item was not found."));
+    item.markReviewed();
+    items.saveAndFlush(item);
+    return detail(itemId, authentication);
   }
 
   private KnowledgeItemResponse createWithStatus(
@@ -268,15 +292,18 @@ public class KnowledgeService {
 
   @Transactional(readOnly = true)
   public KnowledgeItemPage list(
-      int page, int limit, String source, Authentication authentication) {
+      int page, int limit, String source, String status, Authentication authentication) {
     OwnerAccountEntity owner = currentOwnerService.require(authentication);
     int pageSize = Math.min(Math.max(limit, 1), 100);
     String normalizedSource = normalizeSourceFilter(source);
     String sourceFilter = sourceFilterSql(normalizedSource);
+    List<String> processingStatuses = normalizeProcessingStatuses(status);
+    String statusFilter = processingStatusFilterSql(processingStatuses);
     List<Object> filterArgs = new ArrayList<>();
     filterArgs.add(owner.getId());
     filterArgs.add(ACTIVE);
     addSourceFilterArg(filterArgs, normalizedSource);
+    addProcessingStatusFilterArgs(filterArgs, processingStatuses);
     long totalItems =
         jdbc.queryForObject(
             """
@@ -290,7 +317,8 @@ public class KnowledgeService {
             LEFT JOIN latest_source src ON src.item_id = k.id
             WHERE k.owner_id = ? AND k.lifecycle_state = ?
             """
-                + sourceFilter,
+                + sourceFilter
+                + statusFilter,
             Long.class,
             filterArgs.toArray());
     int totalPages = totalPages(totalItems, pageSize);
@@ -312,6 +340,7 @@ public class KnowledgeService {
             WHERE k.owner_id = ? AND k.lifecycle_state = ?
             """
                 + sourceFilter
+                + statusFilter
                 + """
             ORDER BY k.updated_at DESC, k.id DESC
             LIMIT ? OFFSET ?
@@ -322,12 +351,7 @@ public class KnowledgeService {
     return new KnowledgeItemPage(
         pageItems,
         currentPage < totalPages ? Integer.toString(currentPage + 1) : null,
-        new PageInfo(
-            currentPage,
-            pageSize,
-            totalItems,
-            totalPages,
-            sourceCounts(owner.getId())));
+        new PageInfo(currentPage, pageSize, totalItems, totalPages, sourceCounts(owner.getId())));
   }
 
   @Transactional(readOnly = true)
@@ -403,16 +427,7 @@ public class KnowledgeService {
     int pageSize = Math.min(Math.max(limit, 1), 100);
     if (safeQuery.isBlank()) {
       return new SearchResponse(
-          "",
-          List.of(),
-          null,
-          false,
-          new PageInfo(
-              1,
-              pageSize,
-              0,
-              1,
-              sourceCounts(owner.getId())));
+          "", List.of(), null, false, new PageInfo(1, pageSize, 0, 1, sourceCounts(owner.getId())));
     }
     String lowered = safeQuery.toLowerCase(Locale.ROOT);
     String pattern = "%" + lowered + "%";
@@ -575,12 +590,7 @@ public class KnowledgeService {
         hits,
         currentPage < totalPages ? Integer.toString(currentPage + 1) : null,
         false,
-        new PageInfo(
-            currentPage,
-            pageSize,
-            totalItems,
-            totalPages,
-            sourceCounts(owner.getId())));
+        new PageInfo(currentPage, pageSize, totalItems, totalPages, sourceCounts(owner.getId())));
   }
 
   private static void addMatch(
@@ -868,8 +878,7 @@ public class KnowledgeService {
             WHERE k.owner_id = ? AND k.lifecycle_state = ?
             GROUP BY COALESCE(src.source_kind, 'native')
             """,
-            (result, row) ->
-                Map.entry(result.getString("source_kind"), result.getLong("total")),
+            (result, row) -> Map.entry(result.getString("source_kind"), result.getLong("total")),
             ownerId,
             ACTIVE)
         .forEach(
@@ -879,8 +888,7 @@ public class KnowledgeService {
               counts.compute("all", (key, current) -> (current == null ? 0 : current) + count);
               if (Set.of("native", "clipboard", "word", "google_docs", "legacy_text")
                   .contains(kind)) {
-                counts.compute(
-                    "manual", (key, current) -> (current == null ? 0 : current) + count);
+                counts.compute("manual", (key, current) -> (current == null ? 0 : current) + count);
               } else if (counts.containsKey(kind)) {
                 counts.put(kind, counts.get(kind) + count);
               }
@@ -913,6 +921,31 @@ public class KnowledgeService {
     if (FILTERABLE_SOURCE_KINDS.contains(source)) {
       args.add(source);
     }
+  }
+
+  private static List<String> normalizeProcessingStatuses(String status) {
+    if (status == null || status.isBlank() || "all".equalsIgnoreCase(status.strip())) {
+      return List.of();
+    }
+    return java.util.Arrays.stream(status.split(","))
+        .map(String::strip)
+        .map(value -> value.toLowerCase(Locale.ROOT))
+        .filter(FILTERABLE_PROCESSING_STATUSES::contains)
+        .distinct()
+        .toList();
+  }
+
+  private static String processingStatusFilterSql(List<String> statuses) {
+    if (statuses.isEmpty()) {
+      return "";
+    }
+    return " AND k.processing_status IN ("
+        + String.join(",", java.util.Collections.nCopies(statuses.size(), "?"))
+        + ")\n";
+  }
+
+  private static void addProcessingStatusFilterArgs(List<Object> args, List<String> statuses) {
+    args.addAll(statuses);
   }
 
   private static int totalPages(long totalItems, int pageSize) {

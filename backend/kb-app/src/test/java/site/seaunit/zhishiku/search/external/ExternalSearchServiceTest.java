@@ -203,8 +203,10 @@ class ExternalSearchServiceTest {
                     content)));
     var search = service.search(new ExternalSearchRequest("36Kr", true, false), authentication);
     when(provider.fetch(url))
-        .thenThrow(new ExternalSourceUnavailableException("The selected source could not be fetched."));
-    when(organizer.organize(eq("internet search result"), argThat(text -> text.contains("36Kr article body"))))
+        .thenThrow(
+            new ExternalSourceUnavailableException("The selected source could not be fetched."));
+    when(organizer.organize(
+            eq("internet search result"), argThat(text -> text.contains("36Kr article body"))))
         .thenReturn(
             List.of(
                 new OrganizedKnowledge(
@@ -252,7 +254,7 @@ class ExternalSearchServiceTest {
         "completed",
         "DeepSeek summary",
         null,
-        "not_requested",
+        "review",
         "active",
         false,
         null,
