@@ -16,6 +16,8 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BodySourceRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
+import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
+import site.seaunit.zhishiku.richtext.image.ImportedImageAsset;
 import site.seaunit.zhishiku.webimport.WebImportDtos.WebPageImportResponse;
 
 @Service
@@ -26,6 +28,7 @@ public class WebPageImportService {
   private final boolean allowUnbilledAi;
   private final KnowledgeService knowledgeService;
   private final ImportedKnowledgeMapper knowledgeMapper;
+  private final ImportImageAssetService imageAssets;
   private final BillingService billingService;
   private final AiConsentService aiConsents;
   private final IdempotencyService idempotency;
@@ -37,6 +40,7 @@ public class WebPageImportService {
       @Value("${app.web-import.allow-unbilled-ai:false}") boolean allowUnbilledAi,
       KnowledgeService knowledgeService,
       ImportedKnowledgeMapper knowledgeMapper,
+      ImportImageAssetService imageAssets,
       BillingService billingService,
       AiConsentService aiConsents,
       IdempotencyService idempotency) {
@@ -46,6 +50,7 @@ public class WebPageImportService {
     this.allowUnbilledAi = allowUnbilledAi;
     this.knowledgeService = knowledgeService;
     this.knowledgeMapper = knowledgeMapper;
+    this.imageAssets = imageAssets;
     this.billingService = billingService;
     this.aiConsents = aiConsents;
     this.idempotency = idempotency;
@@ -113,13 +118,20 @@ public class WebPageImportService {
       }
       List<KnowledgeItemResponse> created = new ArrayList<>();
       Instant capturedAt = Instant.now();
-      for (OrganizedKnowledge note : organized) {
+      List<ImportedImageAsset> preparedImages =
+          redacted.applied()
+              ? List.of()
+              : imageAssets.prepare(
+                  page.images(), authentication, organized.get(0).title(), "网页来源图示", false);
+      for (int index = 0; index < organized.size(); index++) {
+        OrganizedKnowledge note = organized.get(index);
         created.add(
             knowledgeMapper.withRedactionApplied(
                 knowledgeService.createOrganized(
                     new CreateKnowledgeRequest(
                         note.title(),
-                        knowledgeMapper.document(note.body()),
+                        knowledgeMapper.document(
+                            note.body(), index == 0 ? preparedImages : List.of()),
                         knowledgeMapper.note(note, redacted.applied(), "", ""),
                         new BodySourceRequest("webpage", page.requestedUrl(), capturedAt)),
                     note,

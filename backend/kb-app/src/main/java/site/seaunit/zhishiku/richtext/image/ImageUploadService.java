@@ -44,19 +44,28 @@ public class ImageUploadService {
   @Transactional
   public ImageUploadResponse create(
       MultipartFile file, UUID itemId, Authentication authentication) {
-    OwnerAccountEntity owner = currentOwnerService.require(authentication);
     if (file == null || file.isEmpty()) {
       throw new IllegalArgumentException("An image file is required.");
     }
     if (file.getSize() > ImageInspector.MAX_SOURCE_BYTES) {
       throw new ImageInspectionException("UPLOAD_TOO_LARGE", "Image exceeds 25 MiB.");
     }
-    itemAccess.requireWritableItem(itemId, owner.getId());
     final byte[] sourceBytes;
     try {
       sourceBytes = file.getBytes();
     } catch (IOException error) {
       throw new IllegalStateException("Image could not be read.", error);
+    }
+    return create(sourceBytes, file.getOriginalFilename(), itemId, authentication);
+  }
+
+  @Transactional
+  public ImageUploadResponse create(
+      byte[] sourceBytes, String originalFilename, UUID itemId, Authentication authentication) {
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    itemAccess.requireWritableItem(itemId, owner.getId());
+    if (sourceBytes == null || sourceBytes.length == 0) {
+      throw new IllegalArgumentException("An image file is required.");
     }
     if (sourceBytes.length > ImageInspector.MAX_SOURCE_BYTES) {
       throw new ImageInspectionException("UPLOAD_TOO_LARGE", "Image exceeds 25 MiB.");
@@ -97,7 +106,7 @@ public class ImageUploadService {
               uploadId,
               owner.getId(),
               storedKey,
-              sanitizeFilename(file.getOriginalFilename(), inspection.extension()),
+              sanitizeFilename(originalFilename, inspection.extension()),
               inspection.mediaType(),
               sourceBytes.length,
               safeBytes.length,

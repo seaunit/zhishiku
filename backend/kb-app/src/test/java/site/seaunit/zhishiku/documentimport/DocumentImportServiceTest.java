@@ -21,6 +21,9 @@ import site.seaunit.zhishiku.billing.BillingService;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
+import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
+import site.seaunit.zhishiku.richtext.image.ImportImageCandidate;
+import site.seaunit.zhishiku.richtext.image.ImportedImageAsset;
 import site.seaunit.zhishiku.webimport.AiTextSecretRedactor;
 import site.seaunit.zhishiku.webimport.DocumentOrganizer;
 import site.seaunit.zhishiku.webimport.ImportedKnowledgeMapper;
@@ -36,6 +39,7 @@ class DocumentImportServiceTest {
   private final Authentication authentication = mock(Authentication.class);
   private final MultipartFile file = mock(MultipartFile.class);
   private final ImportedKnowledgeMapper mapper = new ImportedKnowledgeMapper(new ObjectMapper());
+  private final ImportImageAssetService imageAssets = mock(ImportImageAssetService.class);
   private final BillingService billingService = mock(BillingService.class);
   private final DocumentImportService service =
       new DocumentImportService(
@@ -45,6 +49,7 @@ class DocumentImportServiceTest {
           true,
           knowledgeService,
           mapper,
+          imageAssets,
           billingService,
           mock(site.seaunit.zhishiku.consent.AiConsentService.class),
           mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class));
@@ -113,6 +118,37 @@ class DocumentImportServiceTest {
   }
 
   @Test
+  void includesSafeDocumentFigureInTheFirstRichTextKnowledgeItem() {
+    ImportImageCandidate candidate =
+        new ImportImageCandidate(new byte[] {1, 2, 3}, "diagram.png", "image/png");
+    ImportedImageAsset asset =
+        new ImportedImageAsset(UUID.randomUUID(), "架构图", "文档来源图示 · PNG 图片", 1200, 800, 1.5);
+    when(extractor.extract(file))
+        .thenReturn(
+            new ExtractedDocument("图片识别正文。".repeat(30), "image/png", 300, List.of(candidate)));
+    when(imageAssets.prepare(any(), any(), any(), any(), eq(true))).thenReturn(List.of(asset));
+    when(organizer.organize(eq("document"), any()))
+        .thenReturn(
+            List.of(
+                new OrganizedKnowledge("图示知识一", "第一段整理正文。", "摘要一", "资料", List.of("图示")),
+                new OrganizedKnowledge("图示知识二", "第二段整理正文。", "摘要二", "资料", List.of("整理"))));
+    when(knowledgeService.createOrganized(any(), any(), any()))
+        .thenReturn(response("图示知识一"), response("图示知识二"));
+
+    service.importDocument(file, "图片备注", true, authentication);
+
+    ArgumentCaptor<CreateKnowledgeRequest> requests =
+        ArgumentCaptor.forClass(CreateKnowledgeRequest.class);
+    verify(knowledgeService, org.mockito.Mockito.times(2))
+        .createOrganized(requests.capture(), any(), any());
+    assertThat(requests.getAllValues().get(0).bodyDocument().toString())
+        .contains("\"type\":\"image\"")
+        .contains(asset.uploadId().toString());
+    assertThat(requests.getAllValues().get(1).bodyDocument().toString())
+        .doesNotContain("\"type\":\"image\"");
+  }
+
+  @Test
   void refusesExternalAiWithoutConsent() {
     try {
       service.importDocument(file, "", false, authentication);
@@ -132,6 +168,7 @@ class DocumentImportServiceTest {
             false,
             knowledgeService,
             mapper,
+            imageAssets,
             billingService,
             mock(site.seaunit.zhishiku.consent.AiConsentService.class),
             mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class));

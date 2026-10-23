@@ -19,7 +19,7 @@ test('keeps the webpage AI consent flow usable at desktop, tablet, and phone wid
     await page.getByRole('tab', { name: '网页链接' }).click()
     await expect(page.getByLabel('网页链接', { exact: true })).toBeVisible()
     await expect(page.getByLabel('允许外部 AI 处理本页文字')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'AI截图拆分入库' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'AI整理图文入库' })).toBeDisabled()
 
     const layout = await page.evaluate(() => {
       const consent = document.querySelector('.webpage-consent')?.getBoundingClientRect()

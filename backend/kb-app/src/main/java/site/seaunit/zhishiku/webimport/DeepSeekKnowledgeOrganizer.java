@@ -33,7 +33,10 @@ public class DeepSeekKnowledgeOrganizer
       Return JSON only: {"items":[{"title":"...","body":"...","summary":"...","category":"...","tags":["..."]}]}.
       Create between 1 and %d notes. Split only when the source contains distinct topics.
       Preserve factual meaning and the source language. Do not invent details.
-      Body must be plain text with paragraphs separated by blank lines, no HTML, no scripts, no URLs-only filler.
+      Body must be a polished Markdown subset: ##/### headings, short paragraphs, bullet or numbered
+      lists, > blockquotes and fenced code where useful. Do not use HTML, scripts, tables, remote
+      image syntax, Markdown image URLs, or URLs-only filler. Write for readable study notes, not a
+      chat summary.
       """;
 
   private final AppProperties.Ai config;

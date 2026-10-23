@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,13 +29,19 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
 import site.seaunit.zhishiku.owner.CurrentOwnerService;
 import site.seaunit.zhishiku.owner.OwnerAccountEntity;
+import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
+import site.seaunit.zhishiku.richtext.image.ImportImageCandidate;
+import site.seaunit.zhishiku.richtext.image.ImportedImageAsset;
 import site.seaunit.zhishiku.search.external.ExternalSearchDtos.ExternalSearchRequest;
 import site.seaunit.zhishiku.webimport.AiTextSecretRedactor;
+import site.seaunit.zhishiku.webimport.CapturedWebPage;
 import site.seaunit.zhishiku.webimport.ImportedKnowledgeMapper;
 import site.seaunit.zhishiku.webimport.InternetResultOrganizer;
 import site.seaunit.zhishiku.webimport.OrganizedKnowledge;
 import site.seaunit.zhishiku.webimport.WebImportBillingRequiredException;
 import site.seaunit.zhishiku.webimport.WebImportConsentRequiredException;
+import site.seaunit.zhishiku.webimport.WebImportUnavailableException;
+import site.seaunit.zhishiku.webimport.WebPageCaptureGateway;
 
 @ExtendWith(MockitoExtension.class)
 class ExternalSearchServiceTest {
@@ -44,6 +51,8 @@ class ExternalSearchServiceTest {
   @Mock private DeepSeekAnswerService answerService;
   @Mock private BillingService billingService;
   @Mock private CurrentOwnerService currentOwnerService;
+  @Mock private WebPageCaptureGateway pageCapture;
+  @Mock private ImportImageAssetService imageAssets;
   @Mock private Authentication authentication;
 
   private ExternalSearchService service;
@@ -67,6 +76,8 @@ class ExternalSearchServiceTest {
             billingService,
             org.mockito.Mockito.mock(site.seaunit.zhishiku.consent.AiConsentService.class),
             org.mockito.Mockito.mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class),
+            pageCapture,
+            imageAssets,
             clock);
   }
 
@@ -156,6 +167,110 @@ class ExternalSearchServiceTest {
   }
 
   @Test
+  void capturesPageImagesAndMapsInternetKnowledgeToRichText() {
+    String url = "https://example.com/visual";
+    String content = "Visual article content. ".repeat(20);
+    when(currentOwnerService.require(authentication)).thenReturn(owner);
+    when(provider.search("visual", 5))
+        .thenReturn(
+            List.of(
+                new DeepSeekWebProvider.SearchResult(
+                    "Visual article",
+                    url,
+                    "Visual article",
+                    "Article summary",
+                    "Example",
+                    null,
+                    "2026-10-22T00:00:00Z",
+                    2,
+                    1.8,
+                    content)));
+    var search = service.search(new ExternalSearchRequest("visual", true, false), authentication);
+    ImportImageCandidate candidate =
+        new ImportImageCandidate(new byte[] {1, 2, 3}, "page.png", "image/png");
+    ImportedImageAsset asset =
+        new ImportedImageAsset(
+            java.util.UUID.randomUUID(), "互联网内容架构图", "互联网搜索结果图示", 1200, 800, 1.5);
+    when(pageCapture.capture(url))
+        .thenReturn(new CapturedWebPage(url, url, "网页截图可见文字。".repeat(30), List.of(candidate)));
+    when(provider.fetch(url))
+        .thenReturn(
+            new DeepSeekWebProvider.FetchedPage(
+                "Visual article", "## 核心结论\n\n**重点内容**\n\n- 第一项\n- 第二项"));
+    when(organizer.organize(eq("internet search result"), any()))
+        .thenReturn(
+            List.of(
+                new OrganizedKnowledge(
+                    "图解互联网知识", "## 核心结论\n\n**重点内容**\n\n- 第一项\n- 第二项", "摘要", "资料", List.of("搜索"))));
+    when(imageAssets.prepare(any(), eq(authentication), eq("图解互联网知识"), any(), eq(false)))
+        .thenReturn(List.of(asset));
+    when(knowledgeService.createOrganized(any(), any(), any())).thenReturn(savedResponse());
+
+    java.util.UUID billingTaskId = java.util.UUID.randomUUID();
+    service.save(search.items().get(0).candidateId(), true, billingTaskId, authentication);
+
+    ArgumentCaptor<CreateKnowledgeRequest> request =
+        ArgumentCaptor.forClass(CreateKnowledgeRequest.class);
+    verify(knowledgeService).createOrganized(request.capture(), any(), any());
+    assertThat(request.getValue().bodyDocument().toString())
+        .contains("\"type\":\"heading\"")
+        .contains("\"type\":\"bulletList\"")
+        .contains("\"type\":\"image\"")
+        .contains(asset.uploadId().toString());
+    verify(billingService)
+        .settle(
+            authentication,
+            billingTaskId,
+            Set.of(
+                site.seaunit.zhishiku.core.billing.BillingModel.Feature.WEBPAGE_VISION,
+                site.seaunit.zhishiku.core.billing.BillingModel.Feature.CLASSIFY),
+            "Internet result organized");
+  }
+
+  @Test
+  void settlesOnlyClassificationWhenInternetPageCaptureFails() {
+    String url = "https://example.com/fallback";
+    String content = "Fallback article content. ".repeat(20);
+    when(currentOwnerService.require(authentication)).thenReturn(owner);
+    when(provider.search("fallback", 5))
+        .thenReturn(
+            List.of(
+                new DeepSeekWebProvider.SearchResult(
+                    "Fallback article",
+                    url,
+                    "Fallback article",
+                    "Article summary",
+                    "Example",
+                    null,
+                    "2026-10-22T00:00:00Z",
+                    2,
+                    1.8,
+                    content)));
+    var search = service.search(new ExternalSearchRequest("fallback", true, false), authentication);
+    when(pageCapture.capture(url))
+        .thenThrow(new WebImportUnavailableException("Page capture is unavailable."));
+    when(provider.fetch(url))
+        .thenReturn(
+            new DeepSeekWebProvider.FetchedPage("Fallback article", "## 文本知识\n\n抓取正文仍可整理。"));
+    when(organizer.organize(eq("internet search result"), any()))
+        .thenReturn(
+            List.of(
+                new OrganizedKnowledge(
+                    "Fallback knowledge", "## 文本知识\n\n抓取正文仍可整理。", "摘要", "资料", List.of("搜索"))));
+    when(knowledgeService.createOrganized(any(), any(), any())).thenReturn(savedResponse());
+    java.util.UUID billingTaskId = java.util.UUID.randomUUID();
+
+    service.save(search.items().get(0).candidateId(), true, billingTaskId, authentication);
+
+    verify(billingService)
+        .settle(
+            authentication,
+            billingTaskId,
+            Set.of(site.seaunit.zhishiku.core.billing.BillingModel.Feature.CLASSIFY),
+            "Internet result organized");
+  }
+
+  @Test
   void rejectsDirectSaveOfAnUnorganizableCandidateWithoutCallingFetch() {
     String url = "https://example.com/empty";
     when(currentOwnerService.require(authentication)).thenReturn(owner);
@@ -234,6 +349,8 @@ class ExternalSearchServiceTest {
             billingService,
             org.mockito.Mockito.mock(site.seaunit.zhishiku.consent.AiConsentService.class),
             org.mockito.Mockito.mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class),
+            pageCapture,
+            imageAssets,
             Clock.fixed(Instant.parse("2026-10-22T00:00:00Z"), ZoneOffset.UTC));
     try {
       unbilled.save(java.util.UUID.randomUUID(), true, authentication);

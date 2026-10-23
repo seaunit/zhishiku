@@ -14,6 +14,12 @@
 - 注册验证码：本地 API 直接返回调试码
 - Waffo 支付：默认 `dry-run`，不会创建真实收银台或产生扣款
 - Waffo 测试回调：真实测试模式下自动创建临时 Cloudflare 隧道并更新识海专用 Webhook
+- 图片规范化：需要 `libvips`，通过 `APP_RICHTEXT_VIPSCOMMAND` 指向 `vips` 可执行文件
+- 网页 OCR：需要 Tesseract 5 的 `chi_sim` 和 `eng` 语言包，通过
+  `SHIHAI_TESSERACT_COMMAND` 与 `TESSDATA_PREFIX` 指定可执行文件和语言目录
+
+`.env.local-test` 可保存当前机器上的上述路径。缺少这些依赖时，文档图片安全和网页截图 OCR
+会失败关闭，不会创建不完整的 AI 知识。
 
 ## 启动
 

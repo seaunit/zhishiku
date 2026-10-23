@@ -21,6 +21,9 @@ import site.seaunit.zhishiku.billing.BillingService;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
+import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
+import site.seaunit.zhishiku.richtext.image.ImportImageCandidate;
+import site.seaunit.zhishiku.richtext.image.ImportedImageAsset;
 import site.seaunit.zhishiku.webimport.AiTextSecretRedactor;
 import site.seaunit.zhishiku.webimport.ImportedKnowledgeMapper;
 import site.seaunit.zhishiku.webimport.OrganizedKnowledge;
@@ -36,6 +39,7 @@ class ScreenshotImportServiceTest {
   private final Authentication authentication = mock(Authentication.class);
   private final MultipartFile file = mock(MultipartFile.class);
   private final ImportedKnowledgeMapper mapper = new ImportedKnowledgeMapper(new ObjectMapper());
+  private final ImportImageAssetService imageAssets = mock(ImportImageAssetService.class);
   private final BillingService billingService = mock(BillingService.class);
   private final ScreenshotImportService service =
       new ScreenshotImportService(
@@ -45,6 +49,7 @@ class ScreenshotImportServiceTest {
           true,
           knowledgeService,
           mapper,
+          imageAssets,
           billingService,
           mock(site.seaunit.zhishiku.consent.AiConsentService.class),
           mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class));
@@ -93,6 +98,38 @@ class ScreenshotImportServiceTest {
   }
 
   @Test
+  void includesSafeScreenshotFigureInTheFirstRichTextKnowledgeItem() {
+    ImportImageCandidate candidate =
+        new ImportImageCandidate(new byte[] {1, 2, 3}, "clipboard.png", "image/png");
+    ImportedImageAsset asset =
+        new ImportedImageAsset(UUID.randomUUID(), "流程图", "截图来源图示 · PNG 截图", 1440, 900, 1.6);
+    when(extractor.extract(file))
+        .thenReturn(
+            new ExtractedScreenshot(
+                "截图正文".repeat(30), "image/png", "PNG 截图", 200, List.of(candidate)));
+    when(imageAssets.prepare(any(), any(), any(), any(), eq(true))).thenReturn(List.of(asset));
+    when(organizer.organize(eq("screenshot"), any()))
+        .thenReturn(
+            List.of(
+                new OrganizedKnowledge("截图知识一", "第一段整理正文。", "摘要一", "工程", List.of("截图")),
+                new OrganizedKnowledge("截图知识二", "第二段整理正文。", "摘要二", "产品", List.of("整理"))));
+    when(knowledgeService.createOrganized(any(), any(), any()))
+        .thenReturn(response("截图知识一"), response("截图知识二"));
+
+    service.importScreenshot(file, "截图背景", true, "shot-figure", authentication);
+
+    ArgumentCaptor<CreateKnowledgeRequest> requests =
+        ArgumentCaptor.forClass(CreateKnowledgeRequest.class);
+    verify(knowledgeService, org.mockito.Mockito.times(2))
+        .createOrganized(requests.capture(), any(), any());
+    assertThat(requests.getAllValues().get(0).bodyDocument().toString())
+        .contains("\"type\":\"image\"")
+        .contains(asset.uploadId().toString());
+    assertThat(requests.getAllValues().get(1).bodyDocument().toString())
+        .doesNotContain("\"type\":\"image\"");
+  }
+
+  @Test
   void refusesExternalAiWithoutConsent() {
     try {
       service.importScreenshot(file, "", false, "shot-consent", authentication);
@@ -112,6 +149,7 @@ class ScreenshotImportServiceTest {
             false,
             knowledgeService,
             mapper,
+            imageAssets,
             billingService,
             mock(site.seaunit.zhishiku.consent.AiConsentService.class),
             mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class));

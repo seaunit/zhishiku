@@ -177,6 +177,23 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [x] T109 [P0] 将 AI 整理、AI 采集和重新分析结果统一置为 `review`，新增账号隔离且受 CSRF
   保护的确认复核接口；确认后转为 `succeeded`。手动录入保持 `not_requested` 且不进入待复核
   队列。同步待处理页、详情页、中英文文案、交互原型、OpenAPI、数据模型和自动化验收。
+- [x] T110 [P0] 在应用侧栏“待处理”入口显示当前账号的服务端待处理总数，使用与待处理页一致的
+  状态集合；在初始登录、路由切换、确认复核和重新分析后刷新，并与原型徽标位置及无条目隐藏规则
+  对齐。
+- [x] T111 [P0] 将待复核状态从全局棕黄色警告样式改为深海蓝主题内的紧凑状态标记，避免表格网格
+  拉伸成整列色块；同步原型、前端主题变量、桌面和移动端对齐规则。
+- [x] T112 [P0] 加宽知识详情页正文和说明栏，桌面整页上限提升到 1680px，正文阅读上限 1080px，
+  说明栏 320–380px；宽屏优先使用可用空间，移动端保持单列并验证无横向溢出。
+- [x] T113 [P0] 调整知识详情页顶部操作：删除按钮固定单行，待复核时把复核按钮放到编辑按钮
+  右侧，并将窄屏顶部栏改为返回链接与操作按钮上下两行，保持 44px 触控尺寸和按钮顺序。
+- [x] T114 [P0] 将 AI 整理结果映射为受控 Markdown 富文本，并支持网页、文档、DOCX/PDF 和截图
+  安全图示候选进入正文；限制单次 6 张，图片失败不影响文字知识，同步采集说明、原型、SDD 和测试。
+- [x] T115 [P0] 修复本地采集依赖与文档计费：补齐 Tesseract `chi_sim+eng`、libvips 路径配置，
+  文档提取报价按预检字符数每 10,000 字符计算单位，并完成网页与 DOCX 真实全链路验收。
+- [x] T116 [P0] [US4] 将互联网候选“AI 整理后收入”接入单页截图、OCR、安全图示和富文本映射，
+  支持 Markdown 表格，按网页视觉 10 点加分类 5 点计费，并在视觉失败时只结算分类。
+- [x] T117 [P0] [US3] [US4] 网页链接和互联网候选改为从页面 DOM 提取实际内容图片、SVG 和 Canvas，
+  排除导航、页头、页脚、侧栏、广告位、小图标和全屏背景；整页截图只用于 OCR，不作为来源图。
 
 ## 依赖关系
 
@@ -744,3 +761,176 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 风险与回滚：上线前已经处于 `succeeded` 的历史 AI 条目不会自动回退，因为旧数据无法可靠区分
   全部手动富文本来源；需要复核时可重新分析或由后续受控迁移处理。回滚代码会恢复 AI 结果直接
   `succeeded`；已确认复核的数据仍按现有状态保留。
+
+### 完成记录：T110
+
+- 日期：2026-10-23
+- 状态：本地实现与自动化验收完成
+- 执行主体：Codex
+- Git commit：未提交
+- 摘要：侧栏“待处理”入口显示当前账号待处理总数，并与复核操作实时同步。
+- 详情：`AppShell` 在会话恢复后以 `limit=1` 查询服务端待处理状态集合总数，使用
+  `pageInfo.totalItems` 渲染徽标；路由变化、确认复核和重新分析会触发安全刷新。待处理页与
+  侧栏共用同一状态集合常量。徽标采用原型中的右上角绝对定位，移动端偏移到导航图标右上角，
+  0 条时不渲染。
+- 验证：前端 55 项 Vitest、TypeScript、专项 Playwright 通过；专项用例验证待处理徽标从 1
+  更新为 0，并完成 1440/768/390 截图检查；完整 ESLint、Playwright 和生产构建随后执行。
+- 证据：`AppShell.vue`、`knowledge-status.ts`、`ProcessingView.vue`、`DetailView.vue`、
+  `prototype-theme.css`、`frontend/kb-web/e2e/app.spec.ts`。
+- 覆盖：FR-015、FR-082。
+- 风险与回滚：计数刷新失败时保留最近一次成功值，避免徽标闪回 0；回滚只移除侧栏计数查询和
+  徽标，不影响待处理页服务端过滤与复核状态机。
+
+### 完成记录：T111
+
+- 日期：2026-10-23
+- 状态：本地实现与视觉验收完成
+- 执行主体：Codex
+- Git commit：未提交
+- 摘要：待复核状态改为深海蓝主题内的青蓝紧凑标签，不再使用棕黄色警告背景。
+- 详情：新增独立 `--pill-review-bg` 和 `--pill-review-ink` 语义 token，与警告状态分离。
+  `processing-row` 收窄状态列，桌面端状态标签按内容宽度靠左，移动端保持卡片右上角对齐；
+  日期列保留独立空间，避免状态色块横跨整列。前端与原型同步。
+- 验证：TypeScript、ESLint 和复核专项 Playwright 通过；前端 1440/390 截图确认青蓝标签、
+  日期对齐和移动端布局正常；原型 Taste lint `0 FAIL / 0 WARN`，inspector `0 FAIL`。
+- 证据：`styles.css`、`prototype-theme.css`、`prototype/styles.css`、
+  `frontend/kb-web/e2e/app.spec.ts`。
+- 覆盖：FR-082。
+- 风险与回滚：青蓝色用于信息状态，失败仍保留红色、已整理保留绿色；回滚会恢复棕黄色警告样式，
+  不影响状态数据或复核接口。
+
+### 完成记录：T112
+
+- 日期：2026-10-23
+- 状态：本地实现与视觉验收完成
+- 执行主体：Codex
+- Git commit：未提交
+- 摘要：知识详情正文与右侧说明栏加宽，宽屏下更充分利用可用空间。
+- 详情：详情页上限提升到 1680px，布局调整为自适应的主栏加 320–380px 说明栏；正文和旧版文本
+  覆盖基础主题中的 740/780px 限制，阅读区扩展至 1080px，正文提升到 16px 并增加行高。原型在
+  进入详情视图时同步切换加宽画布。1100px 以下继续单列，移动端不产生横向滚动。
+- 验证：TypeScript、ESLint、详情页专项 Playwright 和原型语法检查通过；1920、1440、768、390
+  截图检查确认宽屏铺开、说明栏宽度、移动端单列和触控布局正常。生产构建与完整 E2E 随后执行。
+- 证据：`prototype-theme.css`、`DetailView.vue`、`prototype/styles.css`、`prototype/app.js`、
+  `frontend/kb-web/e2e/app.spec.ts`。
+- 覆盖：FR-083。
+- 风险与回滚：极宽的正文在 1080px 处停止扩展，避免形成难以阅读的超长行；回滚会恢复 1040px
+  页面、780px 正文和 306px 说明栏。
+
+### 完成记录：T113
+
+- 日期：2026-10-23
+- 状态：本地实现与自动化验收完成
+- 执行主体：Codex
+- Git commit：未提交
+- 摘要：修复详情页删除文字换行，并将待复核按钮移到编辑按钮右侧。
+- 详情：删除操作改为不可收缩的单行图标文字按钮；顶部操作顺序统一为“删除 / 编辑知识 /
+  确认复核”，仅 `review` 状态渲染复核按钮，状态说明区不再重复该操作。窄屏顶部栏改为上下两行，
+  返回链接独占第一行，三个操作在第二行保持顺序并保留 44px 触控高度。原型同步顶部复核按钮。
+- 验证：TypeScript、ESLint、详情页专项 Playwright 和原型语法检查通过；1920、1440、768、390
+  截图确认删除不换行、复核位于编辑右侧、移动端三个操作同排；生产构建与完整 E2E 随后执行。
+- 证据：`DetailView.vue`、`prototype-theme.css`、`prototype/index.html`、`prototype/app.js`、
+  `frontend/kb-web/e2e/app.spec.ts`。
+- 覆盖：FR-082、FR-083。
+- 风险与回滚：极窄且使用超大系统字体时允许操作区自然换行，优先保证触控可用性；回滚会把复核
+  操作恢复到右侧状态区并恢复旧文字布局。
+
+### 完成记录：T114
+
+- 日期：2026-10-23
+- 状态：本地实现、自动化和视觉验收完成；真实 DeepSeek/Tesseract 生产验收未执行
+- 执行主体：Codex
+- Git commit：未提交
+- 摘要：AI 整理结果改为结构化富文本，并尽量保留网页、文档和截图中的安全来源图示。
+- 详情：DeepSeek 提示改为输出受控 Markdown 子集；服务端映射标题、段落、有序/无序列表、引用、
+  代码块、粗体、行内代码和安全 HTTP(S) 链接。网页单页截图、文档入口图片、DOCX `word/media`
+  位图、PDF 页面资源位图都进入统一图片安全候选；超过 1,800px 的网页截图按阅读顺序切成最多
+  6 个不超过 8192px 安全边界的图块，较短页面继续保留单张原图。通过规范化、像素、动图、
+  密钥和 OCR 检查后，
+  且最小边不少于 120px、面积不少于 40,000 像素的候选，复用 `rich_image_upload`、附件和
+  `rich_image_reference` 进入首条知识正文。单次最多 6 张，
+  图片失败或检测到密钥时只跳过图片，不丢弃文字知识。详情页增加来源图示卡片、最大 720px
+  预览高度和点击放大。
+- 验证：后端完整 Maven 测试 271 项通过（`kb-core` 23、`kb-app` 247、worker 1）；相关专项测试
+  51 项通过，覆盖 Markdown 富文本、网页长截图切块、DOCX 图片提取、网页/文档/截图首条知识
+  附图、图片密钥跳过和附件安全检查。前端 55 项 Vitest、55 项 Playwright 通过、2 项真实服务
+  用例跳过；
+  TypeScript、ESLint、生产构建、原型语法和 Taste lint 通过；详情图片继续使用现有
+  1920/1440/768/390 三档浏览器夹具验证。
+- 证据：`ImportedKnowledgeMapper.java`、`ImportImageAssetService.java`、
+  `DocumentTextExtractor.java`、`ScreenshotTextExtractor.java`、
+  `PlaywrightOcrWebPageCaptureService.java`、`WebPageImportService.java`、
+  `DocumentImportService.java`、`ScreenshotImportService.java`、`CaptureView.vue`、
+  `prototype-theme.css`、`prototype/app.js`。
+- 覆盖：FR-021、FR-022、FR-084、FR-085。
+- 风险与回滚：图示保留采用“安全候选尽量保留”策略，不做视觉语义判断，可能保留少量非关键图片，
+  也可能因 OCR/扫描失败而跳过关键图片；网页长截图按固定阅读高度切块，跨越切块的流程图可能被
+  拆成两段；DOC 和 RTF 内嵌图示尚未提取，PDF 仅提取可解码页面位图，扫描版纯页面依赖截图入口。
+  真实 DeepSeek 富文本质量、Tesseract 和 6 张图片 UI 仍需生产验收。
+  回滚会恢复纯段落映射和无线索图采集，不影响已有富文本或附件数据。
+
+### 完成记录：T115
+
+- 日期：2026-10-23
+- 状态：本地实现和真实全链路验收完成
+- 执行主体：Codex
+- Git commit：未提交
+- 摘要：修复网页采集 OCR 依赖缺失，以及 DOCX 文档提取报价单位固定的问题。
+- 详情：日志和手工 worker 验证显示 Playwright 截图正常，失败发生在本机未安装 Tesseract。
+  安装 Tesseract 5 和 `chi_sim+eng` 语言包，配置 `SHIHAI_TESSERACT_COMMAND`、
+  `TESSDATA_PREFIX` 和 `APP_RICHTEXT_VIPSCOMMAND`。文档入口改为按预检返回的字符上界计算
+  `ceil(characters / 10000)`，与后端 `DOCUMENT_EXTRACT` 计费规则一致。
+- 验证：网页入口真实返回 `201`，生成 3 条待复核知识，首条包含网页来源截图；DOCX 入口正确报价
+  35 点并返回 `201`，生成 7 条待复核知识，首条包含 4 张内嵌图片。后端全量 271 项、Vitest 55
+  项、Playwright 56 项通过，2 项真实服务用例跳过；前端 lint、类型检查和生产构建通过。
+- 证据：`frontend/kb-web/src/views/CaptureView.vue`、
+  `frontend/kb-web/e2e/app.spec.ts`、`deploy/local-test/README.md`。
+- 覆盖：FR-021、FR-022、FR-084、FR-085。
+- 风险与回滚：`.env.local-test` 中的解释器和语言目录是本机绝对路径，不进入 Git；其他机器仍需
+  安装相同依赖并配置路径。回滚代码会把文档提取恢复为固定 1 个单位，较大文档将再次出现报价
+  与后端规则不一致。
+
+### 完成记录：T116
+
+- 日期：2026-10-23
+- 状态：本地实现、自动化和真实联网验收完成
+- 执行主体：Codex
+- Git commit：未提交
+- 摘要：互联网搜索结果收入改为单页图文采集，和网页链接入口共用截图、OCR、安全图示及富文本能力。
+- 详情：候选保存对用户选择的唯一 URL 执行单页截图；截图 OCR 先做密钥检查，通过后复用
+  `ImportImageAssetService`、附件和 `rich_image_reference`，把图示加入首条知识。AI Markdown
+  继续映射标题、段落、列表、引用、代码和链接，并新增管道表格到 Tiptap 表格节点。完整报价为
+  网页视觉 10 点加分类 5 点；截图失败但文字整理成功时只结算分类 5 点。
+- 验证：后端全量 275 项通过（`kb-core` 23、`kb-app` 251、worker 1）；前端 Vitest 55 项、
+  Playwright 56 项通过，2 项真实服务用例跳过；lint、类型检查和生产构建通过。真实 DeepSeek
+  搜索选择“首次调用 API”候选后返回 `201`，生成 3 条待复核知识，首条节点包含标题、段落、
+  表格、列表和 1 张来源图示；详情页实际渲染 1 个表格、1 张图片且无横向溢出。
+- 证据：`ExternalSearchService.java`、`ImportedKnowledgeMapper.java`、`HomeView.vue`、
+  `ExternalSearchServiceTest.java`、`ImportedKnowledgeMapperTest.java`、
+  `frontend/kb-web/e2e/app.spec.ts`。
+- 覆盖：FR-012、FR-041、FR-080、FR-084、FR-085、FR-086。
+- 风险与回滚：该版本曾把整页截图作为来源图，现由 T117 取代；页面视觉失败时仍只保留文字整理
+  且按 5 点结算。回滚只会恢复旧链路，不应保留整页截图作为长期正文来源。
+
+### 完成记录：T117
+
+- 日期：2026-10-23
+- 状态：本地实现、自动化和真实网页验收完成
+- 执行主体：Codex
+- Git commit：未提交
+- 摘要：网页来源图改为提取网页实际展示的内容图片、SVG 和 Canvas，不再把整页截图收入知识正文。
+- 详情：Playwright worker 新增 DOM 视觉元素扫描，只对渲染尺寸至少 240×120 且面积不少于
+  40,000 像素的 `img`、`svg`、`canvas` 生成独立图片。导航、页头、页脚、侧栏、广告位、
+  固定定位、全屏背景 Canvas、右侧推荐栏和小图标会被排除；相同来源或高度重叠的候选去重，
+  单页最多 6 张。整页截图继续仅用于 OCR，页面链接和互联网候选共用该图片提取链路。
+- 验证：backend worker 单测、网页入口和候选保存专项测试通过；后端全量 277 项通过
+  （`kb-core` 23、`kb-app` 252、worker 2）；Vitest 55 项、Playwright 56 项通过，2 项真实
+  服务用例跳过；lint、类型检查、生产构建和原型语法检查通过。真实 `globalpeople` 新闻页从
+  DOM 提取 5 张正文图片，圈选的 DeepSeek 推文图为第 4 张，右侧体育横幅被排除；网页链接和
+  互联网候选分别入库后，首条知识均含 5 张图片，桌面与 390px 详情页加载正常且无横向溢出。
+- 证据：`WebPageCaptureWorker.java`、`PlaywrightOcrWebPageCaptureService.java`、
+  `WebPageScreenshotSplitter.java`、`ExternalSearchService.java`、`WebPageImportService.java`、
+  `i18n.ts`、`prototype/app.js`、相关后端与前端测试。
+- 覆盖：FR-041、FR-080、FR-084、FR-085。
+- 风险与回滚：复杂 Web Component、跨域 iframe 内图片或运行时 CSS 背景图可能无法作为独立元素
+  提取；此类页面只保留 OCR 文字和可识别的内容元素。回滚会恢复以整页截图作为来源图。

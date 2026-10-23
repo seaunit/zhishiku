@@ -369,13 +369,18 @@ import {
   searchInternet,
   searchKnowledge,
 } from '@/api/client'
-import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
+import {
+  knowledgeStatusTone,
+  knowledgeStatusTranslationKey,
+  PENDING_PROCESSING_STATUSES,
+} from '@/lib/knowledge-status'
 import { createIdempotencyKey } from '@/lib/id'
 import type { ExternalSearchCandidate, KnowledgeItemSummary } from '@/types/api'
 import type { BillingQuote } from '@/types/api'
 
 const { t, locale } = useI18n()
 const router = useRouter()
+const PENDING_STATUS_SET = new Set<string>(PENDING_PROCESSING_STATUSES)
 const query = ref('')
 const searchedQuery = ref('')
 const allItems = ref<KnowledgeItemSummary[]>([])
@@ -433,7 +438,7 @@ const mapNodes = computed(() => {
 })
 
 function isPending(status: string) {
-  return ['pending', 'queued', 'running', 'processing', 'review', 'failed'].includes(status)
+  return PENDING_STATUS_SET.has(status)
 }
 
 function sourceIcon(kind: string) {
@@ -562,7 +567,10 @@ async function saveCandidate(candidate: ExternalSearchCandidate) {
     if (!candidateQuote.value || candidateQuoteId.value !== candidate.candidateId) {
       candidateQuote.value = await createBillingQuote({
         operation: 'internet_import',
-        lines: [{ feature: 'classify', quantity: 1 }],
+        lines: [
+          { feature: 'webpage_vision', quantity: 1 },
+          { feature: 'classify', quantity: 1 },
+        ],
       })
       candidateQuoteId.value = candidate.candidateId
       return

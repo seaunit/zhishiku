@@ -140,7 +140,9 @@ class BillingP0PolicyTest {
         0);
     BillingService.validateRequestedOperationLines(
         "internet_import",
-        List.of(new QuoteLineRequest(Feature.CLASSIFY.wireValue(), 1)),
+        List.of(
+            new QuoteLineRequest(Feature.WEBPAGE_VISION.wireValue(), 1),
+            new QuoteLineRequest(Feature.CLASSIFY.wireValue(), 1)),
         null,
         null,
         0);
@@ -158,6 +160,13 @@ class BillingP0PolicyTest {
         .containsEntry(Feature.CLASSIFY, 1);
     assertThat(screenshot)
         .containsEntry(Feature.SCREENSHOT_OCR, 3)
+        .containsEntry(Feature.CLASSIFY, 1);
+  }
+
+  @Test
+  void internetResultImportChargesVisionAndClassification() {
+    assertThat(BillingService.operationRequirements("internet_import", null, null, 0))
+        .containsEntry(Feature.WEBPAGE_VISION, 1)
         .containsEntry(Feature.CLASSIFY, 1);
   }
 

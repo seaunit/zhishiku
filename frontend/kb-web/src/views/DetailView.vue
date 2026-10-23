@@ -6,7 +6,11 @@
         <span>{{ t('detail.backToLibrary') }}</span>
       </RouterLink>
       <span v-if="item" class="detail-top-actions">
-        <button type="button" class="text-button danger-text" @click="deleteOpen = true">
+        <button
+          type="button"
+          class="text-button danger-text detail-delete-action"
+          @click="deleteOpen = true"
+        >
           <Trash2 :size="17" />
           <span>{{ t('detail.delete') }}</span>
         </button>
@@ -18,6 +22,17 @@
           <Pencil :size="17" />
           <span>{{ t('detail.edit') }}</span>
         </RouterLink>
+        <button
+          v-if="item.processingStatus === 'review'"
+          type="button"
+          class="button primary detail-review-action"
+          :disabled="reviewing"
+          @click="confirmReview"
+        >
+          <LoaderCircle v-if="reviewing" class="spin" :size="16" />
+          <Check v-else :size="16" />
+          <span>{{ t('detail.confirmReview') }}</span>
+        </button>
       </span>
     </div>
 
@@ -210,17 +225,6 @@
               <span>{{ t('detail.processingStatus') }}</span>
               <strong>{{ statusLabel(item.processingStatus) }}</strong>
             </div>
-            <button
-              v-if="item.processingStatus === 'review'"
-              type="button"
-              class="button primary detail-review-action"
-              :disabled="reviewing"
-              @click="confirmReview"
-            >
-              <LoaderCircle v-if="reviewing" class="spin" :size="16" />
-              <Check v-else :size="16" />
-              <span>{{ t('detail.confirmReview') }}</span>
-            </button>
             <p v-if="reviewNotice" class="success-message" role="status">{{ reviewNotice }}</p>
             <p v-if="reviewError" class="field-error" role="alert">{{ reviewError }}</p>
           </section>
@@ -257,7 +261,11 @@ import {
   updateKnowledgeClassification,
 } from '@/api/client'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
+import {
+  knowledgeStatusTone,
+  knowledgeStatusTranslationKey,
+  notifyReviewQueueChanged,
+} from '@/lib/knowledge-status'
 import { createIdempotencyKey } from '@/lib/id'
 import { validateRichTextDocument } from '@/lib/rich-text'
 import RichTextDocument from '@/components/RichTextDocument.vue'
@@ -435,6 +443,7 @@ async function confirmReanalysis() {
     reanalyzeQuote.value = null
     reanalyzeKey.value = ''
     reanalyzeNotice.value = t('detail.reanalyzeComplete')
+    notifyReviewQueueChanged()
   } catch (caught) {
     reanalyzeError.value = caught instanceof Error ? caught.message : t('errors.generic')
   } finally {
@@ -457,6 +466,7 @@ async function confirmReview() {
   try {
     item.value = await confirmKnowledgeReview(item.value.id)
     reviewNotice.value = t('detail.reviewConfirmed')
+    notifyReviewQueueChanged()
   } catch (caught) {
     reviewError.value = caught instanceof Error ? caught.message : t('detail.reviewFailed')
   } finally {

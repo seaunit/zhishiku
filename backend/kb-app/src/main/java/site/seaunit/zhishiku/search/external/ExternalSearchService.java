@@ -25,16 +25,22 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
 import site.seaunit.zhishiku.owner.CurrentOwnerService;
+import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
+import site.seaunit.zhishiku.richtext.image.ImportedImageAsset;
 import site.seaunit.zhishiku.search.external.ExternalSearchDtos.ExternalSearchCandidate;
 import site.seaunit.zhishiku.search.external.ExternalSearchDtos.ExternalSearchRequest;
 import site.seaunit.zhishiku.search.external.ExternalSearchDtos.ExternalSearchResponse;
 import site.seaunit.zhishiku.search.external.ExternalSearchDtos.ExternalSearchSaveResponse;
 import site.seaunit.zhishiku.webimport.AiTextSecretRedactor;
+import site.seaunit.zhishiku.webimport.CapturedWebPage;
 import site.seaunit.zhishiku.webimport.ImportedKnowledgeMapper;
 import site.seaunit.zhishiku.webimport.InternetResultOrganizer;
 import site.seaunit.zhishiku.webimport.OrganizedKnowledge;
 import site.seaunit.zhishiku.webimport.WebImportBillingRequiredException;
 import site.seaunit.zhishiku.webimport.WebImportConsentRequiredException;
+import site.seaunit.zhishiku.webimport.WebImportUnavailableException;
+import site.seaunit.zhishiku.webimport.WebPageCaptureGateway;
+import site.seaunit.zhishiku.webimport.WebPageNoTextException;
 import site.seaunit.zhishiku.webimport.WebPageOrganizationException;
 
 @Service
@@ -55,6 +61,8 @@ public class ExternalSearchService {
   private final BillingService billingService;
   private final AiConsentService aiConsents;
   private final IdempotencyService idempotency;
+  private final WebPageCaptureGateway pageCapture;
+  private final ImportImageAssetService imageAssets;
   private final Cache<UUID, CachedCandidate> candidates;
 
   public ExternalSearchService(
@@ -70,6 +78,8 @@ public class ExternalSearchService {
       BillingService billingService,
       AiConsentService aiConsents,
       IdempotencyService idempotency,
+      WebPageCaptureGateway pageCapture,
+      ImportImageAssetService imageAssets,
       Clock clock) {
     this.provider = provider;
     this.knowledgeService = knowledgeService;
@@ -83,6 +93,8 @@ public class ExternalSearchService {
     this.billingService = billingService;
     this.aiConsents = aiConsents;
     this.idempotency = idempotency;
+    this.pageCapture = pageCapture;
+    this.imageAssets = imageAssets;
     this.clock = clock;
     this.candidates =
         Caffeine.newBuilder()
@@ -267,14 +279,19 @@ public class ExternalSearchService {
       if (organized.isEmpty()) {
         throw new WebPageOrganizationException("AI returned no usable internet knowledge.");
       }
+      InternetImageCapture visualCapture =
+          captureInternetImages(
+              cached.result(), organized.get(0).title(), redacted.applied(), authentication);
       List<KnowledgeItemResponse> created = new ArrayList<>();
-      for (OrganizedKnowledge item : organized) {
+      for (int index = 0; index < organized.size(); index++) {
+        OrganizedKnowledge item = organized.get(index);
         created.add(
             knowledgeMapper.withRedactionApplied(
                 knowledgeService.createOrganized(
                     new CreateKnowledgeRequest(
                         item.title(),
-                        knowledgeMapper.document(item.body()),
+                        knowledgeMapper.document(
+                            item.body(), index == 0 ? visualCapture.images() : List.of()),
                         knowledgeMapper.note(
                             item,
                             redacted.applied(),
@@ -287,8 +304,12 @@ public class ExternalSearchService {
                 redacted.applied()));
       }
       if (billingTaskId != null) {
-        billingService.settle(
-            authentication, billingTaskId, Set.of(Feature.CLASSIFY), "Internet result organized");
+        Set<Feature> settled = new LinkedHashSet<>();
+        if (visualCapture.visionCompleted()) {
+          settled.add(Feature.WEBPAGE_VISION);
+        }
+        settled.add(Feature.CLASSIFY);
+        billingService.settle(authentication, billingTaskId, settled, "Internet result organized");
       }
       candidates.invalidate(candidateId);
       ExternalSearchSaveResponse response = new ExternalSearchSaveResponse(List.copyOf(created));
@@ -304,6 +325,42 @@ public class ExternalSearchService {
       }
       throw error;
     }
+  }
+
+  private InternetImageCapture captureInternetImages(
+      DeepSeekWebProvider.SearchResult result,
+      String title,
+      boolean sourceTextRedacted,
+      Authentication authentication) {
+    if (sourceTextRedacted) {
+      return new InternetImageCapture(List.of(), false);
+    }
+    CapturedWebPage page;
+    try {
+      page = pageCapture.capture(result.url());
+    } catch (WebImportUnavailableException
+        | WebPageNoTextException
+        | IllegalArgumentException error) {
+      return new InternetImageCapture(List.of(), false);
+    }
+    if (page == null) {
+      return new InternetImageCapture(List.of(), false);
+    }
+    if (page.images().isEmpty()) {
+      return new InternetImageCapture(List.of(), true);
+    }
+    AiTextSecretRedactor.RedactionResult captureText = secretRedactor.redact(page.visibleText());
+    if (captureText.applied()) {
+      return new InternetImageCapture(List.of(), true);
+    }
+    return new InternetImageCapture(
+        imageAssets.prepare(
+            page.images(),
+            authentication,
+            title,
+            "互联网搜索结果图示 · " + firstNonBlank(result.siteName(), host(result.url())),
+            false),
+        true);
   }
 
   private static String firstNonBlank(String... values) {
@@ -330,4 +387,6 @@ public class ExternalSearchService {
 
   private record CachedCandidate(
       UUID ownerId, DeepSeekWebProvider.SearchResult result, Instant expiresAt) {}
+
+  private record InternetImageCapture(List<ImportedImageAsset> images, boolean visionCompleted) {}
 }

@@ -19,7 +19,11 @@
           >
             <component :is="item.icon" :size="18" :stroke-width="1.6" />
             <span>{{ item.label }}</span>
-            <b v-if="item.name === 'processing' && pendingCount > 0" class="nav-count">
+            <b
+              v-if="item.name === 'processing' && pendingCount > 0"
+              class="nav-count"
+              :aria-label="t('nav.pendingCount', { count: pendingCount })"
+            >
               {{ pendingCount }}
             </b>
           </RouterLink>
@@ -83,9 +87,14 @@
 
 <script setup lang="ts">
 import { CreditCard, Home, Inbox, Library, Plus, Settings, Trash2 } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { listKnowledgeItems } from '@/api/client'
+import {
+  PENDING_PROCESSING_STATUS_QUERY,
+  REVIEW_QUEUE_CHANGED_EVENT,
+} from '@/lib/knowledge-status'
 import { useSessionStore } from '@/stores/session'
 import AccountMenu from './AccountMenu.vue'
 import BrandMark from './BrandMark.vue'
@@ -93,12 +102,14 @@ import ConfirmDialog from './ConfirmDialog.vue'
 import LocaleSwitch from './LocaleSwitch.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const pendingCount = ref(0)
 const confirmOpen = ref(false)
 const signingOut = ref(false)
 const signOutError = ref('')
+let pendingCountRequest = 0
 
 const primaryItems = computed(() => [
   { name: 'home', to: '/', label: t('nav.home'), icon: Home },
@@ -145,9 +156,47 @@ function firstCharacter(value: string) {
   return Array.from(value.trim())[0]?.toUpperCase() || '识'
 }
 
-onMounted(() => {
-  void session.restore().catch(() => {
+async function refreshPendingCount() {
+  const requestId = ++pendingCountRequest
+  try {
+    const response = await listKnowledgeItems(
+      1,
+      1,
+      'all',
+      PENDING_PROCESSING_STATUS_QUERY,
+    )
+    if (requestId === pendingCountRequest) {
+      pendingCount.value = response.pageInfo?.totalItems ?? 0
+    }
+  } catch {
+    // Keep the last known count during a transient refresh failure.
+  }
+}
+
+function handleReviewQueueChanged() {
+  void refreshPendingCount()
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    if (session.session) {
+      void refreshPendingCount()
+    }
+  },
+)
+
+onMounted(async () => {
+  window.addEventListener(REVIEW_QUEUE_CHANGED_EVENT, handleReviewQueueChanged)
+  try {
+    await session.restore()
+    await refreshPendingCount()
+  } catch {
     // The API client emits the unauthorized event and redirects to login.
-  })
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener(REVIEW_QUEUE_CHANGED_EVENT, handleReviewQueueChanged)
 })
 </script>

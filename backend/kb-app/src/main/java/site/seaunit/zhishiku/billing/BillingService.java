@@ -2578,7 +2578,11 @@ public class BillingService {
     Map<Feature, Integer> requirements = new EnumMap<>(Feature.class);
     String normalizedOperation = operation == null ? "" : operation.strip();
     switch (normalizedOperation) {
-      case "manual_auto_classify", "internet_import" -> requirements.put(Feature.CLASSIFY, 1);
+      case "manual_auto_classify" -> requirements.put(Feature.CLASSIFY, 1);
+      case "internet_import" -> {
+        requirements.put(Feature.WEBPAGE_VISION, 1);
+        requirements.put(Feature.CLASSIFY, 1);
+      }
       case "text_import", "reanalyze" -> requirements.put(Feature.AI_TEXT, 1);
       case "webpage_import" -> {
         requirements.put(Feature.WEBPAGE_VISION, requirePositive(preflightViewCount));

@@ -6,11 +6,14 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 import site.seaunit.zhishiku.config.AppProperties;
 import site.seaunit.zhishiku.ocr.TesseractOcrService;
+import site.seaunit.zhishiku.richtext.image.ImportImageCandidate;
 import site.seaunit.zhishiku.richtext.provenance.SourceProvenancePolicy;
 
 @Component
@@ -20,12 +23,17 @@ public class PlaywrightOcrWebPageCaptureService implements WebPageCaptureGateway
   private final AppProperties.WebImport config;
   private final SourceProvenancePolicy sourcePolicy;
   private final TesseractOcrService ocr;
+  private final WebPageScreenshotSplitter screenshotSplitter;
 
   public PlaywrightOcrWebPageCaptureService(
-      AppProperties properties, SourceProvenancePolicy sourcePolicy, TesseractOcrService ocr) {
+      AppProperties properties,
+      SourceProvenancePolicy sourcePolicy,
+      TesseractOcrService ocr,
+      WebPageScreenshotSplitter screenshotSplitter) {
     this.config = properties.webImport();
     this.sourcePolicy = sourcePolicy;
     this.ocr = ocr;
+    this.screenshotSplitter = screenshotSplitter;
   }
 
   @Override
@@ -34,10 +42,12 @@ public class PlaywrightOcrWebPageCaptureService implements WebPageCaptureGateway
     requirePublicResolvedHost(url);
     Path screenshot = null;
     Path metadata = null;
+    Path imageDirectory = null;
     try {
       screenshot = Files.createTempFile("zhishiku-webpage-", ".png");
       metadata = Files.createTempFile("zhishiku-webpage-", ".url");
-      String finalUrl = runCapture(url, screenshot, metadata);
+      imageDirectory = Files.createTempDirectory("zhishiku-web-images-");
+      String finalUrl = runCapture(url, screenshot, metadata, imageDirectory);
       String sanitizedFinalUrl = sourcePolicy.sanitizeUrl(finalUrl);
       requirePublicResolvedHost(sanitizedFinalUrl);
       String text = ocr.recognize(screenshot);
@@ -45,8 +55,9 @@ public class PlaywrightOcrWebPageCaptureService implements WebPageCaptureGateway
         throw new WebPageNoTextException("The rendered page did not contain enough readable text.");
       }
       int limit = Math.max(1000, config.maxTextChars());
+      List<ImportImageCandidate> images = readContentImages(imageDirectory);
       return new CapturedWebPage(
-          url, sanitizedFinalUrl, text.substring(0, Math.min(text.length(), limit)));
+          url, sanitizedFinalUrl, text.substring(0, Math.min(text.length(), limit)), images);
     } catch (IOException error) {
       throw new WebImportUnavailableException("Web page capture is unavailable.");
     } finally {
@@ -64,10 +75,11 @@ public class PlaywrightOcrWebPageCaptureService implements WebPageCaptureGateway
           // Temporary metadata cleanup is best effort.
         }
       }
+      deleteContentImageDirectory(imageDirectory);
     }
   }
 
-  private String runCapture(String url, Path screenshot, Path metadata) {
+  private String runCapture(String url, Path screenshot, Path metadata, Path imageDirectory) {
     Path workerJar = Path.of(config.workerJar());
     if (!Files.isRegularFile(workerJar)) {
       throw new WebImportUnavailableException("Browser worker is not installed.");
@@ -86,7 +98,9 @@ public class PlaywrightOcrWebPageCaptureService implements WebPageCaptureGateway
                 "--output",
                 screenshot.toString(),
                 "--metadata",
-                metadata.toString()),
+                metadata.toString(),
+                "--images",
+                imageDirectory.toString()),
             timeout);
     if (result.exitCode() != 0) {
       throw new WebImportUnavailableException("The page could not be rendered.");
@@ -107,6 +121,45 @@ public class PlaywrightOcrWebPageCaptureService implements WebPageCaptureGateway
       return finalUrl;
     } catch (IOException error) {
       throw new WebImportUnavailableException("Rendered page URL is unavailable.");
+    }
+  }
+
+  private List<ImportImageCandidate> readContentImages(Path imageDirectory) throws IOException {
+    if (imageDirectory == null || !Files.isDirectory(imageDirectory)) {
+      return List.of();
+    }
+    List<Path> files;
+    try (Stream<Path> paths = Files.list(imageDirectory)) {
+      files =
+          paths
+              .filter(Files::isRegularFile)
+              .filter(path -> path.getFileName().toString().endsWith(".png"))
+              .sorted()
+              .toList();
+    }
+    List<ImportImageCandidate> images = new ArrayList<>();
+    for (Path file : files) {
+      String filename = file.getFileName().toString();
+      String stem = filename.substring(0, filename.length() - 4);
+      images.addAll(screenshotSplitter.split(file, stem));
+      if (images.size() >= 6) {
+        return List.copyOf(images.subList(0, 6));
+      }
+    }
+    return List.copyOf(images);
+  }
+
+  private static void deleteContentImageDirectory(Path imageDirectory) {
+    if (imageDirectory == null) {
+      return;
+    }
+    try (Stream<Path> paths = Files.list(imageDirectory)) {
+      for (Path path : paths.toList()) {
+        Files.deleteIfExists(path);
+      }
+      Files.deleteIfExists(imageDirectory);
+    } catch (IOException ignored) {
+      // Temporary content images contain no durable state and are best-effort cleanup.
     }
   }
 

@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -15,6 +16,7 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.poi.xwpf.usermodel.Document;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -56,6 +58,35 @@ class DocumentTextExtractorTest {
     assertThat(extracted.mediaType())
         .isEqualTo("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     assertThat(extracted.text()).contains("extractable text").contains("second sentence");
+  }
+
+  @Test
+  void extractsEmbeddedDocxImagesAsSafeImportCandidates() throws Exception {
+    byte[] bytes;
+    try (XWPFDocument document = new XWPFDocument();
+        ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+      document
+          .createParagraph()
+          .createRun()
+          .setText(
+              "This document contains a diagram and enough explanatory text for safe import. "
+                  + "The accompanying description remains searchable after knowledge organization.");
+      document
+          .createParagraph()
+          .createRun()
+          .addPicture(
+              new ByteArrayInputStream(PNG), Document.PICTURE_TYPE_PNG, "diagram.png", 120, 80);
+      document.write(output);
+      bytes = output.toByteArray();
+    }
+
+    ExtractedDocument extracted =
+        extractor.extract(
+            new MockMultipartFile("file", "diagram.docx", "application/octet-stream", bytes));
+
+    assertThat(extracted.images()).hasSize(1);
+    assertThat(extracted.images().get(0).mediaType()).isEqualTo("image/png");
+    assertThat(extracted.images().get(0).filename()).contains("image1.png");
   }
 
   @Test
@@ -184,6 +215,7 @@ class DocumentTextExtractorTest {
 
     assertThat(extracted.mediaType()).isEqualTo("image/png");
     assertThat(extracted.text()).contains("文档图片中的完整识别正文");
+    assertThat(extracted.images()).hasSize(1);
   }
 
   @Test

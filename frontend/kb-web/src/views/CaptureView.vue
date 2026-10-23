@@ -848,7 +848,10 @@ async function prepareBillingQuote() {
       })
       preflightId = preflight.preflightId
       lines = [
-        { feature: 'document_extract', quantity: 1 },
+        {
+          feature: 'document_extract',
+          quantity: Math.max(1, Math.ceil(preflight.measuredCharactersUpperBound / 10_000)),
+        },
         { feature: 'classify', quantity: 1 },
       ]
     } else {

@@ -109,12 +109,17 @@ import {
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { confirmKnowledgeReview, listKnowledgeItems } from '@/api/client'
-import { knowledgeStatusTone, knowledgeStatusTranslationKey } from '@/lib/knowledge-status'
+import {
+  knowledgeStatusTone,
+  knowledgeStatusTranslationKey,
+  notifyReviewQueueChanged,
+  PENDING_PROCESSING_STATUSES,
+  PENDING_PROCESSING_STATUS_QUERY,
+} from '@/lib/knowledge-status'
 import type { KnowledgeItemSummary, KnowledgePageInfo } from '@/types/api'
 
 const { t, locale } = useI18n()
-const QUEUE_STATUSES = 'pending,queued,running,processing,review,failed'
-const QUEUE_STATUS_SET = new Set(QUEUE_STATUSES.split(','))
+const QUEUE_STATUS_SET = new Set<string>(PENDING_PROCESSING_STATUSES)
 const items = ref<KnowledgeItemSummary[]>([])
 const loading = ref(true)
 const loadError = ref('')
@@ -154,7 +159,7 @@ async function load(page = 1) {
   loadError.value = ''
   reviewError.value = ''
   try {
-    const response = await listKnowledgeItems(20, page, 'all', QUEUE_STATUSES)
+    const response = await listKnowledgeItems(20, page, 'all', PENDING_PROCESSING_STATUS_QUERY)
     items.value = response.items.filter((item) => QUEUE_STATUS_SET.has(item.processingStatus))
     pageInfo.value = response.pageInfo ?? null
   } catch (caught) {
@@ -173,6 +178,7 @@ async function confirmReview(item: KnowledgeItemSummary) {
     await confirmKnowledgeReview(item.id)
     await load(pageInfo.value?.page ?? 1)
     reviewNotice.value = t('processing.reviewConfirmed')
+    notifyReviewQueueChanged()
   } catch (caught) {
     reviewError.value = caught instanceof Error ? caught.message : t('processing.reviewFailed')
   } finally {

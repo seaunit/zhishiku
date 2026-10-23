@@ -92,14 +92,20 @@
 }
 
 .rail-item .nav-count {
+  position: absolute;
   top: 2px;
   right: 3px;
   min-width: 16px;
   height: 16px;
+  padding: 0 4px;
   color: var(--pill-warning-ink);
   background: var(--pill-warning-bg);
   border-radius: 3px;
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  text-align: center;
 }
 
 .workspace {
@@ -614,8 +620,8 @@
 }
 
 .status-pill.review {
-  color: var(--pill-warning-ink);
-  background: var(--pill-warning-bg);
+  color: var(--pill-review-ink);
+  background: var(--pill-review-bg);
 }
 
 .status-pill.processing {
@@ -1615,12 +1621,16 @@
 
 .processing-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 64px 100px 128px 90px auto;
+  grid-template-columns: minmax(0, 1fr) 64px 100px 96px 90px auto;
   gap: 12px;
   min-height: 62px;
   align-items: center;
   padding: 11px 16px;
   border-bottom: 1px solid var(--rule);
+}
+
+.processing-row > .status-pill {
+  justify-self: start;
 }
 
 .processing-row:last-child {
@@ -1666,9 +1676,11 @@
 }
 
 .detail-review-action {
-  width: 100%;
+  width: auto;
   min-height: 40px;
-  margin-top: 14px;
+  margin-top: 0;
+  padding: 0 14px;
+  white-space: nowrap;
 }
 
 .trash-panel {
@@ -1826,6 +1838,11 @@
   margin-bottom: 18px;
 }
 
+.detail-page {
+  width: min(100%, 1680px);
+  max-width: none;
+}
+
 .back-link {
   display: inline-flex;
   min-height: 40px;
@@ -1841,14 +1858,14 @@
 
 .detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 306px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 24px;
   align-items: start;
 }
 
 .detail-main {
   min-width: 0;
-  padding: 24px;
+  padding: 30px 32px;
 }
 
 .detail-heading {
@@ -1864,17 +1881,37 @@
 }
 
 .detail-body {
-  max-width: 780px;
+  max-width: 1080px;
   margin-top: 26px;
   padding-top: 22px;
   border-top: 1px solid var(--rule);
   color: #d7e9f2;
-  font-size: 15px;
-  line-height: 1.75;
+  font-size: 16px;
+  line-height: 1.8;
 }
 
 .detail-aside {
-  padding: 16px;
+  padding: 20px;
+}
+
+.detail-body .rich-text-view,
+.detail-body .legacy-text {
+  max-width: none;
+}
+
+.detail-body .document-image {
+  padding: 10px 10px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.detail-body .document-image .safe-image {
+  max-height: min(70vh, 720px);
+}
+
+.detail-body .document-image figcaption {
+  padding: 2px 8px 10px;
 }
 
 .aside-section + .aside-section {
@@ -2453,6 +2490,10 @@
     left: 24px;
   }
 
+  .rail-item .nav-count {
+    right: calc(50% - 22px);
+  }
+
   .topbar {
     position: sticky;
     top: 0;
@@ -2560,6 +2601,10 @@
 
   .processing-row .processing-time {
     display: none;
+  }
+
+  .processing-row > .status-pill {
+    justify-self: end;
   }
 
   .processing-review-action {
@@ -2931,6 +2976,44 @@
   gap: 16px;
 }
 
+.billing-records-panel {
+  display: flex;
+  height: clamp(320px, 46vh, 460px);
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.billing-records-panel > .panel-heading {
+  flex: none;
+}
+
+.billing-records-panel .billing-list {
+  min-height: 0;
+  flex: 1;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.billing-records-panel .billing-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.billing-records-panel .billing-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.billing-records-panel .billing-list::-webkit-scrollbar-thumb {
+  background: var(--control);
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+}
+
+.billing-records-panel .billing-list::-webkit-scrollbar-thumb:hover {
+  background: var(--faint);
+}
+
 .billing-list {
   display: grid;
 }
@@ -3197,6 +3280,15 @@
   gap: 12px;
 }
 
+.detail-delete-action {
+  display: inline-flex;
+  min-height: 40px;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
 .aside-section-heading {
   display: flex;
   align-items: flex-start;
@@ -3358,9 +3450,15 @@
 }
 
 @media (max-width: 560px) {
+  .detail-topline {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
   .detail-top-actions {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end;
   }
 
   .detail-top-actions .text-button,

@@ -20,6 +20,8 @@
   --pill-negative-ink: #ff9aab;
   --pill-warning-bg: #322b18;
   --pill-warning-ink: #f0c875;
+  --pill-review-bg: #0d3141;
+  --pill-review-ink: #8fe6ef;
   --pill-neutral-bg: #0f293b;
   --pill-neutral-ink: #b3cfdd;
   --radius-panel: 6px;
@@ -639,6 +641,10 @@ svg {
   padding: 26px var(--pad) 48px;
 }
 
+.canvas.is-detail-view {
+  max-width: 1680px;
+}
+
 .view {
   min-width: 0;
 }
@@ -1030,8 +1036,8 @@ mark {
 }
 
 .status-pill.review {
-  color: var(--pill-warning-ink);
-  background: var(--pill-warning-bg);
+  color: var(--pill-review-ink);
+  background: var(--pill-review-bg);
 }
 
 .status-pill.processing {
@@ -1610,8 +1616,8 @@ mark {
 
 .detail-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 306px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 24px;
   align-items: start;
 }
 
@@ -1623,15 +1629,15 @@ mark {
 }
 
 .detail-main {
-  padding: 24px;
+  padding: 30px 32px;
 }
 
 .detail-main h1 {
-  max-width: 780px;
+  max-width: none;
 }
 
 .detail-lead {
-  max-width: 770px;
+  max-width: 1080px;
   margin: 12px 0 0;
   color: var(--muted);
   font-size: 15px;
@@ -1654,13 +1660,13 @@ mark {
 }
 
 .detail-body {
-  max-width: 740px;
+  max-width: 1080px;
   margin-top: 28px;
   padding-top: 22px;
   border-top: 1px solid var(--rule);
   color: #d7e9f2;
-  font-size: 14px;
-  line-height: 1.8;
+  font-size: 16px;
+  line-height: 1.85;
 }
 
 .detail-body p {
@@ -1718,7 +1724,7 @@ mark {
 }
 
 .detail-aside {
-  padding: 16px;
+  padding: 20px;
 }
 
 .aside-section + .aside-section {
@@ -2437,12 +2443,16 @@ mark {
 .processing-row,
 .trash-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1.6fr) 100px 140px 100px auto;
+  grid-template-columns: minmax(260px, 1.6fr) 100px 96px 100px auto;
   gap: 14px;
   align-items: center;
   min-height: 62px;
   padding: 11px 16px;
   border-bottom: 1px solid var(--rule);
+}
+
+.processing-row > .status-pill {
+  justify-self: start;
 }
 
 .processing-row:last-child,
@@ -2474,9 +2484,11 @@ mark {
 }
 
 .detail-review-action {
-  width: 100%;
+  width: auto;
   min-height: 40px;
-  margin-top: 14px;
+  margin-top: 0;
+  padding: 0 14px;
+  white-space: nowrap;
 }
 
 .row-actions {
@@ -3006,6 +3018,10 @@ input[type="checkbox"]:checked::before {
   .trash-row .trash-time {
     display: none;
   }
+
+  .processing-row > .status-pill {
+    justify-self: end;
+  }
 }
 
 @media (max-width: 560px) {
@@ -3312,7 +3328,12 @@ input[type="checkbox"]:checked::before {
 }
 
 .billing-records .billing-orders {
+  display: flex;
+  height: clamp(320px, 46vh, 460px);
+  min-height: 0;
   margin-top: 0;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .billing-orders header,
@@ -3328,6 +3349,32 @@ input[type="checkbox"]:checked::before {
 .billing-orders header h2 {
   margin: 0;
   font-size: 16px;
+}
+
+.billing-orders header {
+  flex: none;
+}
+
+.billing-order-list {
+  min-height: 0;
+  flex: 1;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.billing-order-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.billing-order-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.billing-order-list::-webkit-scrollbar-thumb {
+  background: var(--control);
+  border: 2px solid var(--surface);
+  border-radius: 999px;
 }
 
 .billing-order-row:last-child {

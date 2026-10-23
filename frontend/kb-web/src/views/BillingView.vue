@@ -117,7 +117,7 @@
       </section>
 
       <div class="billing-columns">
-        <section class="panel" aria-labelledby="billing-orders-title">
+        <section class="panel billing-records-panel" aria-labelledby="billing-orders-title">
           <header class="panel-heading compact">
             <div>
               <h2 id="billing-orders-title">{{ tx('订单历史', 'Order history') }}</h2>
@@ -139,7 +139,7 @@
           </div>
         </section>
 
-        <section class="panel" aria-labelledby="billing-ledger-title">
+        <section class="panel billing-records-panel" aria-labelledby="billing-ledger-title">
           <header class="panel-heading compact">
             <div>
               <h2 id="billing-ledger-title">{{ tx('点数明细', 'Point ledger') }}</h2>

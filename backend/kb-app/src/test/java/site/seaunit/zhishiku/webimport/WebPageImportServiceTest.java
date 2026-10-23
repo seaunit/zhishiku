@@ -20,6 +20,9 @@ import site.seaunit.zhishiku.billing.BillingService;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
+import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
+import site.seaunit.zhishiku.richtext.image.ImportImageCandidate;
+import site.seaunit.zhishiku.richtext.image.ImportedImageAsset;
 
 class WebPageImportServiceTest {
   private final WebPageCaptureGateway capture = mock(WebPageCaptureGateway.class);
@@ -30,6 +33,7 @@ class WebPageImportServiceTest {
   private final ImportedKnowledgeMapper knowledgeMapper =
       new ImportedKnowledgeMapper(new ObjectMapper());
   private final BillingService billingService = mock(BillingService.class);
+  private final ImportImageAssetService imageAssets = mock(ImportImageAssetService.class);
   private final WebPageImportService service =
       new WebPageImportService(
           capture,
@@ -38,6 +42,7 @@ class WebPageImportServiceTest {
           true,
           knowledgeService,
           knowledgeMapper,
+          imageAssets,
           billingService,
           mock(site.seaunit.zhishiku.consent.AiConsentService.class),
           mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class));
@@ -93,6 +98,41 @@ class WebPageImportServiceTest {
   }
 
   @Test
+  void includesSafeWebPageFigureInTheFirstRichTextKnowledgeItem() {
+    ImportImageCandidate candidate =
+        new ImportImageCandidate(new byte[] {1, 2, 3}, "webpage.png", "image/png");
+    ImportedImageAsset asset =
+        new ImportedImageAsset(UUID.randomUUID(), "网页架构图", "网页来源图示", 1440, 1800, 0.8);
+    when(capture.capture("https://example.com/article"))
+        .thenReturn(
+            new CapturedWebPage(
+                "https://example.com/article",
+                "https://example.com/article",
+                "网页可见正文。".repeat(30),
+                List.of(candidate)));
+    when(imageAssets.prepare(any(), any(), any(), any(), eq(false))).thenReturn(List.of(asset));
+    when(organizer.organize(eq("web page"), any()))
+        .thenReturn(
+            List.of(
+                new OrganizedKnowledge("网页知识一", "第一段整理正文。", "摘要一", "工程", List.of("网页")),
+                new OrganizedKnowledge("网页知识二", "第二段整理正文。", "摘要二", "产品", List.of("整理"))));
+    when(knowledgeService.createOrganized(any(), any(), any()))
+        .thenReturn(response("网页知识一"), response("网页知识二"));
+
+    service.importPage("https://example.com/article", true, authentication);
+
+    ArgumentCaptor<CreateKnowledgeRequest> requests =
+        ArgumentCaptor.forClass(CreateKnowledgeRequest.class);
+    verify(knowledgeService, org.mockito.Mockito.times(2))
+        .createOrganized(requests.capture(), any(), any());
+    assertThat(requests.getAllValues().get(0).bodyDocument().toString())
+        .contains("\"type\":\"image\"")
+        .contains(asset.uploadId().toString());
+    assertThat(requests.getAllValues().get(1).bodyDocument().toString())
+        .doesNotContain("\"type\":\"image\"");
+  }
+
+  @Test
   void doesNotCreateKnowledgeWhenOrganizationFails() {
     when(capture.capture("https://example.com/article"))
         .thenReturn(
@@ -130,6 +170,7 @@ class WebPageImportServiceTest {
             false,
             knowledgeService,
             knowledgeMapper,
+            imageAssets,
             billingService,
             mock(site.seaunit.zhishiku.consent.AiConsentService.class),
             mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class));

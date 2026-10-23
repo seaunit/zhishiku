@@ -1,9 +1,15 @@
 package site.seaunit.zhishiku.documentimport;
 
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -11,9 +17,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import javax.imageio.ImageIO;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDResources;
+import org.apache.pdfbox.pdmodel.graphics.PDXObject;
+import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.tika.Tika;
@@ -34,6 +48,7 @@ import site.seaunit.zhishiku.ocr.TesseractOcrService;
 import site.seaunit.zhishiku.richtext.image.ImageInspectionException;
 import site.seaunit.zhishiku.richtext.image.ImageInspector;
 import site.seaunit.zhishiku.richtext.image.ImageNormalizer;
+import site.seaunit.zhishiku.richtext.image.ImportImageCandidate;
 import site.seaunit.zhishiku.webimport.WebImportUnavailableException;
 
 @Component
@@ -42,6 +57,10 @@ public class DocumentTextExtractor {
   private static final int MIN_TEXT_CHARS = 80;
   private static final int MIN_IMAGE_TEXT_CHARS = 30;
   private static final int MAX_PDF_OCR_PAGES = 50;
+  private static final int MAX_SOURCE_IMAGES = 12;
+  private static final int MAX_IMAGE_EDGE = 8_192;
+  private static final long MAX_IMAGE_PIXELS = 40_000_000L;
+  private static final long MAX_IMAGE_COLLECTION_BYTES = 50L * 1024 * 1024;
   private static final Set<String> IMAGE_TYPES =
       Set.of("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif");
   private static final Set<String> NORMALIZE_FIRST_IMAGE_TYPES = Set.of("image/heic", "image/heif");
@@ -115,7 +134,7 @@ public class DocumentTextExtractor {
           "Only PDF, Word, RTF, TXT, Markdown, JPEG, PNG, and WebP files are supported.");
     }
     if (IMAGE_TYPES.contains(mediaType)) {
-      return extractImageText(bytes, mediaType);
+      return extractImageText(bytes, mediaType, safeFileName(file.getOriginalFilename()));
     }
 
     String text = parseWithTimeout(bytes, mediaType);
@@ -132,7 +151,8 @@ public class DocumentTextExtractor {
           HttpStatus.UNPROCESSABLE_ENTITY,
           "The document did not contain enough extractable text.");
     }
-    return new ExtractedDocument(text, mediaType, text.length());
+    return new ExtractedDocument(
+        text, mediaType, text.length(), extractEmbeddedImages(bytes, mediaType));
   }
 
   private String extractScannedPdfText(byte[] bytes) {
@@ -205,7 +225,7 @@ public class DocumentTextExtractor {
     }
   }
 
-  private ExtractedDocument extractImageText(byte[] bytes, String mediaType) {
+  private ExtractedDocument extractImageText(byte[] bytes, String mediaType, String filename) {
     byte[] safeBytes = bytes;
     if (NORMALIZE_FIRST_IMAGE_TYPES.contains(mediaType)) {
       try {
@@ -258,7 +278,11 @@ public class DocumentTextExtractor {
             HttpStatus.UNPROCESSABLE_ENTITY,
             "The document image did not contain enough readable text.");
       }
-      return new ExtractedDocument(text, mediaType, text.length());
+      return new ExtractedDocument(
+          text,
+          mediaType,
+          text.length(),
+          List.of(new ImportImageCandidate(normalized, filename, mediaType)));
     } catch (WebImportUnavailableException error) {
       throw failure(
           "DOCUMENT_IMPORT_UNAVAILABLE",
@@ -277,6 +301,162 @@ public class DocumentTextExtractor {
           image.toFile().deleteOnExit();
         }
       }
+    }
+  }
+
+  private List<ImportImageCandidate> extractEmbeddedImages(byte[] bytes, String mediaType) {
+    if ("application/pdf".equals(mediaType)) {
+      return extractPdfImages(bytes);
+    }
+    if ("application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        .equals(mediaType)) {
+      return extractDocxImages(bytes);
+    }
+    return List.of();
+  }
+
+  private static List<ImportImageCandidate> extractPdfImages(byte[] bytes) {
+    List<ImportImageCandidate> images = new ArrayList<>();
+    Set<String> hashes = new HashSet<>();
+    try (PDDocument document = Loader.loadPDF(bytes)) {
+      int pageIndex = 0;
+      for (PDPage page : document.getPages()) {
+        pageIndex++;
+        collectPdfImages(page.getResources(), "pdf-page-" + pageIndex, images, hashes, 0);
+        if (images.size() >= MAX_SOURCE_IMAGES) {
+          break;
+        }
+      }
+    } catch (IOException | RuntimeException ignored) {
+      // Missing embedded images must not discard usable document text.
+    }
+    return List.copyOf(images);
+  }
+
+  private static void collectPdfImages(
+      PDResources resources,
+      String prefix,
+      List<ImportImageCandidate> images,
+      Set<String> hashes,
+      int depth) {
+    if (resources == null || depth > 3 || images.size() >= MAX_SOURCE_IMAGES) {
+      return;
+    }
+    int index = 0;
+    for (COSName name : resources.getXObjectNames()) {
+      if (images.size() >= MAX_SOURCE_IMAGES) {
+        return;
+      }
+      index++;
+      try {
+        PDXObject object = resources.getXObject(name);
+        if (object instanceof PDImageXObject image) {
+          addPdfImage(image, prefix + "-image-" + index, images, hashes);
+        } else if (object instanceof PDFormXObject form) {
+          collectPdfImages(
+              form.getResources(), prefix + "-form-" + index, images, hashes, depth + 1);
+        }
+      } catch (IOException | RuntimeException ignored) {
+        // Continue with other resources in the same page.
+      }
+    }
+  }
+
+  private static void addPdfImage(
+      PDImageXObject image,
+      String filename,
+      List<ImportImageCandidate> images,
+      Set<String> hashes) {
+    int width = image.getWidth();
+    int height = image.getHeight();
+    if (width < 80
+        || height < 80
+        || width > MAX_IMAGE_EDGE
+        || height > MAX_IMAGE_EDGE
+        || (long) width * height > MAX_IMAGE_PIXELS) {
+      return;
+    }
+    try {
+      BufferedImage rendered = image.getImage();
+      if (rendered == null) {
+        return;
+      }
+      ByteArrayOutputStream output = new ByteArrayOutputStream();
+      if (!ImageIO.write(rendered, "png", output)) {
+        return;
+      }
+      byte[] png = output.toByteArray();
+      addImageCandidate(images, hashes, png, filename + ".png", "image/png");
+    } catch (IOException | RuntimeException ignored) {
+      // Skip images that PDFBox cannot decode safely.
+    }
+  }
+
+  private static List<ImportImageCandidate> extractDocxImages(byte[] bytes) {
+    List<ImportImageCandidate> images = new ArrayList<>();
+    Set<String> hashes = new HashSet<>();
+    try (ZipInputStream zip = new ZipInputStream(new java.io.ByteArrayInputStream(bytes))) {
+      ZipEntry entry;
+      while ((entry = zip.getNextEntry()) != null && images.size() < MAX_SOURCE_IMAGES) {
+        String name = entry.getName().toLowerCase(Locale.ROOT);
+        if (!name.startsWith("word/media/")) {
+          continue;
+        }
+        String mediaType = imageMediaType(name);
+        if (mediaType.isBlank()) {
+          continue;
+        }
+        byte[] image = zip.readNBytes((int) ImageInspector.MAX_SOURCE_BYTES + 1);
+        if (image.length == 0 || image.length > ImageInspector.MAX_SOURCE_BYTES) {
+          continue;
+        }
+        addImageCandidate(
+            images, hashes, image, name.substring(name.lastIndexOf('/') + 1), mediaType);
+      }
+    } catch (IOException | RuntimeException ignored) {
+      // Invalid embedded media is skipped while the extracted text remains usable.
+    }
+    return List.copyOf(images);
+  }
+
+  private static void addImageCandidate(
+      List<ImportImageCandidate> images,
+      Set<String> hashes,
+      byte[] bytes,
+      String filename,
+      String mediaType) {
+    if (images.size() >= MAX_SOURCE_IMAGES
+        || totalImageBytes(images) + bytes.length > MAX_IMAGE_COLLECTION_BYTES) {
+      return;
+    }
+    String hash = sha256(bytes);
+    if (hash != null && hashes.add(hash)) {
+      images.add(new ImportImageCandidate(bytes, filename, mediaType));
+    }
+  }
+
+  private static long totalImageBytes(List<ImportImageCandidate> images) {
+    return images.stream().mapToLong(image -> image.bytes().length).sum();
+  }
+
+  private static String imageMediaType(String name) {
+    if (name.endsWith(".png")) {
+      return "image/png";
+    }
+    if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
+      return "image/jpeg";
+    }
+    if (name.endsWith(".webp")) {
+      return "image/webp";
+    }
+    return "";
+  }
+
+  private static String sha256(byte[] bytes) {
+    try {
+      return java.util.HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+    } catch (NoSuchAlgorithmException error) {
+      return null;
     }
   }
 

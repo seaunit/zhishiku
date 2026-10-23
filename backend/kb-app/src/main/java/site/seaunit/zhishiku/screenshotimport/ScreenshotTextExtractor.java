@@ -3,6 +3,7 @@ package site.seaunit.zhishiku.screenshotimport;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,7 @@ import site.seaunit.zhishiku.richtext.image.ImageInspection;
 import site.seaunit.zhishiku.richtext.image.ImageInspectionException;
 import site.seaunit.zhishiku.richtext.image.ImageInspector;
 import site.seaunit.zhishiku.richtext.image.ImageNormalizer;
+import site.seaunit.zhishiku.richtext.image.ImportImageCandidate;
 import site.seaunit.zhishiku.webimport.WebImportUnavailableException;
 
 @Component
@@ -106,7 +108,16 @@ public class ScreenshotTextExtractor {
             "The screenshot did not contain enough readable text.");
       }
       String format = "image/png".equals(inspection.mediaType()) ? "PNG 截图" : "JPEG 截图";
-      return new ExtractedScreenshot(text, inspection.mediaType(), format, text.length());
+      return new ExtractedScreenshot(
+          text,
+          inspection.mediaType(),
+          format,
+          text.length(),
+          List.of(
+              new ImportImageCandidate(
+                  normalized,
+                  safeFilename(file.getOriginalFilename(), inspection.extension()),
+                  inspection.mediaType())));
     } catch (WebImportUnavailableException error) {
       throw failure(
           "SCREENSHOT_IMPORT_UNAVAILABLE",
@@ -130,6 +141,14 @@ public class ScreenshotTextExtractor {
 
   private static ScreenshotImportException failure(String code, HttpStatus status, String message) {
     return new ScreenshotImportException(code, status, message);
+  }
+
+  private static String safeFilename(String value, String extension) {
+    String name = value == null || value.isBlank() ? "clipboard-screenshot" : value;
+    name = name.replaceAll("[\\r\\n\\\\/]", "_").strip();
+    return name.toLowerCase(java.util.Locale.ROOT).endsWith("." + extension)
+        ? name
+        : name + "." + extension;
   }
 
   private static boolean containsAscii(byte[] bytes, String value) {

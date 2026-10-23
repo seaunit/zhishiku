@@ -1239,6 +1239,15 @@ function renderDetail(itemId) {
       ? item.sourceUrl || `https://${item.sourceLabel}`
       : item.sourceUrl || "";
   state.currentDetailId = item.id;
+  const topReviewButton = $("#confirmReviewTop");
+  if (topReviewButton) {
+    topReviewButton.hidden = item.status !== "review";
+    if (item.status === "review") {
+      topReviewButton.dataset.reviewId = item.id;
+    } else {
+      delete topReviewButton.dataset.reviewId;
+    }
+  }
   const tags = item.tags.map((tag) => `
     <span class="tag">
       <svg><use href="#icon-lock"></use></svg>
@@ -1287,11 +1296,6 @@ function renderDetail(itemId) {
           <span>${state.lang === "en" ? "Confidence" : "分类置信度"} ${Math.round(item.confidence * 100)}%</span>
           <div class="meter"><span style="--confidence:${item.confidence * 100}%"></span></div>
         </div>
-        ${item.status === "review" ? `
-          <button class="primary-button detail-review-action" data-review-id="${item.id}">
-            ${t("confirmReview")}
-          </button>
-        ` : ""}
       </section>
       <section class="aside-section">
         <h2>${state.lang === "en" ? "Source trail" : "来源与处理"}</h2>
@@ -1961,20 +1965,20 @@ function renderCaptureForm(mode, target = "page") {
         <label class="authorization-row webpage-consent">
           <span>
             <strong>${state.lang === "en" ? "Allow external AI processing" : "允许外部 AI 处理本页文字"}</strong>
-            <small>${state.lang === "en" ? "Likely secrets are redacted before OCR text is sent to DeepSeek." : "OCR 文本会先移除疑似密钥，再发送给 DeepSeek。"}</small>
+            <small>${state.lang === "en" ? "Likely secrets are redacted first. Safe figures can appear in the illustrated note." : "OCR 文本会先移除疑似密钥；通过安全检查的重要图示会保留在图文正文中。"}</small>
           </span>
           <input name="externalAiConsent" type="checkbox" required />
         </label>
         ${target === "page" ? `
           <div class="form-actions">
             <button class="outline-button" type="button" data-view="home">${t("cancel")}</button>
-            <button class="primary-button" type="submit">${state.lang === "en" ? "Screenshot and organize" : "截图拆分入库"}</button>
+            <button class="primary-button" type="submit">${state.lang === "en" ? "Extract images and organize" : "整理网页图文入库"}</button>
           </div>
         ` : ""}
       ${closeTag}
       <aside class="capture-side">
-        <h3>${state.lang === "en" ? "One page, no crawling" : "只截图，不爬取"}</h3>
-        <p>${state.lang === "en" ? "Only the page you submit is rendered. The system does not follow links or traverse the site." : "只渲染你明确提交的这一页；系统不会跟随链接或遍历站点。"}</p>
+        <h3>${state.lang === "en" ? "One page, no crawling" : "只读这一页，不爬取"}</h3>
+        <p>${state.lang === "en" ? "Only the page you submit is read. Its text, content images, SVGs, and charts become a structured illustrated note; links are not followed." : "只读取你明确提交的这一页；文字和页面中的内容图片、SVG、图表会整理成结构化图文知识，不跟随链接。"}</p>
         <h3>${state.lang === "en" ? "Fallback" : "失败回退"}</h3>
         <p>${state.lang === "en" ? "If rendering fails, paste a screenshot in the Screenshot tab." : "如果渲染失败，可以到截图入口粘贴页面截图。"}</p>
       </aside>
@@ -2005,7 +2009,7 @@ function renderCaptureForm(mode, target = "page") {
         <label class="authorization-row webpage-consent">
           <span>
             <strong>${state.lang === "en" ? "Allow external AI file parsing" : "允许外部 AI 解析并整理此文件"}</strong>
-            <small>${state.lang === "en" ? "Document text or image text is redacted before it is sent to DeepSeek." : "文档文字或图片识别文字会先移除疑似密钥，再发送给 DeepSeek。"}</small>
+            <small>${state.lang === "en" ? "Likely secrets are redacted first. Important safe diagrams can be included in the rich-text note." : "文字会先移除疑似密钥；重要且安全的流程图、原理图会保留在富文本正文中。"}</small>
           </span>
           <input name="externalAiConsent" type="checkbox" />
         </label>
@@ -2018,7 +2022,7 @@ function renderCaptureForm(mode, target = "page") {
       ${closeTag}
       <aside class="capture-side">
         <h3>${state.lang === "en" ? "Documents and images" : "文档与图片"}</h3>
-        <p>${state.lang === "en" ? "Documents and JPG, PNG, or WebP images are extracted, redacted, and organized by AI." : "文档与 JPG、PNG、WebP 图片会先提取或识别文字，脱敏后交给 AI 整理。"}</p>
+        <p>${state.lang === "en" ? "Text and safe embedded figures are extracted, redacted, and organized into illustrated knowledge." : "文字与安全图示会一起提取、脱敏并整理为图文知识。"}</p>
         <h3>${state.lang === "en" ? "Fail closed" : "安全优先"}</h3>
         <p>${t("safetyNote")}</p>
       </aside>
@@ -2049,7 +2053,7 @@ function renderCaptureForm(mode, target = "page") {
         <label class="authorization-row webpage-consent">
           <span>
             <strong>${state.lang === "en" ? "Allow external AI screenshot parsing" : "允许外部 AI 解析并整理这张截图"}</strong>
-            <small>${state.lang === "en" ? "Recognized text is redacted before it is sent to DeepSeek. The screenshot itself is temporary." : "识别文字会先移除疑似密钥，再发送给 DeepSeek；截图本身不会长期保存。"}</small>
+            <small>${state.lang === "en" ? "Recognized text is redacted first. Safe figures can be retained; figures with detected secrets are skipped." : "识别文字会先移除疑似密钥；安全图示可作为来源图保留，检测到密钥时跳过图示。"}</small>
           </span>
           <input name="externalAiConsent" type="checkbox" required />
         </label>
@@ -2064,8 +2068,8 @@ function renderCaptureForm(mode, target = "page") {
         <h3>${t("screenshotClipboardOnly")}</h3>
         <p>${state.lang === "en" ? "Click the paste area, copy a screenshot, then paste. This tab has no file chooser." : "点击粘贴区、复制截图后执行粘贴；这个入口不提供文件选择。"}</p>
         <button class="text-link capture-fallback" type="button" data-switch-${target}="document">${t("goToDocument")}</button>
-        <h3>${state.lang === "en" ? "Temporary OCR input" : "临时 OCR 输入"}</h3>
-        <p>${state.lang === "en" ? "The screenshot is used only for OCR. Recognized text is redacted before AI processing, and the image is not retained." : "截图只用于 OCR；识别文字脱敏后再交给 AI，截图本身不长期保存。"}</p>
+        <h3>${state.lang === "en" ? "Safe source figures" : "安全来源图示"}</h3>
+        <p>${state.lang === "en" ? "OCR extracts text and diagram content. A safely normalized figure may be kept in the rich-text note." : "OCR 会提取文字和图示内容；通过安全规范的图示可作为富文本来源图保留。"}</p>
       </aside>
     `;
     paintPastedScreenshot(target);
@@ -2341,8 +2345,8 @@ function handleCaptureSubmit(form, target) {
       ? [
           {
             title: `${host}: one page becomes searchable notes`,
-            body: "The submitted page is captured once as a screenshot. OCR reads only its visible text, and AI splits that content into organized knowledge.",
-            tags: ["Page capture", "OCR", "Automatic tags"],
+            body: "The submitted page is read once. OCR recognizes its visible text, content images and diagrams are captured individually, and AI organizes them into illustrated knowledge.",
+            tags: ["Page content", "OCR", "Content images"],
           },
           {
             title: `${host}: no crawling and no URL-only record`,
@@ -2353,8 +2357,8 @@ function handleCaptureSubmit(form, target) {
       : [
           {
             title: `${host}：一个页面拆成多条可检索知识`,
-            body: "用户提交的页面只截图一次。OCR 读取截图中的可见文字，再由 AI 将内容拆分、摘要、分类并生成标签。",
-            tags: ["网页截图", "OCR", "自动标签"],
+            body: "用户提交的页面只读取一次。OCR 识别可见文字，页面中的内容图片和图表按网页实际展示单独提取，再由 AI 整理成图文知识。",
+            tags: ["网页图文", "OCR", "内容图片"],
           },
           {
             title: `${host}：不爬取链接，也不会只保存 URL`,
@@ -2510,6 +2514,7 @@ function showView(view) {
   $$(".view").forEach((section) => {
     section.hidden = section.id !== `view-${view}`;
   });
+  canvas?.classList.toggle("is-detail-view", view === "detail");
   $$(".rail-item").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.view === view);
   });

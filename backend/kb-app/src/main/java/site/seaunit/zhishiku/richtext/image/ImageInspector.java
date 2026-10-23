@@ -7,8 +7,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ImageInspector {
-  private static final long MAX_PIXELS = 40_000_000L;
-  private static final int MAX_EDGE = 8_192;
+  public static final long MAX_PIXELS = 40_000_000L;
+  public static final int MAX_EDGE = 8_192;
   public static final long MAX_SOURCE_BYTES = 25L * 1024 * 1024;
   private static final List<Pattern> SECRET_PATTERNS =
       List.of(

@@ -21,6 +21,8 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BodySourceRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
+import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
+import site.seaunit.zhishiku.richtext.image.ImportedImageAsset;
 import site.seaunit.zhishiku.webimport.AiTextSecretRedactor;
 import site.seaunit.zhishiku.webimport.DocumentOrganizer;
 import site.seaunit.zhishiku.webimport.ImportedKnowledgeMapper;
@@ -38,6 +40,7 @@ public class DocumentImportService {
   private final boolean allowUnbilledAi;
   private final KnowledgeService knowledgeService;
   private final ImportedKnowledgeMapper knowledgeMapper;
+  private final ImportImageAssetService imageAssets;
   private final BillingService billingService;
   private final AiConsentService aiConsents;
   private final IdempotencyService idempotency;
@@ -49,6 +52,7 @@ public class DocumentImportService {
       @Value("${app.web-import.allow-unbilled-ai:false}") boolean allowUnbilledAi,
       KnowledgeService knowledgeService,
       ImportedKnowledgeMapper knowledgeMapper,
+      ImportImageAssetService imageAssets,
       BillingService billingService,
       AiConsentService aiConsents,
       IdempotencyService idempotency) {
@@ -58,6 +62,7 @@ public class DocumentImportService {
     this.allowUnbilledAi = allowUnbilledAi;
     this.knowledgeService = knowledgeService;
     this.knowledgeMapper = knowledgeMapper;
+    this.imageAssets = imageAssets;
     this.billingService = billingService;
     this.aiConsents = aiConsents;
     this.idempotency = idempotency;
@@ -163,15 +168,26 @@ public class DocumentImportService {
       }
 
       String sourceFormat = mediaTypeLabel(document.mediaType());
+      List<ImportedImageAsset> preparedImages =
+          redacted.applied()
+              ? List.of()
+              : imageAssets.prepare(
+                  document.images(),
+                  authentication,
+                  organized.get(0).title(),
+                  "文档来源图示 · " + sourceFormat,
+                  document.mediaType().startsWith("image/"));
       Instant capturedAt = Instant.now();
       List<KnowledgeItemResponse> created = new ArrayList<>();
-      for (OrganizedKnowledge item : organized) {
+      for (int index = 0; index < organized.size(); index++) {
+        OrganizedKnowledge item = organized.get(index);
         created.add(
             knowledgeMapper.withRedactionApplied(
                 knowledgeService.createOrganized(
                     new CreateKnowledgeRequest(
                         item.title(),
-                        knowledgeMapper.document(item.body()),
+                        knowledgeMapper.document(
+                            item.body(), index == 0 ? preparedImages : List.of()),
                         knowledgeMapper.note(item, redacted.applied(), note, sourceFormat),
                         new BodySourceRequest("document", null, capturedAt)),
                     item,
