@@ -12,6 +12,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface KnowledgeItemRepository extends JpaRepository<KnowledgeItemEntity, UUID> {
+  long countByOwnerId(UUID ownerId);
+
   Optional<KnowledgeItemEntity> findByIdAndOwnerIdAndLifecycleState(
       UUID id, UUID ownerId, String lifecycleState);
 

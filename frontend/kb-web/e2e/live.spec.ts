@@ -79,6 +79,31 @@ test('logs in, saves rich text with an image, and renders the detail', async ({ 
   await expect(page.locator('.document-image img')).toBeVisible()
 })
 
+test('seeds six organized starter documents for a new account', async ({ page }) => {
+  await registerAndLogin(page)
+  await page.screenshot({ path: 'test-results/starter-knowledge-home.png', fullPage: true })
+
+  const response = await page.request.get(
+    '/kb/api/v1/knowledge-items?limit=20&page=1&source=all&status=all',
+  )
+  expect(response.ok()).toBeTruthy()
+  const pageData = (await response.json()) as {
+    items: Array<{ title: string; processingStatus: string }>
+    pageInfo?: { totalItems?: number }
+  }
+  expect(pageData.pageInfo?.totalItems).toBe(6)
+  expect(pageData.items).toHaveLength(6)
+  expect(pageData.items.map((item) => item.title)).toEqual(expect.arrayContaining([
+    '深海工作法：用三层归档减少认知噪音',
+    'Agentic RAG 的检索策略笔记',
+    '把网页保存为可检索知识的最小路径',
+    '产品访谈：知识工作者如何整理收藏',
+    '截图中的文字如何被安全识别',
+    '一次关于自动标签的评审',
+  ]))
+  expect(pageData.items.every((item) => item.processingStatus === 'succeeded')).toBe(true)
+})
+
 test('answers a greeting with general AI, saves it, and charges one point', async ({ page }) => {
   await registerAndLogin(page)
 

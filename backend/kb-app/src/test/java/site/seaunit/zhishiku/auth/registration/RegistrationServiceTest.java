@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import site.seaunit.zhishiku.knowledge.StarterKnowledgeService;
 import site.seaunit.zhishiku.owner.OwnerAccountEntity;
 import site.seaunit.zhishiku.owner.OwnerService;
 
@@ -21,6 +22,7 @@ import site.seaunit.zhishiku.owner.OwnerService;
 class RegistrationServiceTest {
   @Mock private OwnerService ownerService;
   @Mock private EmailVerificationService verificationService;
+  @Mock private StarterKnowledgeService starterKnowledge;
 
   private RegistrationService registrationService;
 
@@ -29,7 +31,10 @@ class RegistrationServiceTest {
     when(verificationService.isRegistrationOpen()).thenReturn(true);
     registrationService =
         new RegistrationService(
-            ownerService, verificationService, new EmailAddressPolicy(Set.of("mailinator.com")));
+            ownerService,
+            verificationService,
+            new EmailAddressPolicy(Set.of("mailinator.com")),
+            starterKnowledge);
   }
 
   @Test
@@ -64,6 +69,30 @@ class RegistrationServiceTest {
 
     verify(verificationService).consumeCode("owner@example.com", "123456");
     verify(ownerService).createOwner("owner@example.com", "correct-horse-battery", "zh-CN");
+    verify(starterKnowledge).seedForOwner(owner);
+  }
+
+  @Test
+  void doesNotMisreportStarterKnowledgeFailureAsDuplicateEmail() {
+    RegistrationService.RegisterCommand command =
+        new RegistrationService.RegisterCommand(
+            "owner@example.com",
+            "correct-horse-battery",
+            "correct-horse-battery",
+            "123456",
+            "zh-CN");
+    OwnerAccountEntity owner = OwnerAccountEntity.create("owner@example.com", "hash", "zh-CN");
+    when(verificationService.consumeCode("owner@example.com", "123456")).thenReturn(true);
+    when(ownerService.findByEmail("owner@example.com")).thenReturn(Optional.empty());
+    when(ownerService.createOwner("owner@example.com", "correct-horse-battery", "zh-CN"))
+        .thenReturn(owner);
+    org.mockito.Mockito.doThrow(new DataIntegrityViolationException("starter seed failed"))
+        .when(starterKnowledge)
+        .seedForOwner(owner);
+
+    assertThatThrownBy(() -> registrationService.register(command))
+        .isInstanceOf(DataIntegrityViolationException.class)
+        .isNotInstanceOf(EmailAlreadyRegisteredException.class);
   }
 
   @Test

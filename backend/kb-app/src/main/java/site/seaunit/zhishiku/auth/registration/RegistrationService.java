@@ -2,6 +2,9 @@ package site.seaunit.zhishiku.auth.registration;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import site.seaunit.zhishiku.knowledge.StarterKnowledgeService;
+import site.seaunit.zhishiku.owner.OwnerAccountEntity;
 import site.seaunit.zhishiku.owner.OwnerService;
 
 @Service
@@ -9,14 +12,17 @@ public class RegistrationService {
   private final OwnerService ownerService;
   private final EmailVerificationService verificationService;
   private final EmailAddressPolicy emailPolicy;
+  private final StarterKnowledgeService starterKnowledge;
 
   public RegistrationService(
       OwnerService ownerService,
       EmailVerificationService verificationService,
-      EmailAddressPolicy emailPolicy) {
+      EmailAddressPolicy emailPolicy,
+      StarterKnowledgeService starterKnowledge) {
     this.ownerService = ownerService;
     this.verificationService = verificationService;
     this.emailPolicy = emailPolicy;
+    this.starterKnowledge = starterKnowledge;
   }
 
   public boolean isRegistrationOpen() {
@@ -34,6 +40,7 @@ public class RegistrationService {
     return verificationService.issueCode(normalizedEmail, ipAddress);
   }
 
+  @Transactional
   public String register(RegisterCommand command) {
     if (!isRegistrationOpen()) {
       throw new RegistrationClosedException();
@@ -46,12 +53,14 @@ public class RegistrationService {
       throw new EmailAlreadyRegisteredException();
     }
     verificationService.consumeCode(email, command.emailCode());
+    OwnerAccountEntity owner;
     try {
-      ownerService.createOwner(email, command.password(), command.locale());
-      return email;
+      owner = ownerService.createOwner(email, command.password(), command.locale());
     } catch (DataIntegrityViolationException error) {
       throw new EmailAlreadyRegisteredException();
     }
+    starterKnowledge.seedForOwner(owner);
+    return email;
   }
 
   public record RegisterCommand(
