@@ -104,8 +104,15 @@ function Stop-StartedProcesses {
 
 if (Test-Path -LiteralPath $pidFile) {
     $existing = Get-Content -LiteralPath $pidFile -Raw | ConvertFrom-Json
-    $running = @($existing.PSObject.Properties.Value | Where-Object {
-        Get-Process -Id $_ -ErrorAction SilentlyContinue
+    $running = @($existing.PSObject.Properties.Value | ForEach-Object {
+        if ($null -eq $_) {
+            return
+        }
+        $existingProcessId = [int]$_
+        if ($existingProcessId -le 0) {
+            return
+        }
+        Get-Process -Id $existingProcessId -ErrorAction SilentlyContinue
     })
     if ($running.Count -gt 0) {
         throw "The local test stack appears to be running. Run stop.ps1 first."
