@@ -2904,6 +2904,8 @@ test('keeps the registration form available on an initialized instance', async (
   await page.getByRole('link', { name: '注册账户' }).click()
 
   await expect(page).toHaveURL(/\/kb\/register$/)
+  await expect(page.locator('.login-ocean-map')).toBeVisible()
+  await expect(page.locator('.login-ocean-map path')).toHaveCount(13)
   await expect(
     page.getByRole('heading', { level: 2, name: '创建我的知识库账户' }),
   ).toBeVisible()
