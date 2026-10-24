@@ -955,15 +955,18 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 ### 完成记录：T119
 
 - 日期：2026-10-24
-- 状态：本地实现和自动化测试完成；尚未提交与部署
+- 状态：已提交、推送并部署生产
 - 执行主体：Codex
 - 摘要：网页链接和互联网搜索结果增加账号级规范化 URL 去重，避免同一页面重复调用 AI 和扣点。
 - 详情：新增来源 URL 规范化器，统一主机、默认端口、末尾斜杠、片段和常见跟踪参数；搜索候选
   返回 `alreadyImported`、已有知识 ID、标题和数量，前端禁用重复收入并提供查看入口。网页入口
   和候选保存均在截图、Fetch 或 AI 前再次校验，冲突返回 `KNOWLEDGE_ALREADY_IMPORTED` 并释放
   点数预留。历史重复知识保持原状，不自动删除或合并。
-- 验证：`SourceUrlCanonicalizerTest`、`ExternalSearchServiceTest`、`WebPageImportServiceTest`
-  定向通过；前端 lint 和类型检查通过。完整回归与生产验收在提交前执行。
+- 验证：后端 321 项、前端 Vitest 56 项、Playwright 62 项、lint、类型检查和生产构建通过；
+  本地与生产 Flyway 均为 `V0018`，生产 `/`、`/app`、`/login`、`/bank/1`、`/kb/`、
+  `/kb/login` 均返回 200，识海 API 为 `UP`，原拾题服务保持 active。
 - 覆盖：FR-087；网页导入 FR-025。
+- 发布：commit `3587fdb`，tag `v0.1.25-mvp`，release
+  `3587fdbf5fe2-20261024001219`。
 - 风险与回滚：迁移只新增 `canonical_url` 并回填原 URL，回滚应用不会删除列或历史数据；旧数据
   中带不同跟踪参数的 URL 仍可能需要一次人工清理。
