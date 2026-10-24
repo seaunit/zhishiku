@@ -12,10 +12,14 @@ import site.seaunit.zhishiku.billing.BillingService;
 import site.seaunit.zhishiku.consent.AiConsentService;
 import site.seaunit.zhishiku.core.billing.BillingModel.Feature;
 import site.seaunit.zhishiku.idempotency.IdempotencyService;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledge;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledgeException;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BodySourceRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDuplicateService;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
+import site.seaunit.zhishiku.owner.CurrentOwnerService;
 import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
 import site.seaunit.zhishiku.richtext.image.ImportedImageAsset;
 import site.seaunit.zhishiku.webimport.WebImportDtos.WebPageImportResponse;
@@ -27,6 +31,8 @@ public class WebPageImportService {
   private final AiTextSecretRedactor secretRedactor;
   private final boolean allowUnbilledAi;
   private final KnowledgeService knowledgeService;
+  private final KnowledgeDuplicateService knowledgeDuplicates;
+  private final CurrentOwnerService currentOwnerService;
   private final ImportedKnowledgeMapper knowledgeMapper;
   private final ImportImageAssetService imageAssets;
   private final BillingService billingService;
@@ -39,6 +45,8 @@ public class WebPageImportService {
       AiTextSecretRedactor secretRedactor,
       @Value("${app.web-import.allow-unbilled-ai:false}") boolean allowUnbilledAi,
       KnowledgeService knowledgeService,
+      KnowledgeDuplicateService knowledgeDuplicates,
+      CurrentOwnerService currentOwnerService,
       ImportedKnowledgeMapper knowledgeMapper,
       ImportImageAssetService imageAssets,
       BillingService billingService,
@@ -49,6 +57,8 @@ public class WebPageImportService {
     this.secretRedactor = secretRedactor;
     this.allowUnbilledAi = allowUnbilledAi;
     this.knowledgeService = knowledgeService;
+    this.knowledgeDuplicates = knowledgeDuplicates;
+    this.currentOwnerService = currentOwnerService;
     this.knowledgeMapper = knowledgeMapper;
     this.imageAssets = imageAssets;
     this.billingService = billingService;
@@ -102,6 +112,17 @@ public class WebPageImportService {
     }
     if (billingTaskId != null) {
       billingService.requireReserved(authentication, billingTaskId, "webpage_import");
+    }
+    var owner = currentOwnerService.require(authentication);
+    knowledgeDuplicates.lockSource(owner.getId(), requestedUrl);
+    List<DuplicateKnowledge> existingItems =
+        knowledgeDuplicates.findActiveBySourceUrl(owner.getId(), requestedUrl);
+    if (!existingItems.isEmpty()) {
+      if (billingTaskId != null) {
+        billingService.releaseAfterFailure(
+            authentication, billingTaskId, "Knowledge source is already imported");
+      }
+      throw new DuplicateKnowledgeException(existingItems);
     }
     try {
       CapturedWebPage page;

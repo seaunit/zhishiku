@@ -208,6 +208,20 @@
                   <p>{{ candidate.snippet || candidate.provider }}</p>
                   <small>{{ candidate.provider }}</small>
                   <p
+                    v-if="candidate.alreadyImported"
+                    class="candidate-duplicate"
+                    role="status"
+                  >
+                    {{ t('home.internetAlreadyImportedHint') }}
+                    <RouterLink
+                      v-if="candidate.existingItemId"
+                      class="text-link"
+                      :to="`/library/${candidate.existingItemId}`"
+                    >
+                      {{ t('home.internetViewExisting') }}
+                    </RouterLink>
+                  </p>
+                  <p
                     v-if="candidateErrors[candidate.candidateId]"
                     class="candidate-error"
                     role="alert"
@@ -226,24 +240,16 @@
                   </a>
                   <span
                     class="candidate-action-wrap"
-                    :class="{ 'is-unavailable': candidate.organizable === false }"
-                    :title="
-                      candidate.organizable === false
-                        ? t('home.internetNotOrganizable')
-                        : undefined
-                    "
-                    @click="
-                      candidate.organizable === false
-                        ? showCandidateUnavailable(candidate)
-                        : undefined
-                    "
+                    :class="{ 'is-unavailable': candidateBlocked(candidate) }"
+                    :title="candidateBlocked(candidate) ? candidateBlockedMessage(candidate) : undefined"
+                    @click="candidateBlocked(candidate) ? showCandidateUnavailable(candidate) : undefined"
                   >
                     <button
                       type="button"
                       class="button secondary"
                       :disabled="
                         savingCandidateId === candidate.candidateId ||
-                        candidate.organizable === false
+                        candidateBlocked(candidate)
                       "
                       @click="saveCandidate(candidate)"
                     >
@@ -255,6 +261,10 @@
                       {{
                         savingCandidateId === candidate.candidateId
                           ? t('home.internetSaving')
+                          : candidate.alreadyImported
+                            ? t('home.internetAlreadyImported', {
+                                count: candidate.existingItemCount,
+                              })
                           : candidateQuote &&
                               candidateQuoteId === candidate.candidateId
                             ? t('home.confirmImport', { points: candidateQuote.maxPoints })
@@ -605,15 +615,28 @@ async function saveCandidate(candidate: ExternalSearchCandidate) {
 }
 
 function showCandidateUnavailable(candidate: ExternalSearchCandidate) {
-  if (candidate.organizable !== false) return
+  if (!candidateBlocked(candidate)) return
+  if (candidate.alreadyImported) return
   candidateErrors.value = {
     ...candidateErrors.value,
-    [candidate.candidateId]: t('home.internetNotOrganizable'),
+    [candidate.candidateId]: candidateBlockedMessage(candidate),
   }
+}
+
+function candidateBlocked(candidate: ExternalSearchCandidate) {
+  return candidate.organizable === false || candidate.alreadyImported
+}
+
+function candidateBlockedMessage(candidate: ExternalSearchCandidate) {
+  if (candidate.alreadyImported) return t('home.internetDuplicateBlocked')
+  return t('home.internetNotOrganizable')
 }
 
 function candidateSaveMessage(caught: unknown) {
   if (caught instanceof ApiError) {
+    if (caught.code === 'KNOWLEDGE_ALREADY_IMPORTED') {
+      return t('home.internetDuplicateBlocked')
+    }
     if (
       caught.code === 'EXTERNAL_SOURCE_UNAVAILABLE' ||
       caught.code === 'EXTERNAL_SEARCH_UNAVAILABLE'

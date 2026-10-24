@@ -20,9 +20,12 @@ import site.seaunit.zhishiku.config.AppProperties;
 import site.seaunit.zhishiku.consent.AiConsentService;
 import site.seaunit.zhishiku.core.billing.BillingModel.Feature;
 import site.seaunit.zhishiku.idempotency.IdempotencyService;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledge;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledgeException;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BodySourceRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDuplicateService;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
 import site.seaunit.zhishiku.owner.CurrentOwnerService;
 import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
@@ -50,6 +53,7 @@ public class ExternalSearchService {
 
   private final DeepSeekWebProvider provider;
   private final KnowledgeService knowledgeService;
+  private final KnowledgeDuplicateService knowledgeDuplicates;
   private final InternetResultOrganizer organizer;
   private final DeepSeekAnswerService answerService;
   private final AiTextSecretRedactor secretRedactor;
@@ -68,6 +72,7 @@ public class ExternalSearchService {
   public ExternalSearchService(
       DeepSeekWebProvider provider,
       KnowledgeService knowledgeService,
+      KnowledgeDuplicateService knowledgeDuplicates,
       InternetResultOrganizer organizer,
       DeepSeekAnswerService answerService,
       AiTextSecretRedactor secretRedactor,
@@ -83,6 +88,7 @@ public class ExternalSearchService {
       Clock clock) {
     this.provider = provider;
     this.knowledgeService = knowledgeService;
+    this.knowledgeDuplicates = knowledgeDuplicates;
     this.organizer = organizer;
     this.answerService = answerService;
     this.secretRedactor = secretRedactor;
@@ -152,6 +158,10 @@ public class ExternalSearchService {
               .map(
                   result -> {
                     UUID candidateId = UUID.randomUUID();
+                    List<DuplicateKnowledge> duplicates =
+                        knowledgeDuplicates.findActiveBySourceUrl(owner.getId(), result.url());
+                    DuplicateKnowledge firstDuplicate =
+                        duplicates.isEmpty() ? null : duplicates.get(0);
                     String providerName =
                         result.siteName() == null || result.siteName().isBlank()
                             ? host(result.url())
@@ -164,6 +174,10 @@ public class ExternalSearchService {
                             result.snippet(),
                             providerName,
                             hasOrganizableContent(result.content()),
+                            !duplicates.isEmpty(),
+                            firstDuplicate == null ? null : firstDuplicate.itemId(),
+                            firstDuplicate == null ? null : firstDuplicate.title(),
+                            duplicates.size(),
                             expiresAt);
                     candidates.put(
                         candidateId, new CachedCandidate(owner.getId(), result, expiresAt));
@@ -250,6 +264,16 @@ public class ExternalSearchService {
         || !clock.instant().isBefore(cached.expiresAt())) {
       candidates.invalidate(candidateId);
       throw new ExternalSearchCandidateNotFoundException();
+    }
+    knowledgeDuplicates.lockSource(owner.getId(), cached.result().url());
+    List<DuplicateKnowledge> existingItems =
+        knowledgeDuplicates.findActiveBySourceUrl(owner.getId(), cached.result().url());
+    if (!existingItems.isEmpty()) {
+      if (billingTaskId != null) {
+        billingService.releaseAfterFailure(
+            authentication, billingTaskId, "Knowledge source is already imported");
+      }
+      throw new DuplicateKnowledgeException(existingItems);
     }
     if (!hasOrganizableContent(cached.result().content())) {
       if (billingTaskId != null) {

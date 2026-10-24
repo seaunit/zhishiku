@@ -143,6 +143,10 @@ export interface ExternalSearchCandidate {
   snippet: string
   provider: string
   organizable: boolean
+  alreadyImported: boolean
+  existingItemId?: string | null
+  existingItemTitle?: string | null
+  existingItemCount: number
   expiresAt: string
 }
 

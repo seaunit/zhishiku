@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,8 +25,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import site.seaunit.zhishiku.billing.BillingService;
 import site.seaunit.zhishiku.config.AppProperties;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledge;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledgeException;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDuplicateService;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
 import site.seaunit.zhishiku.owner.CurrentOwnerService;
 import site.seaunit.zhishiku.owner.OwnerAccountEntity;
@@ -47,6 +51,7 @@ import site.seaunit.zhishiku.webimport.WebPageCaptureGateway;
 class ExternalSearchServiceTest {
   @Mock private DeepSeekWebProvider provider;
   @Mock private KnowledgeService knowledgeService;
+  @Mock private KnowledgeDuplicateService knowledgeDuplicates;
   @Mock private InternetResultOrganizer organizer;
   @Mock private DeepSeekAnswerService answerService;
   @Mock private BillingService billingService;
@@ -66,6 +71,7 @@ class ExternalSearchServiceTest {
         new ExternalSearchService(
             provider,
             knowledgeService,
+            knowledgeDuplicates,
             organizer,
             answerService,
             new AiTextSecretRedactor(),
@@ -164,6 +170,72 @@ class ExternalSearchServiceTest {
 
     assertThat(search.items()).hasSize(1);
     assertThat(search.items().get(0).organizable()).isFalse();
+  }
+
+  @Test
+  void marksCandidatesThatAreAlreadySavedForTheCurrentOwner() {
+    when(currentOwnerService.require(authentication)).thenReturn(owner);
+    when(provider.search("saved", 5))
+        .thenReturn(
+            List.of(
+                new DeepSeekWebProvider.SearchResult(
+                    "Saved result",
+                    "https://example.com/saved?utm_source=test",
+                    "Saved body",
+                    "Saved summary",
+                    "Example",
+                    null,
+                    null,
+                    1,
+                    0.8,
+                    "Saved article content. ".repeat(20))));
+    UUID existingId = UUID.randomUUID();
+    when(knowledgeDuplicates.findActiveBySourceUrl(owner.getId(), "https://example.com/saved?utm_source=test"))
+        .thenReturn(List.of(new DuplicateKnowledge(existingId, "Saved knowledge")));
+
+    var search = service.search(new ExternalSearchRequest("saved", true, false), authentication);
+
+    assertThat(search.items()).hasSize(1);
+    assertThat(search.items().get(0).alreadyImported()).isTrue();
+    assertThat(search.items().get(0).existingItemId()).isEqualTo(existingId);
+    assertThat(search.items().get(0).existingItemTitle()).isEqualTo("Saved knowledge");
+    assertThat(search.items().get(0).existingItemCount()).isEqualTo(1);
+  }
+
+  @Test
+  void releasesReservedPointsWhenTheSourceWasImportedBeforeSave() {
+    String url = "https://example.com/race";
+    when(currentOwnerService.require(authentication)).thenReturn(owner);
+    when(provider.search("race", 5))
+        .thenReturn(
+            List.of(
+                new DeepSeekWebProvider.SearchResult(
+                    "Race result",
+                    url,
+                    "Race body",
+                    "Race summary",
+                    "Example",
+                    null,
+                    null,
+                    1,
+                    0.8,
+                    "Race article content. ".repeat(20))));
+    var search = service.search(new ExternalSearchRequest("race", true, false), authentication);
+    UUID billingTaskId = UUID.randomUUID();
+    when(knowledgeDuplicates.findActiveBySourceUrl(owner.getId(), url))
+        .thenReturn(List.of(new DuplicateKnowledge(UUID.randomUUID(), "Existing knowledge")));
+
+    assertThatThrownBy(
+            () ->
+                service.save(
+                    search.items().get(0).candidateId(), true, billingTaskId, authentication))
+        .isInstanceOf(DuplicateKnowledgeException.class);
+
+    verify(billingService)
+        .releaseAfterFailure(
+            authentication, billingTaskId, "Knowledge source is already imported");
+    verify(provider, never()).fetch(url);
+    verify(organizer, never()).organize(any(), any());
   }
 
   @Test
@@ -339,6 +411,7 @@ class ExternalSearchServiceTest {
         new ExternalSearchService(
             provider,
             knowledgeService,
+            knowledgeDuplicates,
             organizer,
             answerService,
             new AiTextSecretRedactor(),

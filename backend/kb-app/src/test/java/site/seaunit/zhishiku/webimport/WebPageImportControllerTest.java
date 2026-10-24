@@ -23,6 +23,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledge;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledgeException;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SourceSummary;
 import site.seaunit.zhishiku.security.SecurityConfig;
@@ -131,5 +133,26 @@ class WebPageImportControllerTest {
                 .content("{\"url\":\"https://example.com/article\",\"externalAiConsent\":false}"))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.code").value("AI_EXTERNAL_CONSENT_REQUIRED"));
+  }
+
+  @Test
+  @WithMockUser(username = "alice@example.com")
+  void reportsAnAlreadyImportedSourceWithoutCreatingKnowledge() throws Exception {
+    UUID existingItemId = UUID.fromString("123e4567-e89b-42d3-a456-426614174109");
+    when(service.importPage(any(), eq(true), isNull(), eq("web-duplicate"), any()))
+        .thenThrow(
+            new DuplicateKnowledgeException(
+                List.of(new DuplicateKnowledge(existingItemId, "Existing knowledge"))));
+
+    mvc.perform(
+            post("/api/v1/web-imports")
+                .with(csrf())
+                .header("Idempotency-Key", "web-duplicate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"url\":\"https://example.com/article\",\"externalAiConsent\":true}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("KNOWLEDGE_ALREADY_IMPORTED"))
+        .andExpect(jsonPath("$.existingItems[0].id").value(existingItemId.toString()))
+        .andExpect(jsonPath("$.existingItems[0].title").value("Existing knowledge"));
   }
 }

@@ -2669,6 +2669,53 @@ test('shows unorganizable internet results with the import action disabled', asy
   ).toBeVisible()
 })
 
+test('shows already imported internet results without charging again', async ({ page }) => {
+  const existingItemId = '123e4567-e89b-42d3-a456-426614174149'
+  await page.route('**/kb/api/v1/search/external', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            candidateId: '123e4567-e89b-42d3-a456-426614174148',
+            title: 'Already saved result',
+            url: 'https://example.com/already-saved?utm_source=repeat',
+            snippet: 'Same page, canonical URL already exists.',
+            provider: 'Example',
+            organizable: true,
+            alreadyImported: true,
+            existingItemId,
+            existingItemTitle: 'Existing knowledge',
+            existingItemCount: 2,
+            expiresAt: '2026-10-22T12:15:00Z',
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/kb/')
+  await page.getByRole('searchbox', { name: '搜索全部知识' }).fill('already-saved')
+  await page.getByRole('button', { name: '潜入检索' }).click()
+  await page.getByRole('button', { name: '互联网搜索 · 1 点' }).click()
+
+  const candidate = page.locator('.external-row').first()
+  await expect(candidate.getByRole('button', { name: '已收录 2 篇' })).toBeDisabled()
+  await expect(candidate.getByText('同一网页已整理过，未重复调用 AI 或扣点。')).toBeVisible()
+  await expect(candidate.getByRole('link', { name: '查看已收录知识' })).toHaveAttribute(
+    'href',
+    `/kb/library/${existingItemId}`,
+  )
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(candidate.getByRole('button', { name: '已收录 2 篇' })).toBeDisabled()
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
+})
+
 test('searches the internet once with a one-point click and no second confirmation', async ({
   page,
 }) => {

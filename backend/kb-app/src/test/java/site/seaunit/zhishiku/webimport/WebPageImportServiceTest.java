@@ -1,6 +1,7 @@
 package site.seaunit.zhishiku.webimport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -17,9 +18,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.core.Authentication;
 import site.seaunit.zhishiku.billing.BillingService;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledge;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledgeException;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDuplicateService;
 import site.seaunit.zhishiku.knowledge.KnowledgeService;
+import site.seaunit.zhishiku.owner.CurrentOwnerService;
+import site.seaunit.zhishiku.owner.OwnerAccountEntity;
 import site.seaunit.zhishiku.richtext.image.ImportImageAssetService;
 import site.seaunit.zhishiku.richtext.image.ImportImageCandidate;
 import site.seaunit.zhishiku.richtext.image.ImportedImageAsset;
@@ -34,18 +40,29 @@ class WebPageImportServiceTest {
       new ImportedKnowledgeMapper(new ObjectMapper());
   private final BillingService billingService = mock(BillingService.class);
   private final ImportImageAssetService imageAssets = mock(ImportImageAssetService.class);
-  private final WebPageImportService service =
-      new WebPageImportService(
-          capture,
-          organizer,
-          secretRedactor,
-          true,
-          knowledgeService,
-          knowledgeMapper,
-          imageAssets,
-          billingService,
-          mock(site.seaunit.zhishiku.consent.AiConsentService.class),
-          mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class));
+  private final KnowledgeDuplicateService knowledgeDuplicates =
+      mock(KnowledgeDuplicateService.class);
+  private final CurrentOwnerService currentOwnerService = mock(CurrentOwnerService.class);
+  private final OwnerAccountEntity owner =
+      OwnerAccountEntity.create("owner@example.com", "hash", "zh-CN");
+  private final WebPageImportService service = createService(true);
+
+  private WebPageImportService createService(boolean allowUnbilledAi) {
+    when(currentOwnerService.require(authentication)).thenReturn(owner);
+    return new WebPageImportService(
+        capture,
+        organizer,
+        secretRedactor,
+        allowUnbilledAi,
+        knowledgeService,
+        knowledgeDuplicates,
+        currentOwnerService,
+        knowledgeMapper,
+        imageAssets,
+        billingService,
+        mock(site.seaunit.zhishiku.consent.AiConsentService.class),
+        mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class));
+  }
 
   @Test
   void createsMultipleKnowledgeItemsAndNeverStoresTheUrlAsBody() {
@@ -161,19 +178,26 @@ class WebPageImportServiceTest {
   }
 
   @Test
+  void blocksAnAlreadyImportedPageBeforeCaptureAndReleasesReservedPoints() {
+    String url = "https://example.com/article?utm_source=duplicate";
+    UUID billingTaskId = UUID.randomUUID();
+    when(knowledgeDuplicates.findActiveBySourceUrl(owner.getId(), url))
+        .thenReturn(List.of(new DuplicateKnowledge(UUID.randomUUID(), "Existing article")));
+
+    assertThatThrownBy(
+            () -> service.importPage(url, true, billingTaskId, null, authentication))
+        .isInstanceOf(DuplicateKnowledgeException.class);
+
+    verify(billingService)
+        .releaseAfterFailure(
+            authentication, billingTaskId, "Knowledge source is already imported");
+    verify(capture, never()).capture(any());
+    verify(organizer, never()).organize(any(), any());
+  }
+
+  @Test
   void refusesUnbilledAiUntilBillingIsConnected() {
-    WebPageImportService unbilled =
-        new WebPageImportService(
-            capture,
-            organizer,
-            secretRedactor,
-            false,
-            knowledgeService,
-            knowledgeMapper,
-            imageAssets,
-            billingService,
-            mock(site.seaunit.zhishiku.consent.AiConsentService.class),
-            mock(site.seaunit.zhishiku.idempotency.IdempotencyService.class));
+    WebPageImportService unbilled = createService(false);
 
     try {
       unbilled.importPage("https://example.com/article", true, authentication);

@@ -27,6 +27,10 @@ public final class ExternalSearchDtos {
       String snippet,
       String provider,
       boolean organizable,
+      boolean alreadyImported,
+      UUID existingItemId,
+      String existingItemTitle,
+      int existingItemCount,
       Instant expiresAt) {}
 
   public record ExternalSearchResponse(List<ExternalSearchCandidate> items, String answer) {

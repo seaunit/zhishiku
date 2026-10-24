@@ -23,6 +23,7 @@ import site.seaunit.zhishiku.billing.BillingException;
 import site.seaunit.zhishiku.core.richtext.RichTextException;
 import site.seaunit.zhishiku.documentimport.DocumentImportException;
 import site.seaunit.zhishiku.idempotency.IdempotencyException;
+import site.seaunit.zhishiku.knowledge.DuplicateKnowledgeException;
 import site.seaunit.zhishiku.knowledge.RichTextConflictException;
 import site.seaunit.zhishiku.richtext.image.ImageInspectionException;
 import site.seaunit.zhishiku.screenshotimport.ScreenshotImportException;
@@ -193,6 +194,22 @@ public class ApiExceptionHandler {
       ExternalSourceUnavailableException error, HttpServletRequest request) {
     return response(
         HttpStatus.UNPROCESSABLE_ENTITY, "EXTERNAL_SOURCE_UNAVAILABLE", error.getMessage(), request);
+  }
+
+  @ExceptionHandler(DuplicateKnowledgeException.class)
+  ResponseEntity<Map<String, Object>> duplicateKnowledge(
+      DuplicateKnowledgeException error, HttpServletRequest request) {
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("code", "KNOWLEDGE_ALREADY_IMPORTED");
+    body.put("message", error.getMessage());
+    body.put("requestId", String.valueOf(request.getAttribute(RequestIdFilter.ATTRIBUTE)));
+    body.put("retryable", false);
+    body.put(
+        "existingItems",
+        error.existingItems().stream()
+            .map(item -> Map.of("id", item.itemId(), "title", item.title()))
+            .toList());
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
   }
 
   @ExceptionHandler(WebImportUnavailableException.class)

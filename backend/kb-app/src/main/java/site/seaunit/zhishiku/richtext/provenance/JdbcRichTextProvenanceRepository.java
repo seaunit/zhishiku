@@ -4,13 +4,17 @@ import java.sql.Timestamp;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import site.seaunit.zhishiku.knowledge.SourceUrlCanonicalizer;
 
 @Repository
 public class JdbcRichTextProvenanceRepository implements RichTextProvenanceRepository {
   private final JdbcTemplate jdbc;
+  private final SourceUrlCanonicalizer canonicalizer;
 
-  public JdbcRichTextProvenanceRepository(JdbcTemplate jdbc) {
+  public JdbcRichTextProvenanceRepository(
+      JdbcTemplate jdbc, SourceUrlCanonicalizer canonicalizer) {
     this.jdbc = jdbc;
+    this.canonicalizer = canonicalizer;
   }
 
   @Override
@@ -29,15 +33,16 @@ public class JdbcRichTextProvenanceRepository implements RichTextProvenanceRepos
     jdbc.update(
         """
         INSERT INTO rich_document_source
-          (id, item_id, source_kind, source_url, source_host, captured_at,
-           converted_at, converter_version, content_hash, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (id, item_id, source_kind, source_url, source_host, canonical_url,
+           captured_at, converted_at, converter_version, content_hash, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         source.sourceId(),
         itemId,
         source.kind(),
         source.url(),
         source.host(),
+        source.url() == null ? null : canonicalizer.canonicalize(source.url()),
         source.capturedAt() == null ? null : Timestamp.from(source.capturedAt()),
         Timestamp.from(source.convertedAt()),
         source.converterVersion(),

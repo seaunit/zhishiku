@@ -370,7 +370,9 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Conflict"
+          description: >-
+            幂等冲突，或该规范化网页 URL 已在当前账号的知识库中存在。
+            已存在时返回 `KNOWLEDGE_ALREADY_IMPORTED`，不得再次调用 AI 或保留点数预留。
         "410":
           description: 短期候选结果已过期。
         "422":
@@ -726,6 +728,10 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "402":
           $ref: "#/components/responses/PaymentRequired"
+        "409":
+          description: >-
+            该规范化网页 URL 已在当前账号的知识库中存在，返回 `KNOWLEDGE_ALREADY_IMPORTED`。
+            系统不得再次截图、调用 AI、创建知识或保留点数预留。
         "422":
           $ref: "#/components/responses/ValidationError"
         "429":
@@ -2375,7 +2381,8 @@ components:
             组合价格也必须在唯一一次点击前展示。
     ExternalSearchCandidate:
       type: object
-      required: [candidateId, title, url, snippet, provider, organizable]
+      required:
+        [candidateId, title, url, snippet, provider, organizable, alreadyImported, existingItemCount]
       properties:
         candidateId:
           type: string
@@ -2392,6 +2399,25 @@ components:
         organizable:
           type: boolean
           description: 候选正文是否足以进入 AI 整理；否时前端禁用收入操作。
+        alreadyImported:
+          type: boolean
+          description: 当前账号是否已从同一规范化 URL 收录过知识。
+        existingItemId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: 已收录知识中的第一条，供前端跳转查看。
+        existingItemTitle:
+          type:
+            - string
+            - "null"
+          description: 已收录知识中的第一条标题。
+        existingItemCount:
+          type: integer
+          minimum: 0
+          maximum: 20
+          description: 同一来源当前仍为 active 的知识数量。
         expiresAt:
           type: string
           format: date-time

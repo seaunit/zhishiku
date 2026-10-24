@@ -1175,6 +1175,20 @@
   line-height: 1.45;
 }
 
+.candidate-duplicate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.candidate-duplicate .text-link {
+  color: var(--accent);
+}
+
 .right-rail {
   display: grid;
   gap: 0;

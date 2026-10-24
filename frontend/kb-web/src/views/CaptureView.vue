@@ -928,6 +928,9 @@ function webpageImportError(caught: unknown) {
       return t('capture.webpageBillingUnavailable')
     }
     if (caught.code === 'WEB_PAGE_NO_TEXT') return t('capture.webpageNoText')
+    if (caught.code === 'KNOWLEDGE_ALREADY_IMPORTED') {
+      return t('capture.webpageAlreadyImported')
+    }
     if (caught.code === 'WEB_PAGE_ORGANIZATION_FAILED') {
       return t('capture.webpageOrganizationFailed')
     }
