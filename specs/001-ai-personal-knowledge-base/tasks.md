@@ -970,3 +970,26 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   `3587fdbf5fe2-20261024001219`。
 - 风险与回滚：迁移只新增 `canonical_url` 并回填原 URL，回滚应用不会删除列或历史数据；旧数据
   中带不同跟踪参数的 URL 仍可能需要一次人工清理。
+
+### 完成记录：T120
+
+- 日期：2026-10-25
+- 状态：已提交、推送、真实重部署验收完成
+- 执行主体：Codex
+- 摘要：将拾题和识海的 Nginx 共存规则从临时配置注入改为稳定 integration snippet。
+- 详情：拾题 HTTP/HTTPS 模板固定包含
+  `/etc/nginx/snippets/seaunit-integrations/*.conf`，并在重建 `shuati.conf` 时校验该
+  include；识海部署将 `/kb` 安装为 `40-zhishiku-kb.conf`，备份并支持回滚，同时自动迁移旧
+  的一行式 `zhishiku-kb.conf` include。门户根路径和 `/seaunit-portal/` 继续指向 SEAUNIT
+  双应用门户。
+- 验证：识海 deploy 依赖检查、Git Bash 语法检查和 Nginx 预演通过；拾题 provision 真实
+  重部署后新 `shuati.conf` 包含 integration include，根标题为
+  `SEAUNIT · 拾题与识海`，识海标题正常；`/`、`/app`、`/login`、`/bank/1`、`/kb/`、
+  `/kb/login`、`/kb/register`、`/kb/api/actuator/health` 和
+  `/seaunit-portal/styles.css` 均返回 200；Nginx、拾题、拾题支付、识海 API 和识海支付桥接
+  全部 active。
+- 覆盖：部署共存、门户和 `/kb` 零覆盖回归。
+- 发布：拾题 commit `7652d8e`；识海部署脚本 commit `f675b8f`。
+- 风险与回滚：若手工绕开拾题 `provision-ubuntu.sh` 并直接使用自定义配置，仍需确认包含
+  integration 通配目录；识海部署会自动检测并迁移，Nginx 校验失败时恢复原配置和
+  snippet 备份。
