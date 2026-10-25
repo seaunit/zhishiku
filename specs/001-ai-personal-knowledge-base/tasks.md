@@ -989,7 +989,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   `/seaunit-portal/styles.css` 均返回 200；Nginx、拾题、拾题支付、识海 API 和识海支付桥接
   全部 active。
 - 覆盖：部署共存、门户和 `/kb` 零覆盖回归。
-- 发布：拾题 commit `7652d8e`；识海部署脚本 commit `f675b8f`。
+- 发布：拾题 commit `7652d8e`；识海 commit `bdb767b`、tag `v0.1.27-mvp`、release
+  `bdb767bcbe15-20261025110351`。
 - 风险与回滚：若手工绕开拾题 `provision-ubuntu.sh` 并直接使用自定义配置，仍需确认包含
   integration 通配目录；识海部署会自动检测并迁移，Nginx 校验失败时恢复原配置和
   snippet 备份。
