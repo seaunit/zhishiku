@@ -290,7 +290,7 @@ public class KnowledgeChatConversationService {
       return List.of();
     }
     return sources.stream()
-        .limit(5)
+        .limit(8)
         .map(
             source ->
                 new ChatSource(

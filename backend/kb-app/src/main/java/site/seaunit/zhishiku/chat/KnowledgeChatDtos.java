@@ -72,7 +72,7 @@ public final class KnowledgeChatDtos {
           @Pattern(regexp = "user|assistant", message = "Message role must be user or assistant.")
           String role,
       @NotBlank @Size(max = 8_000) String content,
-      @NotNull @Size(max = 5) List<@NotNull @Valid ChatSource> sources,
+      @NotNull @Size(max = 8) List<@NotNull @Valid ChatSource> sources,
       boolean needsInternet,
       @Size(max = 100) String reason) {
     public AppendMessageRequest {

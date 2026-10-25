@@ -329,7 +329,7 @@ components:
           maxLength: 8000
         sources:
           type: array
-          maxItems: 5
+          maxItems: 8
           items:
             $ref: '#/components/schemas/Source'
         needsInternet:
@@ -352,7 +352,7 @@ components:
           type: string
         sources:
           type: array
-          maxItems: 5
+          maxItems: 8
           items:
             $ref: '#/components/schemas/Source'
         needsInternet:
@@ -404,7 +404,7 @@ components:
           type: boolean
         sources:
           type: array
-          maxItems: 5
+          maxItems: 8
           items:
             $ref: '#/components/schemas/Source'
     AnswerRequest:
@@ -448,7 +448,7 @@ components:
           type: boolean
         sources:
           type: array
-          maxItems: 5
+          maxItems: 8
           items:
             $ref: '#/components/schemas/Source'
         reason:

@@ -845,6 +845,70 @@ test('answers a natural conversation without knowledge evidence and stays offlin
   expect(quoteOperation).toBe('knowledge_chat')
 })
 
+test('reports an assistant history save failure without claiming history is unreadable', async ({
+  page,
+}) => {
+  await page.route('**/kb/api/v1/chat/conversations/*/messages', async (route) => {
+    const payload = route.request().postDataJSON() as { role: 'user' | 'assistant' }
+    if (payload.role === 'assistant') {
+      await route.fulfill({
+        status: 422,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 'VALIDATION_FAILED',
+          message: 'Request is invalid.',
+          requestId: 'assistant-save-failed',
+          retryable: false,
+        }),
+      })
+      return
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: '123e4567-e89b-42d3-a456-426614174531',
+        role: 'user',
+        content: '你好',
+        sources: [],
+        needsInternet: false,
+        reason: null,
+        createdAt: new Date().toISOString(),
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/chat/answers/stream', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sseBody([
+        { event: 'token', data: { text: '你好，我是小识。' } },
+        {
+          event: 'complete',
+          data: {
+            answer: '你好，我是小识。',
+            needsInternet: false,
+            sources: [],
+            reason: null,
+          },
+        },
+      ]),
+    })
+  })
+
+  await page.goto('/kb/chat')
+  await page.getByLabel('向小识提问').fill('你好')
+  await page.getByRole('button', { name: '发送 · 1 点' }).click()
+
+  await expect(
+    page.locator('.chat-message-body').filter({ hasText: '你好，我是小识。' }),
+  ).toBeVisible()
+  await expect(
+    page.getByText('这条消息未能写入历史，当前页面内容仍然保留。'),
+  ).toBeVisible()
+  await expect(page.getByText('历史对话读取失败，请稍后重试。')).toHaveCount(0)
+})
+
 test('waits for internet confirmation and charges two points only after the click', async ({
   page,
 }) => {

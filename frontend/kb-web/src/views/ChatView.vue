@@ -41,7 +41,7 @@
         </header>
         <div v-if="historyLoading" class="chat-history-state">{{ t('chat.historyLoading') }}</div>
         <div v-else-if="historyError" class="chat-history-state is-error">
-          {{ t('chat.historyLoadFailed') }}
+          {{ historyError }}
         </div>
         <div v-else-if="conversations.length === 0" class="chat-history-state">
           {{ t('chat.historyEmpty') }}
@@ -360,8 +360,8 @@ async function loadHistory() {
     if (page.items[0]) {
       await openConversation(page.items[0].id, false)
     }
-  } catch (caught) {
-    historyError.value = caught instanceof Error ? caught.message : t('chat.historyLoadFailed')
+  } catch {
+    historyError.value = t('chat.historyLoadFailed')
   } finally {
     historyLoading.value = false
   }
@@ -393,8 +393,8 @@ async function openConversation(id: string, focusInput = true) {
     if (focusInput) {
       inputElement.value?.focus()
     }
-  } catch (caught) {
-    historyError.value = caught instanceof Error ? caught.message : t('chat.historyLoadFailed')
+  } catch {
+    historyError.value = t('chat.historyLoadFailed')
   } finally {
     conversationLoading.value = false
   }
