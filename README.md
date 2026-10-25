@@ -214,6 +214,8 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 - 保留上一 release；健康检查失败时自动切回。
 - 只替换现有 Nginx 配置中精确的 `location = /`，增加独立的 `/seaunit-portal/` 静态资源
   location，并注入受管理的 `/kb` 片段；`nginx -t` 失败时恢复配置备份。
+- 拾题与识海通过 `/etc/nginx/snippets/seaunit-integrations/*.conf` 中共存；拾题重新部署会
+  保留稳定 include，识海独立维护 `/kb` snippet，不会因拾题重建 `shuati.conf` 而失效。
 - 不修改拾题进程、MySQL、Redis、支付 sidecar 或 `/app`、`/login`、`/api`、`/bank`、
   `/pay` 路由。
 

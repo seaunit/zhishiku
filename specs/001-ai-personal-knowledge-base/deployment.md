@@ -133,8 +133,11 @@ location /kb/ {
 ```
 
 最终配置必须基于现有 Nginx 文件做增量修改：替换精确的 `location = /`，增加独立的
-`/seaunit-portal/` 静态资源 location，再注入 `/kb` include。执行 `nginx -t` 后 reload；
-失败时恢复 Nginx 备份和上一门户 release。
+`/seaunit-portal/` 静态资源 location。`/kb` location 写入独立文件
+`/etc/nginx/snippets/seaunit-integrations/40-zhishiku-kb.conf`；拾题 HTTP/HTTPS 模板在
+server 内稳定包含 `/etc/nginx/snippets/seaunit-integrations/*.conf`。执行 `nginx -t` 后
+reload；失败时恢复 Nginx、集成 snippet 备份和上一门户 release。拾题重新部署重建
+`shuati.conf` 后仍必须加载识海 snippet。
 
 ## 数据库
 

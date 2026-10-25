@@ -193,6 +193,11 @@ AI 导入、重新分析、互联网搜索和候选保存等服务端写操作�
 - 门户发布只能替换 Nginx 中精确的 `location = /`，增加独立的 `/seaunit-portal/` 静态资源
   location，并保留 `/app`、`/login`、`/bank`、`/api`、`/pay`、`/apk`、证书、Cookie 和支付
   sidecar 的现有行为。
+- 拾题与识海必须通过 `/etc/nginx/snippets/seaunit-integrations/*.conf` 稳定共存。拾题每次
+  重建 `shuati.conf` 时必须保留该 include；识海只维护自己的
+  `40-zhishiku-kb.conf`，不得把 `/kb` 规则作为一次性内容永久写进拾题临时配置。
+- 任一应用重新部署后都必须复核 `/`、`/app`、`/kb/`、`/kb/api/actuator/health`，并确认
+  `/seaunit-portal/` 静态资源和两套支付回调未被覆盖。
 - `/kb/` 与根门户的 Nginx 改动必须先备份，执行 `nginx -t`，失败时恢复配置和上一 release。
 - 不得为门户部署修改或重启拾题的 MySQL、Redis、认证、支付服务或既有环境文件。
 

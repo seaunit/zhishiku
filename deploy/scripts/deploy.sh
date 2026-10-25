@@ -12,6 +12,8 @@ SERVICE_USER="${SHIHAI_SERVICE_USER:-${KB_SERVICE_USER:-zhishiku}}"
 PORT="${SHIHAI_PORT:-${KB_PORT:-8082}}"
 NGINX_CONFIG="${SHIHAI_NGINX_CONFIG:-${KB_NGINX_CONFIG:-/etc/nginx/conf.d/shuati.conf}}"
 NGINX_SNIPPET="/etc/nginx/snippets/zhishiku-kb.conf"
+NGINX_INTEGRATIONS_DIR="/etc/nginx/snippets/seaunit-integrations"
+NGINX_INTEGRATION_SNIPPET="$NGINX_INTEGRATIONS_DIR/40-zhishiku-kb.conf"
 SKIP_TESTS="${SHIHAI_SKIP_TESTS:-${KB_SKIP_TESTS:-0}}"
 PROMPT_SECRETS="${SHIHAI_PROMPT_SECRETS:-${KB_PROMPT_SECRETS:-1}}"
 PROMPT_TIMEOUT="${SHIHAI_PROMPT_TIMEOUT:-${KB_PROMPT_TIMEOUT:-60}}"
@@ -447,6 +449,8 @@ PORTAL_SWITCHED=0
 NGINX_BACKUP=""
 BRIDGE_UNIT_BACKUP=""
 NGINX_SNIPPET_BACKUP=""
+NGINX_INTEGRATION_SNIPPET_BACKUP=""
+NGINX_INTEGRATION_SNIPPET_EXISTED=0
 BRIDGE_WAS_ACTIVE=0
 
 cleanup() {
@@ -474,6 +478,12 @@ cleanup() {
     fi
     if [[ -n "$NGINX_SNIPPET_BACKUP" && -f "$NGINX_SNIPPET_BACKUP" ]]; then
       cp -a "$NGINX_SNIPPET_BACKUP" "$NGINX_SNIPPET"
+    fi
+    if [[ -n "$NGINX_INTEGRATION_SNIPPET_BACKUP" &&
+      -f "$NGINX_INTEGRATION_SNIPPET_BACKUP" ]]; then
+      cp -a "$NGINX_INTEGRATION_SNIPPET_BACKUP" "$NGINX_INTEGRATION_SNIPPET"
+    elif ((NGINX_INTEGRATION_SNIPPET_EXISTED == 0)); then
+      rm -f "$NGINX_INTEGRATION_SNIPPET"
     fi
     systemctl daemon-reload || true
     if ((BRIDGE_WAS_ACTIVE == 1)); then
@@ -609,6 +619,11 @@ if [[ -f "$NGINX_SNIPPET" ]]; then
   NGINX_SNIPPET_BACKUP="/root/zhishiku-kb.conf.before-$RELEASE_ID"
   cp -a "$NGINX_SNIPPET" "$NGINX_SNIPPET_BACKUP"
 fi
+if [[ -f "$NGINX_INTEGRATION_SNIPPET" ]]; then
+  NGINX_INTEGRATION_SNIPPET_EXISTED=1
+  NGINX_INTEGRATION_SNIPPET_BACKUP="/root/zhishiku-kb-integration.conf.before-$RELEASE_ID"
+  cp -a "$NGINX_INTEGRATION_SNIPPET" "$NGINX_INTEGRATION_SNIPPET_BACKUP"
+fi
 
 install -m 0644 \
   "$SOURCE_DIR/deploy/systemd/zhishiku-api.service" \
@@ -617,9 +632,13 @@ install -m 0644 \
   "$SOURCE_DIR/deploy/systemd/zhishiku-waffo-bridge.service" \
   "/etc/systemd/system/zhishiku-waffo-bridge.service"
 install -d -m 0755 /etc/nginx/snippets
+install -d -m 0755 "$NGINX_INTEGRATIONS_DIR"
 install -m 0644 \
   "$SOURCE_DIR/deploy/nginx/zhishiku-kb.conf" \
   "$NGINX_SNIPPET"
+install -m 0644 \
+  "$SOURCE_DIR/deploy/nginx/zhishiku-kb.conf" \
+  "$NGINX_INTEGRATION_SNIPPET"
 
 ln -sfn "$RELEASE_DIR" "$INSTALL_ROOT/current.next"
 mv -Tf "$INSTALL_ROOT/current.next" "$INSTALL_ROOT/current"
@@ -697,6 +716,17 @@ if "listen 443" not in text or "seaunit.site" not in text:
 lines = text.splitlines(keepends=True)
 changed = False
 
+# Migrate the old per-project include to the shared integration directory.
+filtered_lines = [
+    line
+    for line in lines
+    if "include /etc/nginx/snippets/zhishiku-kb.conf; # managed by zhishiku"
+    not in line
+]
+if filtered_lines != lines:
+    lines = filtered_lines
+    changed = True
+
 if "root /opt/seaunit-portal/current;" not in text:
     start = next(
         (index for index, line in enumerate(lines) if line.strip() == "location = / {"),
@@ -751,11 +781,14 @@ if "location ^~ /seaunit-portal/" not in "".join(lines):
     ]
     changed = True
 
-if "zhishiku-kb.conf" not in "".join(lines):
+if "include /etc/nginx/snippets/seaunit-integrations/*.conf" not in "".join(lines):
     closing = [index for index, line in enumerate(lines) if line.strip() == "}"]
     if not closing:
         raise SystemExit("Could not find the target server closing brace.")
-    marker = "    include /etc/nginx/snippets/zhishiku-kb.conf; # managed by zhishiku\n"
+    marker = (
+        "    include /etc/nginx/snippets/seaunit-integrations/*.conf; "
+        "# managed by seaunit\n"
+    )
     lines.insert(closing[-1], marker)
     changed = True
 

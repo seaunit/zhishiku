@@ -111,6 +111,12 @@ SHIHAI_SMOKE_ORDER_ID=<existing-pending-order-id> \
 location，并注入一行受管理的 `/kb` `include`。修改前备份，`nginx -t` 失败时自动恢复配置和
 上一 release。
 
+`/kb` 的实际 location 安装在 `/etc/nginx/snippets/seaunit-integrations/40-zhishiku-kb.conf`。
+拾题 HTTP/HTTPS 模板都包含
+`/etc/nginx/snippets/seaunit-integrations/*.conf`，因此拾题重新部署并重建
+`/etc/nginx/conf.d/shuati.conf` 时，识海规则仍会继续加载。识海部署会迁移旧的一行式
+`zhishiku-kb.conf` include，并备份、恢复集成 snippet。
+
 ## 回滚
 
 应用 release 位于 `/opt/zhishiku/releases/`，静态门户 release 位于

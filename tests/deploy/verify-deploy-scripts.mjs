@@ -145,9 +145,21 @@ if (!deploy.includes('pg_dump') || !deploy.includes('predeploy-$RELEASE_ID.sql.g
 if (
   !deploy.includes('BRIDGE_UNIT_BACKUP') ||
   !deploy.includes('NGINX_SNIPPET_BACKUP') ||
+  !deploy.includes('NGINX_INTEGRATION_SNIPPET_BACKUP') ||
   !deploy.includes('systemctl restart zhishiku-waffo-bridge.service')
 ) {
-  failures.push('deploy.sh rollback must restore bridge and Nginx snippet configuration')
+  failures.push(
+    'deploy.sh rollback must restore bridge and both Nginx snippet configurations',
+  )
+}
+if (
+  !deploy.includes('/etc/nginx/snippets/seaunit-integrations') ||
+  !deploy.includes('40-zhishiku-kb.conf') ||
+  !deploy.includes('include /etc/nginx/snippets/seaunit-integrations/*.conf')
+) {
+  failures.push(
+    'deploy.sh must install /kb through the shared seaunit-integrations Nginx directory',
+  )
 }
 
 const unsafeNetworkPipe = /curl[^\n]*(?:\\\s*\n\s*)?[^\n]*\|[^\n]*grep\s+-q/
