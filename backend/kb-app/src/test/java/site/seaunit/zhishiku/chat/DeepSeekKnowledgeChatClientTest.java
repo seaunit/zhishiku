@@ -36,7 +36,7 @@ class DeepSeekKnowledgeChatClientTest {
   void parsesGeneralConversationWithoutCitations() {
     var answer =
         DeepSeekKnowledgeChatClient.parse(
-            "{\"answer\":\"你好，我是小识。\",\"needsInternet\":false}");
+            "<think>内部推理</think>{\"answer\":\"你好，我是小识。\",\"needsInternet\":false}");
 
     assertThat(answer.answer()).isEqualTo("你好，我是小识。");
     assertThat(answer.usedSourceIds()).isEmpty();

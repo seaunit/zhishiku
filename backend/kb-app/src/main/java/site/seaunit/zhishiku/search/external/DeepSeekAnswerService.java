@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -13,7 +14,12 @@ import org.springframework.web.client.RestClient;
 import site.seaunit.zhishiku.config.AppProperties;
 
 @Component
-public class DeepSeekAnswerService {
+@ConditionalOnProperty(
+    prefix = "app.ai-orchestration",
+    name = "provider",
+    havingValue = "deepseek",
+    matchIfMissing = true)
+public class DeepSeekAnswerService implements ExternalAnswerService {
   private final AppProperties.Ai config;
   private final RestClient client;
 
@@ -26,6 +32,7 @@ public class DeepSeekAnswerService {
     this.client = builder.requestFactory(requestFactory).build();
   }
 
+  @Override
   public String answer(String query, List<DeepSeekWebProvider.SearchResult> results) {
     if (results.isEmpty() || config.apiKey() == null || config.apiKey().isBlank()) {
       return null;

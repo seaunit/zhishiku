@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -23,6 +24,11 @@ import site.seaunit.zhishiku.config.AppProperties;
 import site.seaunit.zhishiku.webimport.WebImportUnavailableException;
 
 @Component
+@ConditionalOnProperty(
+    prefix = "app.ai-orchestration",
+    name = "provider",
+    havingValue = "deepseek",
+    matchIfMissing = true)
 public class DeepSeekKnowledgeChatClient implements KnowledgeChatModelClient {
   private static final String SYSTEM_PROMPT =
       """
@@ -218,8 +224,7 @@ public class DeepSeekKnowledgeChatClient implements KnowledgeChatModelClient {
       userPrompt.append(item.content()).append('\n');
     }
     StreamingSentinelGate gate = new StreamingSentinelGate(INSUFFICIENT_EVIDENCE, tokenConsumer);
-    String result =
-        streamCompletion(STREAM_SYSTEM_PROMPT, userPrompt.toString(), gate::accept);
+    String result = streamCompletion(STREAM_SYSTEM_PROMPT, userPrompt.toString(), gate::accept);
     gate.finish(result);
     return gate.matchedSentinel() ? INSUFFICIENT_EVIDENCE : result;
   }
@@ -232,8 +237,7 @@ public class DeepSeekKnowledgeChatClient implements KnowledgeChatModelClient {
     }
     StreamingSentinelGate gate = new StreamingSentinelGate(NEEDS_INTERNET, tokenConsumer);
     String result =
-        streamCompletion(
-            GENERAL_STREAM_PROMPT, generalUserPrompt(question, history), gate::accept);
+        streamCompletion(GENERAL_STREAM_PROMPT, generalUserPrompt(question, history), gate::accept);
     gate.finish(result);
     return gate.matchedSentinel() ? NEEDS_INTERNET : result;
   }
@@ -359,7 +363,7 @@ public class DeepSeekKnowledgeChatClient implements KnowledgeChatModelClient {
     return prompt.toString();
   }
 
-  static ModelAnswer parse(String content) {
+  public static ModelAnswer parse(String content) {
     try {
       String json = stripCodeFence(content);
       JsonNode root = new ObjectMapper().readTree(json);
@@ -381,7 +385,7 @@ public class DeepSeekKnowledgeChatClient implements KnowledgeChatModelClient {
     }
   }
 
-  static List<String> parseQueries(String content) {
+  public static List<String> parseQueries(String content) {
     try {
       JsonNode root = new ObjectMapper().readTree(stripCodeFence(content));
       List<String> queries = new ArrayList<>();
@@ -400,6 +404,7 @@ public class DeepSeekKnowledgeChatClient implements KnowledgeChatModelClient {
 
   private static String stripCodeFence(String content) {
     String json = content == null ? "" : content.strip();
+    json = json.replaceFirst("(?is)^\\s*<think>.*?</think>\\s*", "").strip();
     if (!json.startsWith("```")) {
       return json;
     }

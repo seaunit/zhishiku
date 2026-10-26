@@ -55,7 +55,7 @@ public class ExternalSearchService {
   private final KnowledgeService knowledgeService;
   private final KnowledgeDuplicateService knowledgeDuplicates;
   private final InternetResultOrganizer organizer;
-  private final DeepSeekAnswerService answerService;
+  private final ExternalAnswerService answerService;
   private final AiTextSecretRedactor secretRedactor;
   private final ImportedKnowledgeMapper knowledgeMapper;
   private final CurrentOwnerService currentOwnerService;
@@ -74,7 +74,7 @@ public class ExternalSearchService {
       KnowledgeService knowledgeService,
       KnowledgeDuplicateService knowledgeDuplicates,
       InternetResultOrganizer organizer,
-      DeepSeekAnswerService answerService,
+      ExternalAnswerService answerService,
       AiTextSecretRedactor secretRedactor,
       ImportedKnowledgeMapper knowledgeMapper,
       CurrentOwnerService currentOwnerService,

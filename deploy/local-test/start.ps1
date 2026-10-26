@@ -39,6 +39,18 @@ function Set-DefaultEnv {
     }
 }
 
+function Import-UserEnvironmentVariable {
+    param([string]$Name)
+
+    if ([Environment]::GetEnvironmentVariable($Name, "Process")) {
+        return
+    }
+    $value = [Environment]::GetEnvironmentVariable($Name, "User")
+    if ($value) {
+        [Environment]::SetEnvironmentVariable($Name, $value, "Process")
+    }
+}
+
 function Assert-PortAvailable {
     param([int]$Port)
 
@@ -120,6 +132,26 @@ if (Test-Path -LiteralPath $pidFile) {
 }
 
 Import-LocalEnvFile -Path $envFile
+Import-UserEnvironmentVariable "SHIHAI_AI_ORCHESTRATION_PROVIDER"
+Import-UserEnvironmentVariable "SHIHAI_DIFY_BASE_URL"
+Import-UserEnvironmentVariable "SHIHAI_DIFY_ORGANIZER_API_KEY"
+Import-UserEnvironmentVariable "SHIHAI_DIFY_CHAT_API_KEY"
+Import-UserEnvironmentVariable "SHIHAI_DIFY_TIMEOUT_SECONDS"
+Import-UserEnvironmentVariable "SHIHAI_DIFY_MAX_RETRIES"
+
+Set-DefaultEnv "SHIHAI_AI_ORCHESTRATION_PROVIDER" "dify"
+Set-DefaultEnv "SHIHAI_DIFY_BASE_URL" "http://127.0.0.1:8502/v1"
+Set-DefaultEnv "SHIHAI_DIFY_TIMEOUT_SECONDS" "60"
+Set-DefaultEnv "SHIHAI_DIFY_MAX_RETRIES" "1"
+
+if (-not $env:SHIHAI_DIFY_ORGANIZER_API_KEY -or -not $env:SHIHAI_DIFY_CHAT_API_KEY) {
+    throw "Set SHIHAI_DIFY_ORGANIZER_API_KEY and SHIHAI_DIFY_CHAT_API_KEY in the Windows user environment before starting the local test stack."
+}
+
+$difyBridge = Get-NetTCPConnection -State Listen -LocalPort 8502 -ErrorAction SilentlyContinue
+if (-not $difyBridge) {
+    & (Join-Path $repoRoot "deploy\dify\start-local-api-proxy.ps1")
+}
 
 $env:PGPASSWORD = $env:SHIHAI_DATABASE_PASSWORD
 if (-not $env:PGPASSWORD) {
@@ -291,6 +323,7 @@ try {
     Write-Host "API: http://127.0.0.1:8082/kb/api/actuator/health"
     Write-Host "Bridge: http://127.0.0.1:8091/health"
     Write-Host "Database: jdbc:postgresql://127.0.0.1:5432/zhishiku_test"
+    Write-Host "Dify console: http://localhost:8502/"
     $waffoMode = if ($env:SHIHAI_WAFFO_DRY_RUN -eq "true") { "dry-run" } else { "test checkout" }
     Write-Host "Waffo: $waffoMode"
     if ($env:SHIHAI_WAFFO_TEST_WEBHOOK_URL) {

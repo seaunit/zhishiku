@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://seaunit.site/kb/contracts/ai-orchestration.schema.json",
+  "title": "识海 AI 编排契约",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provider", "operation", "externalUser"],
+  "properties": {
+    "provider": {
+      "type": "string",
+      "enum": ["dify", "deepseek"]
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "knowledge_organize",
+        "knowledge_answer",
+        "general_answer",
+        "query_plan",
+        "internet_answer",
+        "stream_knowledge",
+        "stream_general",
+        "stream_internet"
+      ]
+    },
+    "externalUser": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sourceKind": { "type": "string", "maxLength": 100 },
+        "content": { "type": "string", "maxLength": 60000 },
+        "question": { "type": "string", "maxLength": 300 },
+        "history": { "type": "string", "maxLength": 8000 },
+        "evidence": { "type": "string", "maxLength": 30000 }
+      }
+    }
+  }
+}

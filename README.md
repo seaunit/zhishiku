@@ -43,14 +43,26 @@ AI 整理成功后才入库，不会直接保存搜索摘要、整页截图或�
 知识数量、可用点数、冻结点数与累计消耗，可带原因启用或禁用普通账号，也可通过可审计点数账本
 向普通账号赠送点数。管理员账号不可被该界面停用；禁用普通账号会使已有会话在后续请求中失效。
 
+“待处理”页面支持单条复核和“全部复核 N 条”。全部复核只处理当前账号所有分页中的待复核知识，
+执行前会明确确认，处理中、失败、手动录入和已整理知识不会变化。
+
 已批准的实现技术栈为 Vue 3 + TypeScript、Java 17 + Spring Boot 3.x、PostgreSQL 18
 和 S3 兼容对象存储。当前 MVP 的图片保存在服务器的本地持久目录；Playwright Java 单页
 截图 worker 已实现。Waffo 桥接已按 `@waffo/pancake-ts@0.26.0` 收口；S3 适配器仍待完成。
+
+本地 AI 编排已切换为 Dify：后端仍负责账号、知识、附件、检索、授权、脱敏、点数、幂等和
+事务，Dify 只负责提示词、模型选择和文本生成。识海使用独立的
+`shihai-knowledge-organizer` 与 `shihai-xiaoshi-chat` 工作流，不复用拾题应用或密钥。
+当前生产已批准并切换到 Dify；`SHIHAI_AI_ORCHESTRATION_PROVIDER=deepseek` 可显式回退到原有
+直连实现。
 
 ## 核心文档
 
 - [项目协作约定](AGENTS.md)
 - [项目宪法](.specify/memory/constitution.md)
+- [Dify AI 编排规格](specs/012-dify-ai-orchestration/spec.md)
+- [Dify AI 编排计划](specs/012-dify-ai-orchestration/plan.md)
+- [Dify AI 编排任务表](specs/012-dify-ai-orchestration/tasks.md)
 - [交互原型](prototype/index.html)
 - [功能规格](specs/001-ai-personal-knowledge-base/spec.md)
 - [实施计划](specs/001-ai-personal-knowledge-base/plan.md)
@@ -170,6 +182,19 @@ powershell -ExecutionPolicy Bypass -File .\deploy\local-test\stop.ps1
 
 详细配置和切换测试商户的方法见
 [`deploy/local-test/README.md`](deploy/local-test/README.md)。
+
+本地测试环境默认使用 Dify。启动前把两个识海工作流 Key 保存到 Windows 用户环境变量，
+脚本会自动读取它们，并在 `127.0.0.1:8502` 未监听时启动本地 Dify API 桥接：
+
+```powershell
+[Environment]::SetEnvironmentVariable('SHIHAI_DIFY_ORGANIZER_API_KEY', '<Key>', 'User')
+[Environment]::SetEnvironmentVariable('SHIHAI_DIFY_CHAT_API_KEY', '<Key>', 'User')
+```
+
+Dify 工作流导入、回退和本地桥接说明见
+[`deploy/dify/README.md`](deploy/dify/README.md)。
+本地 Dify 控制台使用 [http://localhost:8502/](http://localhost:8502/)；后端 Dify API 仍使用
+`http://127.0.0.1:8502/v1`。
 
 ## 部署约束
 

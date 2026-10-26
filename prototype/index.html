@@ -581,6 +581,10 @@
                   AI 整理和 AI 采集结果需要确认复核；手动录入不会进入这里。
                 </p>
               </div>
+              <button class="primary-button processing-review-all" id="reviewAllButton" type="button" hidden>
+                <svg width="16" height="16" aria-hidden="true"><use href="#icon-check"></use></svg>
+                <span data-i18n="reviewAll">全部复核</span>
+              </button>
             </div>
             <section class="panel processing-panel">
               <div class="processing-list" id="processingList"></div>
@@ -870,6 +874,17 @@
         <button class="ghost-button" id="libraryDeleteCancel" type="button" data-i18n="cancel">取消</button>
         <button class="danger-button" id="libraryDeleteConfirm" type="button" data-i18n="confirmDelete">
           移入回收站
+        </button>
+      </div>
+    </dialog>
+
+    <dialog class="confirm-dialog-prototype" id="reviewAllDialog" aria-labelledby="reviewAllTitle">
+      <h2 id="reviewAllTitle" data-i18n="reviewAllTitle">全部复核待处理知识？</h2>
+      <p id="reviewAllBody"></p>
+      <div class="confirm-actions">
+        <button class="ghost-button" id="reviewAllCancel" type="button" data-i18n="cancel">取消</button>
+        <button class="primary-button" id="reviewAllConfirm" type="button" data-i18n="reviewAllConfirm">
+          确认全部复核
         </button>
       </div>
     </dialog>

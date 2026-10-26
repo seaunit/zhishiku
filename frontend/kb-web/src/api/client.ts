@@ -35,6 +35,7 @@ import type {
   RegistrationRequest,
   RegistrationResponse,
   RegistrationStatusResponse,
+  ReviewAllResponse,
   RichImageUpload,
   ScreenshotImportResponse,
   SearchResponse,
@@ -844,6 +845,12 @@ export function confirmKnowledgeReview(id: string): Promise<KnowledgeItem> {
       method: 'POST',
     },
   )
+}
+
+export function reviewAllKnowledge(): Promise<ReviewAllResponse> {
+  return request<ReviewAllResponse>('/knowledge-items/review-all', {
+    method: 'POST',
+  })
 }
 
 export function uploadRichImage(file: File, itemId?: string): Promise<RichImageUpload> {

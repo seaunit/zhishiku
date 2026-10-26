@@ -29,7 +29,8 @@
           <button
             ref="confirmButton"
             type="button"
-            class="button primary danger"
+            class="button primary"
+            :class="{ danger: tone === 'danger' }"
             :disabled="busy"
             @click="emit('confirm')"
           >
@@ -44,14 +45,23 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-defineProps<{
-  title: string
-  body: string
-  cancelLabel: string
-  confirmLabel: string
-  busy?: boolean
-  error?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    body: string
+    cancelLabel: string
+    confirmLabel: string
+    busy?: boolean
+    error?: string
+    tone?: 'danger' | 'primary'
+  }>(),
+  {
+    busy: false,
+    error: '',
+    tone: 'danger',
+  },
+)
+const { tone } = props
 
 const emit = defineEmits<{
   cancel: []

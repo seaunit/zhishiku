@@ -1291,6 +1291,11 @@ svg {
   gap: 20px;
 }
 
+.processing-review-all {
+  flex: none;
+  white-space: nowrap;
+}
+
 
 h1,
 h2,
@@ -3669,6 +3674,15 @@ input[type="checkbox"]:checked::before {
     right: 16px;
     left: 16px;
     width: auto;
+  }
+
+  .title-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .processing-review-all {
+    width: 100%;
   }
 
   .confirm-actions,

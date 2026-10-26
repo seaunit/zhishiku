@@ -38,6 +38,7 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemPage;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeSummaryResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.PageInfo;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.ReviewAllResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchHit;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SourceSummary;
@@ -167,6 +168,19 @@ public class KnowledgeService {
     item.markReviewed();
     items.saveAndFlush(item);
     return detail(itemId, authentication);
+  }
+
+  @Transactional
+  public ReviewAllResponse reviewAll(Authentication authentication) {
+    OwnerAccountEntity owner = currentOwnerService.require(authentication);
+    List<KnowledgeItemEntity> reviewable =
+        items.findReviewableByOwnerIdForUpdate(owner.getId(), ACTIVE, "review");
+    if (reviewable.isEmpty()) {
+      return new ReviewAllResponse(0);
+    }
+    reviewable.forEach(KnowledgeItemEntity::markReviewed);
+    items.saveAll(reviewable);
+    return new ReviewAllResponse(reviewable.size());
   }
 
   private KnowledgeItemResponse createWithStatus(

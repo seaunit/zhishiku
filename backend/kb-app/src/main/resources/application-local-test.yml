@@ -10,6 +10,9 @@ server:
         secure: false
 
 app:
+  ai-orchestration:
+    provider: ${SHIHAI_AI_ORCHESTRATION_PROVIDER:dify}
+    dify-base-url: ${SHIHAI_DIFY_BASE_URL:http://127.0.0.1:8502/v1}
   owner:
     auto-bootstrap: false
   registration:

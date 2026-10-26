@@ -94,6 +94,11 @@ AI 摘要、分类和标签必须保存为结构化字段，不得只拼接到�
 保存为未整理，不进入复核队列。重新分析产生的 AI 结果同样必须重新复核。单框搜索必须覆盖
 标题、正文、备注、图片说明、分类和标签，并返回真实匹配字段。
 
+待处理页必须同时支持单条复核和“全部复核”。全部复核只处理当前认证账号中 `active + review`
+的知识，必须覆盖所有分页但不是当前页；服务端在单事务内完成并返回实际复核数量。处理中、失败、
+手动录入、已整理和回收站知识不得变化。入口必须显示全量待复核数量，执行前必须确认影响范围，
+成功或失败后刷新队列与导航计数。
+
 AI 整理的正文必须映射为经过验证的富文本结构，至少支持标题、段落、列表、引用、代码块和
 来源图片，不得把所有内容压成单个纯文本段落。来源图示使用现有附件和 `rich_image_reference`
 安全链路；正文内图片的 alt、caption 和来源元数据必须纳入搜索投影，不得保存外部图片 URL
@@ -177,8 +182,20 @@ AI 导入、重新分析、互联网搜索和候选保存等服务端写操作�
   不得发现链接、遍历页面或执行无限滚动；worker 必须回传最终 URL，后端再次校验公开地址。
 - Waffo 支付桥接继续使用独立 Node.js 进程和现有 Pancake SDK；桥接不读取知识正文、
   不拥有业务数据库，不得把支付逻辑直接并入 Spring Boot Web 进程。
-- AI 调用使用 Spring `WebClient` 和显式超时、重试、限流及结构化输出校验；不得让 Provider
-  异常绕过 002 的报价、预留、结算和释放门禁。
+- AI 调用通过 `app.ai-orchestration.provider` 显式选择 `dify` 或 `deepseek`，并使用
+  Spring `RestClient` 或 JDK `HttpClient` 设置连接、读取和总响应超时、有限重试及结构化输出
+  校验；不得让 Provider 异常绕过 002 的报价、预留、结算和释放门禁。
+- Dify 只负责提示词、模型选择、条件编排和文本生成，不得直接写业务数据库、管理账号或修改
+  点数。知识正文、附件、检索、授权、脱敏、幂等、事务、引用校验和最终持久化仍由后端负责。
+  识海必须使用独立的 `shihai-knowledge-organizer`、`shihai-xiaoshi-chat` 工作流和应用级
+  API Key，不得复用拾题应用或工作流。
+- Dify 配置使用 `SHIHAI_AI_ORCHESTRATION_PROVIDER`、`SHIHAI_DIFY_BASE_URL`、
+  `SHIHAI_DIFY_ORGANIZER_API_KEY`、`SHIHAI_DIFY_CHAT_API_KEY`、
+  `SHIHAI_DIFY_TIMEOUT_SECONDS` 和 `SHIHAI_DIFY_MAX_RETRIES`。当前本地测试和生产均使用
+  `dify`；需要回退时显式设置 `deepseek`，不得静默改投其他提供商。
+- 发送给 Dify 的内容只能是后端已授权并脱敏的文本、短历史与候选证据；`user` 字段使用当前
+  账号 UUID 或不可逆哈希，不得使用邮箱。Dify 流式响应中的 `<think>` 推理块必须在适配层
+  过滤，不得透传给用户。
 - DeepSeek 联网搜索使用官方 `POST /v1/tools/search` 和单页 `POST /v1/tools/fetch`；只有用户
   在本地结果后再次确认才能发送查询。Fetch 只能处理用户选择的一个候选 URL，不得遍历链接或
   退化为爬虫。候选“AI 整理后收入”必须再次取得外部 AI 授权，Fetch 内容脱敏后由 AI 拆分整理，

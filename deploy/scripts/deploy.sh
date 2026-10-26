@@ -287,11 +287,18 @@ ensure_refund_support_url() {
 
 ensure_secrets() {
   local admin_password ai_key search_key fetch_key smtp_password
+  local ai_provider dify_base_url dify_organizer_key dify_chat_key
   admin_password="${SHIHAI_ADMIN_PASSWORD:-$(read_env_value SHIHAI_ADMIN_PASSWORD ADMIN_PASSWORD)}"
   ai_key="${SHIHAI_DEEPSEEK_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_API_KEY DEEPSEEK_API_KEY)}"
   search_key="${SHIHAI_DEEPSEEK_SEARCH_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_SEARCH_API_KEY DEEPSEEK_SEARCH_API_KEY)}"
   fetch_key="${SHIHAI_DEEPSEEK_FETCH_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_FETCH_API_KEY DEEPSEEK_FETCH_API_KEY)}"
   smtp_password="${SHIHAI_SMTP_PASSWORD:-$(read_env_value SHIHAI_SMTP_PASSWORD SMTP_PASSWORD)}"
+  ai_provider="${SHIHAI_AI_ORCHESTRATION_PROVIDER:-$(read_env_value SHIHAI_AI_ORCHESTRATION_PROVIDER AI_ORCHESTRATION_PROVIDER)}"
+  ai_provider="${ai_provider:-dify}"
+  dify_base_url="${SHIHAI_DIFY_BASE_URL:-$(read_env_value SHIHAI_DIFY_BASE_URL DIFY_BASE_URL)}"
+  dify_base_url="${dify_base_url:-http://127.0.0.1:8501/v1}"
+  dify_organizer_key="${SHIHAI_DIFY_ORGANIZER_API_KEY:-$(read_env_value SHIHAI_DIFY_ORGANIZER_API_KEY DIFY_ORGANIZER_API_KEY)}"
+  dify_chat_key="${SHIHAI_DIFY_CHAT_API_KEY:-$(read_env_value SHIHAI_DIFY_CHAT_API_KEY DIFY_CHAT_API_KEY)}"
 
   if [[ "$SECRETS_ALREADY_PROMPTED" != "1" ]]; then
     admin_password="$(prompt_secret \
@@ -299,6 +306,9 @@ ensure_secrets() {
     ai_key="$(prompt_secret "DeepSeek AI API Key" "$ai_key")"
     search_key="$(prompt_secret "DeepSeek Search API Key（留空复用主 AI Key）" "$search_key")"
     fetch_key="$(prompt_secret "DeepSeek Fetch API Key（留空复用主 AI Key）" "$fetch_key")"
+    dify_organizer_key="$(prompt_secret \
+      "识海 Dify 知识整理工作流 API Key" "$dify_organizer_key")"
+    dify_chat_key="$(prompt_secret "识海 Dify 聊天工作流 API Key" "$dify_chat_key")"
     smtp_password="$(prompt_secret "SMTP 密码/应用专用密钥" "$smtp_password")"
   fi
 
@@ -316,14 +326,32 @@ ensure_secrets() {
   set_env_value SHIHAI_DEEPSEEK_API_KEY "$ai_key"
   set_env_value SHIHAI_DEEPSEEK_SEARCH_API_KEY "$search_key"
   set_env_value SHIHAI_DEEPSEEK_FETCH_API_KEY "$fetch_key"
+  set_env_value SHIHAI_AI_ORCHESTRATION_PROVIDER "$ai_provider"
+  set_env_value SHIHAI_DIFY_BASE_URL "$dify_base_url"
+  set_env_value SHIHAI_DIFY_ORGANIZER_API_KEY "$dify_organizer_key"
+  set_env_value SHIHAI_DIFY_CHAT_API_KEY "$dify_chat_key"
+  set_env_value SHIHAI_DIFY_TIMEOUT_SECONDS 60
+  set_env_value SHIHAI_DIFY_MAX_RETRIES 1
   set_env_value SHIHAI_SMTP_PASSWORD "$smtp_password"
 
   printf '[部署] 管理员首次密码：%s\n' \
     "$([[ -n "$admin_password" ]] && printf 已输入 || printf 留空保留)"
   printf '[部署] DeepSeek AI 密钥：%s\n' \
     "$([[ -n "$ai_key" ]] && printf 已配置 || printf 未配置)"
+  printf '[部署] AI 编排提供商：%s\n' "$ai_provider"
+  printf '[部署] Dify 工作流密钥：%s\n' \
+    "$([[ -n "$dify_organizer_key" && -n "$dify_chat_key" ]] && printf 已配置 || printf 未配置)"
   printf '[部署] SMTP 密钥：%s\n' \
     "$([[ -n "$smtp_password" ]] && printf 已配置 || printf 未配置)"
+
+  if [[ "$ai_provider" != "dify" && "$ai_provider" != "deepseek" ]]; then
+    printf 'SHIHAI_AI_ORCHESTRATION_PROVIDER must be dify or deepseek.\n' >&2
+    exit 1
+  fi
+  if [[ "$ai_provider" == "dify" && (-z "$dify_organizer_key" || -z "$dify_chat_key") ]]; then
+    printf 'Dify orchestration requires both organizer and chat workflow API keys.\n' >&2
+    exit 1
+  fi
 }
 
 ensure_waffo() {

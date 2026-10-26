@@ -117,6 +117,10 @@ export interface BulkRecycleResponse {
   recycled: number
 }
 
+export interface ReviewAllResponse {
+  reviewed: number
+}
+
 export interface SearchHit {
   item: KnowledgeItemSummary
   matchedFields: string[]

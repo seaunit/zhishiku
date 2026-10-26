@@ -1289,7 +1289,9 @@ test('confirms AI reviews and excludes manual entries from the review queue', as
   await page.route('**/kb/api/v1/knowledge-items?**', async (route) => {
     const url = new URL(route.request().url())
     const limit = Number(url.searchParams.get('limit') || '20')
-    queueStatus = url.searchParams.get('status') || ''
+    if (limit !== 1) {
+      queueStatus = url.searchParams.get('status') || ''
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -1345,6 +1347,102 @@ test('confirms AI reviews and excludes manual entries from the review queue', as
   await expect(page.getByText('AI 整理的网页知识')).toHaveCount(0)
   await expect(pendingLink.locator('.nav-count')).toHaveCount(0)
   await expect(page.getByRole('status')).toContainText('复核已确认')
+})
+
+test('reviews every pending knowledge item at once after confirmation', async ({ page }) => {
+  const aiItems = [
+    {
+      ...summary,
+      id: '123e4567-e89b-42d3-a456-426614174161',
+      title: '批量复核第一条',
+      processingStatus: 'review',
+      source: { kind: 'text', inputMethod: 'ai' },
+    },
+    {
+      ...summary,
+      id: '123e4567-e89b-42d3-a456-426614174162',
+      title: '批量复核第二条',
+      processingStatus: 'review',
+      source: { kind: 'document', inputMethod: 'file' },
+    },
+  ]
+  let reviewAllRequests = 0
+  let pendingTotal = aiItems.length
+  let reviewTotal = aiItems.length
+
+  await page.route('**/kb/api/v1/knowledge-items?**', async (route) => {
+    const url = new URL(route.request().url())
+    const limit = Number(url.searchParams.get('limit') || '20')
+    const status = url.searchParams.get('status') || ''
+    const reviewCountOnly = limit === 1 && status === 'review'
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: reviewCountOnly || pendingTotal === 0 ? [] : aiItems,
+        nextCursor: null,
+        pageInfo: {
+          page: 1,
+          pageSize: limit,
+          totalItems: reviewCountOnly ? reviewTotal : pendingTotal,
+          totalPages: 1,
+          sourceCounts: {},
+        },
+      }),
+    })
+  })
+  await page.route('**/kb/api/v1/knowledge-items/review-all', async (route) => {
+    reviewAllRequests += 1
+    pendingTotal = 0
+    reviewTotal = 0
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ reviewed: aiItems.length }),
+    })
+  })
+
+  await page.goto('/kb/processing')
+
+  const reviewAllButton = page.getByRole('button', { name: '全部复核 2 条' })
+  await expect(reviewAllButton).toBeVisible()
+  await reviewAllButton.click()
+  await expect(page.getByRole('alertdialog')).toContainText('包括其他分页内容')
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 768, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.screenshot({
+      path: `test-results/review-all-dialog-${viewport.width}.png`,
+      fullPage: true,
+    })
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.getByRole('button', { name: '取消', exact: true }).click()
+  expect(reviewAllRequests).toBe(0)
+
+  await reviewAllButton.click()
+  await page.getByRole('button', { name: '确认全部复核', exact: true }).click()
+
+  expect(reviewAllRequests).toBe(1)
+  await expect(page.getByText('批量复核第一条')).toHaveCount(0)
+  await expect(page.getByText('批量复核第二条')).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('已复核 2 条知识')
+  await expect(reviewAllButton).toHaveCount(0)
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 768, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.screenshot({
+      path: `test-results/review-all-${viewport.width}.png`,
+      fullPage: true,
+    })
+  }
 })
 
 test('searches knowledge from the library and keeps source filters', async ({ page }) => {

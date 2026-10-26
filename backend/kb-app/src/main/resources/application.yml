@@ -87,6 +87,13 @@ app:
     api-key: ${SHIHAI_DEEPSEEK_API_KEY:${DEEPSEEK_API_KEY:}}
     model: ${SHIHAI_DEEPSEEK_MODEL:${DEEPSEEK_MODEL:deepseek-chat}}
     timeout-seconds: ${SHIHAI_DEEPSEEK_AI_TIMEOUT_SECONDS:${DEEPSEEK_AI_TIMEOUT_SECONDS:35}}
+  ai-orchestration:
+    provider: ${SHIHAI_AI_ORCHESTRATION_PROVIDER:deepseek}
+    dify-base-url: ${SHIHAI_DIFY_BASE_URL:http://127.0.0.1:8501/v1}
+    dify-organizer-api-key: ${SHIHAI_DIFY_ORGANIZER_API_KEY:}
+    dify-chat-api-key: ${SHIHAI_DIFY_CHAT_API_KEY:}
+    timeout-seconds: ${SHIHAI_DIFY_TIMEOUT_SECONDS:60}
+    max-retries: ${SHIHAI_DIFY_MAX_RETRIES:1}
   web-import:
     allow-unbilled-ai: ${SHIHAI_WEB_IMPORT_ALLOW_UNBILLED_AI:${KB_WEB_IMPORT_ALLOW_UNBILLED_AI:false}}
     worker-jar: ${SHIHAI_BROWSER_WORKER_JAR:${KB_BROWSER_WORKER_JAR:/opt/zhishiku/current/kb-browser-worker.jar}}

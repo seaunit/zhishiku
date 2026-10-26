@@ -31,6 +31,21 @@ public interface KnowledgeItemRepository extends JpaRepository<KnowledgeItemEnti
       @Param("ownerId") UUID ownerId,
       @Param("lifecycleState") String lifecycleState);
 
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query(
+      """
+      SELECT item
+      FROM KnowledgeItemEntity item
+      WHERE item.ownerId = :ownerId
+        AND item.lifecycleState = :lifecycleState
+        AND item.processingStatus = :processingStatus
+      ORDER BY item.updatedAt ASC
+      """)
+  List<KnowledgeItemEntity> findReviewableByOwnerIdForUpdate(
+      @Param("ownerId") UUID ownerId,
+      @Param("lifecycleState") String lifecycleState,
+      @Param("processingStatus") String processingStatus);
+
   List<KnowledgeItemEntity> findByOwnerIdAndLifecycleStateOrderByUpdatedAtDesc(
       UUID ownerId, String lifecycleState, Pageable pageable);
 

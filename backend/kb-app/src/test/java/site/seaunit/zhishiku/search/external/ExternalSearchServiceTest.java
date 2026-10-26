@@ -53,7 +53,7 @@ class ExternalSearchServiceTest {
   @Mock private KnowledgeService knowledgeService;
   @Mock private KnowledgeDuplicateService knowledgeDuplicates;
   @Mock private InternetResultOrganizer organizer;
-  @Mock private DeepSeekAnswerService answerService;
+  @Mock private ExternalAnswerService answerService;
   @Mock private BillingService billingService;
   @Mock private CurrentOwnerService currentOwnerService;
   @Mock private WebPageCaptureGateway pageCapture;
@@ -190,7 +190,8 @@ class ExternalSearchServiceTest {
                     0.8,
                     "Saved article content. ".repeat(20))));
     UUID existingId = UUID.randomUUID();
-    when(knowledgeDuplicates.findActiveBySourceUrl(owner.getId(), "https://example.com/saved?utm_source=test"))
+    when(knowledgeDuplicates.findActiveBySourceUrl(
+            owner.getId(), "https://example.com/saved?utm_source=test"))
         .thenReturn(List.of(new DuplicateKnowledge(existingId, "Saved knowledge")));
 
     var search = service.search(new ExternalSearchRequest("saved", true, false), authentication);
@@ -232,8 +233,7 @@ class ExternalSearchServiceTest {
         .isInstanceOf(DuplicateKnowledgeException.class);
 
     verify(billingService)
-        .releaseAfterFailure(
-            authentication, billingTaskId, "Knowledge source is already imported");
+        .releaseAfterFailure(authentication, billingTaskId, "Knowledge source is already imported");
     verify(provider, never()).fetch(url);
     verify(organizer, never()).organize(any(), any());
   }

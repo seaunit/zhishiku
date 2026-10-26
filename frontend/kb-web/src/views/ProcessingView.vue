@@ -1,10 +1,19 @@
 <template>
   <section class="page processing-page">
-    <header class="page-heading">
+    <header class="page-heading processing-heading">
       <div>
         <h1>{{ t('processing.title') }}</h1>
         <p>{{ t('processing.subtitle') }}</p>
       </div>
+      <button
+        v-if="!loading && reviewableCount > 0"
+        type="button"
+        class="button primary processing-review-all"
+        @click="openReviewAll"
+      >
+        <CheckCheck :size="16" />
+        <span>{{ t('processing.reviewAllCount', { count: reviewableCount }) }}</span>
+      </button>
     </header>
 
     <section class="panel processing-panel">
@@ -94,12 +103,28 @@
         </div>
       </footer>
     </section>
+
+    <ConfirmDialog
+      v-if="reviewAllOpen"
+      :title="t('processing.reviewAllTitle')"
+      :body="t('processing.reviewAllBody', { count: reviewableCount })"
+      :cancel-label="t('common.cancel')"
+      :confirm-label="
+        reviewingAll ? t('processing.reviewAllBusy') : t('processing.reviewAllConfirm')
+      "
+      tone="primary"
+      :busy="reviewingAll"
+      :error="reviewAllError"
+      @cancel="closeReviewAll"
+      @confirm="confirmReviewAll"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import {
   Check,
+  CheckCheck,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
@@ -108,7 +133,8 @@ import {
 } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { confirmKnowledgeReview, listKnowledgeItems } from '@/api/client'
+import { confirmKnowledgeReview, listKnowledgeItems, reviewAllKnowledge } from '@/api/client'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import {
   knowledgeStatusTone,
   knowledgeStatusTranslationKey,
@@ -127,6 +153,10 @@ const reviewError = ref('')
 const reviewNotice = ref('')
 const reviewingId = ref('')
 const pageInfo = ref<KnowledgePageInfo | null>(null)
+const reviewableCount = ref(0)
+const reviewAllOpen = ref(false)
+const reviewingAll = ref(false)
+const reviewAllError = ref('')
 
 function statusClass(status: string) {
   return knowledgeStatusTone(status)
@@ -159,9 +189,14 @@ async function load(page = 1) {
   loadError.value = ''
   reviewError.value = ''
   try {
-    const response = await listKnowledgeItems(20, page, 'all', PENDING_PROCESSING_STATUS_QUERY)
+    const [response, reviewResponse] = await Promise.all([
+      listKnowledgeItems(20, page, 'all', PENDING_PROCESSING_STATUS_QUERY),
+      listKnowledgeItems(1, 1, 'all', 'review'),
+    ])
     items.value = response.items.filter((item) => QUEUE_STATUS_SET.has(item.processingStatus))
     pageInfo.value = response.pageInfo ?? null
+    reviewableCount.value =
+      reviewResponse.pageInfo?.totalItems ?? reviewResponse.items.length
   } catch (caught) {
     loadError.value = caught instanceof Error ? caught.message : t('processing.loadFailed')
   } finally {
@@ -183,6 +218,40 @@ async function confirmReview(item: KnowledgeItemSummary) {
     reviewError.value = caught instanceof Error ? caught.message : t('processing.reviewFailed')
   } finally {
     reviewingId.value = ''
+  }
+}
+
+function openReviewAll() {
+  if (reviewingAll.value || reviewableCount.value <= 0) return
+  reviewAllError.value = ''
+  reviewAllOpen.value = true
+}
+
+function closeReviewAll() {
+  if (reviewingAll.value) return
+  reviewAllOpen.value = false
+  reviewAllError.value = ''
+}
+
+async function confirmReviewAll() {
+  if (reviewingAll.value) return
+  reviewingAll.value = true
+  reviewAllError.value = ''
+  reviewNotice.value = ''
+  try {
+    const result = await reviewAllKnowledge()
+    await load(pageInfo.value?.page ?? 1)
+    reviewAllOpen.value = false
+    reviewNotice.value =
+      result.reviewed > 0
+        ? t('processing.reviewAllDone', { count: result.reviewed })
+        : t('processing.reviewAllNone')
+    notifyReviewQueueChanged()
+  } catch (caught) {
+    reviewAllError.value =
+      caught instanceof Error ? caught.message : t('processing.reviewAllFailed')
+  } finally {
+    reviewingAll.value = false
   }
 }
 

@@ -21,6 +21,7 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.CreateKnowledgeRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemPage;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemResponse;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.ReviewAllResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SearchResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.UpdateClassificationRequest;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.UpdateKnowledgeRequest;
@@ -98,6 +99,11 @@ public class KnowledgeController {
       @RequestHeader("Idempotency-Key") String idempotencyKey,
       Authentication authentication) {
     return service.bulkRecycle(request.itemIds(), idempotencyKey, authentication);
+  }
+
+  @PostMapping("/knowledge-items/review-all")
+  ReviewAllResponse reviewAll(Authentication authentication) {
+    return service.reviewAll(authentication);
   }
 
   @PostMapping("/knowledge-items/{itemId}/review")

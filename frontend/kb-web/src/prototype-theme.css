@@ -1695,6 +1695,11 @@
   margin-top: 24px;
 }
 
+.processing-review-all {
+  flex: none;
+  white-space: nowrap;
+}
+
 .processing-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 64px 100px 96px 90px auto;
@@ -2746,6 +2751,10 @@
 
   .page-heading .desktop-action {
     display: none;
+  }
+
+  .processing-review-all {
+    width: 100%;
   }
 
   .account-menu {

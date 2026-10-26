@@ -9,6 +9,8 @@
 - 数据库用户和密码：`postgres` / `postgres`
 - 后端：`http://127.0.0.1:8082/kb/`
 - 前端：`http://127.0.0.1:4173/kb/`
+- 本地 Dify API：`http://127.0.0.1:8502/v1`
+- 本地 Dify 控制台：`http://localhost:8502/`
 - Waffo 桥接：`http://127.0.0.1:8091/health`
 - 邮件：Spring `local` Profile 的模拟发送，不发真实邮件
 - 注册验证码：本地 API 直接返回调试码
@@ -37,6 +39,16 @@ powershell -ExecutionPolicy Bypass -File .\deploy\local-test\start.ps1
 4. 启动 Waffo 桥接；真实测试模式下启动 Cloudflare 隧道。
 5. 创建或更新只接收 `order.completed`、`refund.succeeded` 的识海测试 Webhook。
 6. 启动 Vite 前端并等待服务健康。
+
+本地 AI 编排默认使用 Dify。启动前必须把两个识海工作流 Key 保存到 Windows 用户环境变量：
+
+```powershell
+[Environment]::SetEnvironmentVariable('SHIHAI_DIFY_ORGANIZER_API_KEY', '<Key>', 'User')
+[Environment]::SetEnvironmentVariable('SHIHAI_DIFY_CHAT_API_KEY', '<Key>', 'User')
+```
+
+脚本会在 `127.0.0.1:8502` 未监听时自动启动 Dify 本地 API 桥接。真实 Key 不得写入仓库文件。
+浏览 Dify 控制台时使用 `localhost`，不要使用 `127.0.0.1`，否则登录 Cookie 会因跨站规则失效。
 
 日志和 PID 文件位于 `.runtime/local-test/`，不会进入 Git。
 

@@ -30,6 +30,7 @@ import site.seaunit.zhishiku.knowledge.KnowledgeDtos.BulkRecycleResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeItemPage;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.KnowledgeSummaryResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.PageInfo;
+import site.seaunit.zhishiku.knowledge.KnowledgeDtos.ReviewAllResponse;
 import site.seaunit.zhishiku.knowledge.KnowledgeDtos.SourceSummary;
 import site.seaunit.zhishiku.security.SecurityConfig;
 
@@ -276,6 +277,26 @@ class KnowledgeLifecycleControllerTest {
   }
 
   @Test
+  @WithMockUser(username = "alice@example.com")
+  void confirmsAllReviewableKnowledgeForTheCurrentAccount() throws Exception {
+    when(service.reviewAll(any())).thenReturn(new ReviewAllResponse(3));
+
+    mvc.perform(post("/api/v1/knowledge-items/review-all").with(csrf()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.reviewed").value(3));
+
+    verify(service).reviewAll(any());
+  }
+
+  @Test
+  void rejectsUnauthenticatedReviewAll() throws Exception {
+    mvc.perform(post("/api/v1/knowledge-items/review-all").with(csrf()))
+        .andExpect(status().isUnauthorized());
+
+    verify(service, never()).reviewAll(any());
+  }
+
+  @Test
   void rejectsUnauthenticatedTrashAccess() throws Exception {
     mvc.perform(get("/api/v1/knowledge-items/trash")).andExpect(status().isUnauthorized());
   }
@@ -290,6 +311,8 @@ class KnowledgeLifecycleControllerTest {
     mvc.perform(delete("/api/v1/knowledge-items/{itemId}/permanent", ITEM_ID))
         .andExpect(status().isForbidden());
     mvc.perform(post("/api/v1/knowledge-items/{itemId}/review", ITEM_ID))
+        .andExpect(status().isForbidden());
+    mvc.perform(post("/api/v1/knowledge-items/review-all"))
         .andExpect(status().isForbidden());
   }
 }

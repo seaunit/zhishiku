@@ -47,6 +47,8 @@ public final class KnowledgeDtos {
 
   public record BulkRecycleResponse(int recycled) {}
 
+  public record ReviewAllResponse(int reviewed) {}
+
   public record KnowledgeItemResponse(
       UUID id,
       String title,

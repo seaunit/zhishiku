@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
+import site.seaunit.zhishiku.ai.orchestration.AiOrchestrationProperties;
 
 class AppPropertiesBindingTest {
   private final ApplicationContextRunner contextRunner =
@@ -26,6 +27,10 @@ class AppPropertiesBindingTest {
           assertThat(properties.webImport().maxItems()).isEqualTo(20);
           assertThat(properties.registration().resendCooldownSeconds()).isEqualTo(60);
           assertThat(properties.billing().enabled()).isFalse();
+          AiOrchestrationProperties orchestration =
+              context.getBean(AiOrchestrationProperties.class);
+          assertThat(orchestration.provider()).isEqualTo("deepseek");
+          assertThat(orchestration.timeoutSeconds()).isEqualTo(60);
         });
   }
 
@@ -66,6 +71,6 @@ class AppPropertiesBindingTest {
   }
 
   @Configuration(proxyBeanMethods = false)
-  @EnableConfigurationProperties(AppProperties.class)
+  @EnableConfigurationProperties({AppProperties.class, AiOrchestrationProperties.class})
   static class TestConfiguration {}
 }

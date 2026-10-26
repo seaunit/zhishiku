@@ -14,6 +14,7 @@ import {
   listAdminUsers,
   registerAccount,
   resetCsrfToken,
+  reviewAllKnowledge,
   searchKnowledge,
   sendRegistrationEmailCode,
   streamKnowledgeChat,
@@ -161,6 +162,24 @@ describe('CSRF handling', () => {
     expect(request[0]).toBe(`${API_BASE}/knowledge-items/item-1/review`)
     expect(request[1].method).toBe('POST')
     expect(request[1].headers.get('X-XSRF-TOKEN')).toBe('csrf-review')
+  })
+
+  it('reviews all pending knowledge through one CSRF-protected request', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ token: 'csrf-review-all', headerName: 'X-XSRF-TOKEN' }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ reviewed: 4 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await reviewAllKnowledge()
+
+    expect(result.reviewed).toBe(4)
+    const request = fetchMock.mock.calls[1]
+    expect(request[0]).toBe(`${API_BASE}/knowledge-items/review-all`)
+    expect(request[1].method).toBe('POST')
+    expect(request[1].headers.get('X-XSRF-TOKEN')).toBe('csrf-review-all')
   })
 
   it('fetches a token before multipart uploads and sends it in the configured header', async () => {

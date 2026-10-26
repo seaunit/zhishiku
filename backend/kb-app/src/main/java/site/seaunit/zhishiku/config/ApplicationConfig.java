@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import site.seaunit.zhishiku.ai.orchestration.AiOrchestrationProperties;
 import site.seaunit.zhishiku.auth.captcha.CaptchaRenderer;
 import site.seaunit.zhishiku.auth.captcha.CaptchaService;
 import site.seaunit.zhishiku.auth.registration.EmailAddressPolicy;
@@ -21,7 +22,7 @@ import site.seaunit.zhishiku.auth.registration.SmtpRegistrationEmailSender;
 import site.seaunit.zhishiku.owner.OwnerService;
 
 @Configuration
-@EnableConfigurationProperties(AppProperties.class)
+@EnableConfigurationProperties({AppProperties.class, AiOrchestrationProperties.class})
 public class ApplicationConfig {
   @Bean
   PasswordEncoder passwordEncoder() {

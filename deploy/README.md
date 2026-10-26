@@ -40,6 +40,8 @@ Vite 构建期间触发 OOM；可通过 `SHIHAI_SWAP_SIZE_MB=0` 禁用。
 - `SHIHAI_DEEPSEEK_API_KEY`
 - `SHIHAI_DEEPSEEK_SEARCH_API_KEY`，留空时复用主 AI Key
 - `SHIHAI_DEEPSEEK_FETCH_API_KEY`，留空时复用主 AI Key
+- `SHIHAI_DIFY_ORGANIZER_API_KEY`，识海知识整理工作流独立 Key
+- `SHIHAI_DIFY_CHAT_API_KEY`，识海小识聊天工作流独立 Key
 - `SHIHAI_SMTP_PASSWORD`
 
 输入内容不会回显，也不会写入 Git、命令行参数或部署日志。值保存在
@@ -47,6 +49,10 @@ Vite 构建期间触发 OOM；可通过 `SHIHAI_SWAP_SIZE_MB=0` 禁用。
 输入新值才更新。
 每项输入默认等待 60 秒，超时按回车处理；可通过 `SHIHAI_PROMPT_TIMEOUT=<秒数>` 调整。
 首次安装和其内部的部署步骤共享一次提示结果，因此同一轮部署只会输入一次。
+
+生产的 AI 编排默认使用 `SHIHAI_AI_ORCHESTRATION_PROVIDER=dify`，Dify API 地址默认是
+`http://127.0.0.1:8501/v1`。两个 Dify 工作流 Key 必须属于识海独立应用，不能复用拾题 Key。
+需要临时回退 DeepSeek 直连时，把 provider 改为 `deepseek` 后再部署。
 
 管理员用户名固定为 `a115846`，可在首次部署时通过同一提示设置密码。普通更新时直接回车会保留
 数据库中的 BCrypt 密码哈希；管理员账号不能通过账号管理页停用或赠送点数。管理员登录仍使用

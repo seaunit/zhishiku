@@ -358,6 +358,13 @@ const translations = {
     processingTitle: "待处理",
     processingPagination: "待处理分页",
     processingSubtitle: "AI 整理和 AI 采集结果需要确认复核；手动录入不会进入这里。",
+    reviewAll: "全部复核",
+    reviewAllCount: "全部复核 {count} 条",
+    reviewAllTitle: "全部复核待处理知识？",
+    reviewAllBody:
+      "将把当前账号全部 {count} 条待复核知识标记为已整理，包括其他分页内容。处理中、失败和手动录入知识不会变化。",
+    reviewAllConfirm: "确认全部复核",
+    reviewAllDone: "已复核 {count} 条知识。",
     trashKicker: "可恢复区",
     trashTitle: "回收站",
     trashSubtitle: "删除后立即退出检索，30 天后永久清理。",
@@ -605,6 +612,13 @@ const translations = {
     processingTitle: "In progress",
     processingPagination: "Review queue pagination",
     processingSubtitle: "AI-organized and AI-captured results need review. Manual entries never appear here.",
+    reviewAll: "Review all",
+    reviewAllCount: "Review all {count}",
+    reviewAllTitle: "Review all pending knowledge?",
+    reviewAllBody:
+      "This marks all {count} items awaiting review in this account as organized, including items on other pages. Processing, failed, and manual items are not changed.",
+    reviewAllConfirm: "Confirm review all",
+    reviewAllDone: "Reviewed {count} items.",
     trashKicker: "Recoverable",
     trashTitle: "Trash",
     trashSubtitle: "Deleted items leave search immediately and purge after 30 days.",
@@ -1359,6 +1373,10 @@ function openDetail(itemId) {
 function renderProcessing() {
   const list = pendingItems();
   const container = $("#processingList");
+  const reviewCount = list.filter((item) => item.status === "review").length;
+  const reviewAllButton = $("#reviewAllButton");
+  reviewAllButton.hidden = reviewCount === 0;
+  reviewAllButton.querySelector("span").textContent = t("reviewAllCount", { count: reviewCount });
   if (!list.length) {
     container.innerHTML = `<div class="empty-state">${t("queueEmpty")}</div>`;
     return;
@@ -2975,6 +2993,25 @@ function bindEvents() {
   $("#confirmLogout").addEventListener("click", () => {
     $("#logoutDialog").close();
     showToast(t("accountSignedOut"));
+  });
+  $("#reviewAllButton").addEventListener("click", () => {
+    const count = pendingItems().filter((item) => item.status === "review").length;
+    if (!count) return;
+    $("#reviewAllBody").textContent = t("reviewAllBody", { count });
+    $("#reviewAllDialog").showModal();
+    $("#reviewAllCancel").focus();
+  });
+  $("#reviewAllCancel").addEventListener("click", () => $("#reviewAllDialog").close());
+  $("#reviewAllConfirm").addEventListener("click", () => {
+    const reviewItems = pendingItems().filter((item) => item.status === "review");
+    reviewItems.forEach((item) => {
+      item.status = "done";
+    });
+    $("#reviewAllDialog").close();
+    renderQueuePreview();
+    renderProcessing();
+    updateAllCounts();
+    showToast(t("reviewAllDone", { count: reviewItems.length }));
   });
   $("#profileForm").addEventListener("submit", savePrototypeProfile);
   $("#profileDisplayName").addEventListener("input", syncProfileButtons);

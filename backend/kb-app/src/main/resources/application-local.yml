@@ -5,6 +5,9 @@ spring:
     password: ${SHIHAI_DATABASE_PASSWORD:${DATABASE_PASSWORD:}}
 
 app:
+  ai-orchestration:
+    provider: ${SHIHAI_AI_ORCHESTRATION_PROVIDER:dify}
+    dify-base-url: ${SHIHAI_DIFY_BASE_URL:http://127.0.0.1:8502/v1}
   owner:
     email: ${SHIHAI_OWNER_EMAIL:${KB_OWNER_EMAIL:owner@zhishiku.local}}
     password: ${SHIHAI_OWNER_PASSWORD:${KB_OWNER_PASSWORD:local-dev-password-change-me}}
