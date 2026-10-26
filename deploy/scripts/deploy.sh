@@ -303,6 +303,7 @@ ensure_secrets() {
   fi
 
   if [[ -n "$admin_password" ]]; then
+    set_env_value SHIHAI_ADMIN_USERNAME a115846
     set_env_value SHIHAI_ADMIN_PASSWORD "$admin_password"
   fi
   if [[ -z "$search_key" ]]; then
@@ -880,6 +881,7 @@ fi
 
 # The administrator password is only needed until its BCrypt hash is stored.
 ADMIN_USERNAME="$(read_env_value SHIHAI_ADMIN_USERNAME ADMIN_USERNAME)"
+ADMIN_USERNAME="${ADMIN_USERNAME:-a115846}"
 ADMIN_PASSWORD="$(read_env_value SHIHAI_ADMIN_PASSWORD ADMIN_PASSWORD)"
 if [[ -n "$ADMIN_USERNAME" && -n "$ADMIN_PASSWORD" ]]; then
   DATABASE_URL="$(read_env_value SHIHAI_DATABASE_URL DATABASE_URL)"
@@ -901,6 +903,11 @@ if [[ -n "$ADMIN_USERNAME" && -n "$ADMIN_PASSWORD" ]]; then
     chmod 0600 "$env_tmp"
     mv "$env_tmp" "$ENV_FILE"
     printf '[deploy] Administrator account is initialized; the one-time password was removed from runtime config.\n'
+    systemctl restart "$SERVICE_NAME"
+    if ! wait_for_health; then
+      printf '[deploy] API health check failed after administrator initialization.\n' >&2
+      exit 1
+    fi
   fi
 fi
 

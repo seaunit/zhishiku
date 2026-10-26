@@ -201,6 +201,9 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   `--ref <branch|tag|commit>` 固定版本能力。
 - [x] T120 [P0] 同步 README、部署指南、宪法和协作约定，更新一键部署和固定版本回滚命令；
   使用远端 Bash 解析检查和实际 GitHub 标签查询验证自动版本选择结果。
+- [x] T121 [P0] 修复直接运行 `deploy.sh` 首次创建管理员后的清理链路：默认补齐管理员用户名，
+  仅在账号确认存在后删除一次性密码环境变量，并重启 API 以清除进程内旧环境；补充远端查询与
+  健康检查验证。
 
 ## 依赖关系
 
@@ -264,6 +267,20 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   `.specify/memory/constitution.md`。
 - 风险与回滚：文档不改变运行数据；如标签命名规则变化，必须同步更新两个部署脚本的标签过滤
   表达式和本节记录。
+
+### 完成记录：T121
+
+- 日期：2026-10-26
+- 状态：已完成，未提交
+- 摘要：修复直接运行部署脚本时管理员密码未从运行环境文件清理的问题。
+- 详情：`deploy.sh` 在没有 `SHIHAI_ADMIN_USERNAME` 时默认使用固定用户名 `a115846`；
+  管理员密码首次输入后写入迁移期兼容变量，确认管理员账号创建成功后删除两个密码变量，
+  重启 `zhishiku-api` 并通过健康检查。首次安装和直接更新两条部署路径保持一致。
+- 验证：远端 Bash 语法检查；生产管理员账号已确认为 `ADMIN/enabled` 且密码为 BCrypt 哈希；
+  修复版本重新部署后验证密码环境变量不存在。
+- 证据：`deploy/scripts/deploy.sh`、`deploy/scripts/provision-ubuntu.sh`。
+- 风险与回滚：清理后管理员密码只保留为数据库 BCrypt 哈希；需要轮换时必须重新交互输入新
+  密码，不能依赖环境文件恢复。
 
 ### 完成记录：T067
 
