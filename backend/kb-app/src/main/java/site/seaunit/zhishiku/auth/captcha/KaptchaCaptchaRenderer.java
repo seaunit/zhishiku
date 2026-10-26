@@ -23,8 +23,14 @@ public class KaptchaCaptchaRenderer implements CaptchaRenderer {
     properties.setProperty(
         Constants.KAPTCHA_TEXTPRODUCER_CHAR_STRING, "23456789ABCDEFGHJKLMNPQRSTUVWXYZ");
     properties.setProperty(Constants.KAPTCHA_TEXTPRODUCER_FONT_SIZE, "28");
+    properties.setProperty(Constants.KAPTCHA_TEXTPRODUCER_CHAR_SPACE, "5");
     properties.setProperty(Constants.KAPTCHA_TEXTPRODUCER_FONT_COLOR, "31,45,51");
     properties.setProperty(Constants.KAPTCHA_NOISE_COLOR, "205,216,221");
+    properties.setProperty(
+        Constants.KAPTCHA_NOISE_IMPL, LightCaptchaNoise.class.getName());
+    properties.setProperty(
+        Constants.KAPTCHA_OBSCURIFICATOR_IMPL,
+        "com.google.code.kaptcha.impl.ShadowGimpy");
     properties.setProperty(Constants.KAPTCHA_BACKGROUND_CLR_FROM, "246,249,250");
     properties.setProperty(Constants.KAPTCHA_BACKGROUND_CLR_TO, "246,249,250");
     kaptcha = new DefaultKaptcha();

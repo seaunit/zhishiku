@@ -15,4 +15,15 @@ class KaptchaCaptchaRendererTest {
     assertThat(rendered.png()).startsWith((byte) 0x89, (byte) 'P', (byte) 'N', (byte) 'G');
     assertThat(ImageIO.read(new ByteArrayInputStream(rendered.png()))).isNotNull();
   }
+
+  @Test
+  void keepsSaltAndProducesDistinctReadableImages() {
+    KaptchaCaptchaRenderer renderer = new KaptchaCaptchaRenderer();
+
+    CaptchaRendered first = renderer.render();
+    CaptchaRendered second = renderer.render();
+
+    assertThat(first.png()).isNotEqualTo(second.png());
+    assertThat(first.answer()).isNotEqualTo(second.answer());
+  }
 }

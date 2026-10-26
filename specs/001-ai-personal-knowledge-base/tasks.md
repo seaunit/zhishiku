@@ -204,6 +204,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - [x] T121 [P0] 修复直接运行 `deploy.sh` 首次创建管理员后的清理链路：默认补齐管理员用户名，
   仅在账号确认存在后删除一次性密码环境变量，并重启 API 以清除进程内旧环境；补充远端查询与
   健康检查验证。
+- [x] T122 [P1] 降低登录图形验证码干扰：将水面扭曲改为轻阴影扭曲，使用两段低透明度浅色
+  曲线替代粗交叉噪线，增加字符间距；保持 5 位随机字符、一次性缓存和安全字符集不变。
 
 ## 依赖关系
 
@@ -282,6 +284,20 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 证据：`deploy/scripts/deploy.sh`、`deploy/scripts/provision-ubuntu.sh`。
 - 风险与回滚：清理后管理员密码只保留为数据库 BCrypt 哈希；需要轮换时必须重新交互输入新
   密码，不能依赖环境文件恢复。
+
+### 完成记录：T122
+
+- 日期：2026-10-26
+- 状态：已完成，未提交
+- 摘要：降低登录验证码视觉干扰，提高正常用户首次识别成功率。
+- 详情：新增 `LightCaptchaNoise`，每条验证码只绘制两段低透明度浅色曲线；Kaptcha 扭曲引擎从
+  `WaterRipple` 改为 `ShadowGimpy`，字符间距从默认值提高到 5 像素。验证码仍为 5 位、忽略大小写、
+  一次性消费并保留缓存过期和频率限制。
+- 验证：验证码渲染、缓存和登录 Controller 专项测试通过；生成 3 张独立样本并完成肉眼检查。
+- 证据：`LightCaptchaNoise.java`、`KaptchaCaptchaRenderer.java`、
+  `.taste-skill/captcha-easy/captcha-1.png` 至 `captcha-3.png`。
+- 风险与回滚：可读性提高会略微降低机器识别成本，但仍保留随机字符、浅噪线和阴影扭曲；
+  如收到自动化攻击，可恢复较轻的第三段噪线或提高频率限制，而不是直接恢复粗交叉线。
 
 ### 完成记录：T067
 
