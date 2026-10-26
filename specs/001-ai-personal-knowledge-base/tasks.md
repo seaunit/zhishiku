@@ -288,7 +288,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 ### 完成记录：T122
 
 - 日期：2026-10-26
-- 状态：已完成，未提交
+- 状态：已完成，commit `782ffdf`
 - 摘要：降低登录验证码视觉干扰，提高正常用户首次识别成功率。
 - 详情：新增 `LightCaptchaNoise`，每条验证码只绘制两段低透明度浅色曲线；Kaptcha 扭曲引擎从
   `WaterRipple` 改为 `ShadowGimpy`，字符间距从默认值提高到 5 像素。验证码仍为 5 位、忽略大小写、
