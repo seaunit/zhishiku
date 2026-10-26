@@ -274,8 +274,9 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 - 状态：已完成，commit `7740b38`
 - 摘要：修复直接运行部署脚本时管理员密码未从运行环境文件清理的问题。
 - 详情：`deploy.sh` 在没有 `SHIHAI_ADMIN_USERNAME` 时默认使用固定用户名 `a115846`；
-  管理员密码首次输入后写入迁移期兼容变量，确认管理员账号创建成功后删除两个密码变量，
-  重启 `zhishiku-api` 并通过健康检查。首次安装和直接更新两条部署路径保持一致。
+  管理员密码首次输入后写入迁移期兼容变量，使用固定安全用户名查询确认管理员账号创建成功后
+  删除两个密码变量，重启 `zhishiku-api` 并通过健康检查。首次安装和直接更新两条部署路径
+  保持一致。
 - 验证：远端 Bash 语法检查；生产管理员账号已确认为 `ADMIN/enabled` 且密码为 BCrypt 哈希；
   修复版本重新部署后验证密码环境变量不存在。
 - 证据：`deploy/scripts/deploy.sh`、`deploy/scripts/provision-ubuntu.sh`。

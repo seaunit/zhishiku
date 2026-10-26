@@ -883,7 +883,7 @@ fi
 ADMIN_USERNAME="$(read_env_value SHIHAI_ADMIN_USERNAME ADMIN_USERNAME)"
 ADMIN_USERNAME="${ADMIN_USERNAME:-a115846}"
 ADMIN_PASSWORD="$(read_env_value SHIHAI_ADMIN_PASSWORD ADMIN_PASSWORD)"
-if [[ -n "$ADMIN_USERNAME" && -n "$ADMIN_PASSWORD" ]]; then
+if [[ "$ADMIN_USERNAME" == "a115846" && -n "$ADMIN_PASSWORD" ]]; then
   DATABASE_URL="$(read_env_value SHIHAI_DATABASE_URL DATABASE_URL)"
   DATABASE_USERNAME="$(read_env_value SHIHAI_DATABASE_USERNAME DATABASE_USERNAME)"
   DATABASE_PASSWORD="$(read_env_value SHIHAI_DATABASE_PASSWORD DATABASE_PASSWORD)"
@@ -893,8 +893,7 @@ if [[ -n "$ADMIN_USERNAME" && -n "$ADMIN_PASSWORD" ]]; then
       -p "$(printf '%s' "$DATABASE_URL" | sed -E 's#.*127\.0\.0\.1:([0-9]+)/.*#\1#')" \
       -U "$DATABASE_USERNAME" \
       -d zhishiku \
-      -v username="$ADMIN_USERNAME" \
-      -tAc "SELECT count(*) FROM owner_account WHERE lower(username) = lower(:'username') AND account_role = 'ADMIN'" \
+      -tAc "SELECT count(*) FROM owner_account WHERE lower(username) = lower('a115846') AND account_role = 'ADMIN'" \
       2>/dev/null || printf '0'
   )"
   if [[ "$admin_count" == "1" ]]; then
