@@ -238,7 +238,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 ### 完成记录：T119
 
 - 日期：2026-10-26
-- 状态：已完成，未提交
+- 状态：已完成，commit `4c12e19`
 - 摘要：部署脚本默认自动选择最新语义化发布标签，无需每次手工填写版本号。
 - 详情：`provision-ubuntu.sh` 和 `deploy.sh` 的默认 `REF` 改为 `latest`；脚本通过
   `git ls-remote --tags --refs` 查询官方仓库，过滤形如 `v0.1.28-mvp` 的标签，使用版本排序
@@ -253,7 +253,7 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 ### 完成记录：T120
 
 - 日期：2026-10-26
-- 状态：已完成，未提交
+- 状态：已完成，commit `4c12e19`
 - 摘要：同步最新版本部署方式、固定版本回滚方式和治理约束。
 - 详情：README、部署指南、部署设计、AGENTS 和宪法更新为默认 `latest`；命令示例不再要求
   `--ref main`，同时保留固定版本命令。宪法版本更新为 4.6.0。
