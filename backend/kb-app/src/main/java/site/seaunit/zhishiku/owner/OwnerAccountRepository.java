@@ -7,5 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface OwnerAccountRepository extends JpaRepository<OwnerAccountEntity, UUID> {
   Optional<OwnerAccountEntity> findByEmailNormalized(String emailNormalized);
 
+  Optional<OwnerAccountEntity> findByUsernameIgnoreCase(String username);
+
   boolean existsByEmailNormalized(String emailNormalized);
+
+  boolean existsByUsernameIgnoreCase(String username);
 }

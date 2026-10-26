@@ -15,6 +15,8 @@ Open `http://127.0.0.1:8088/`.
 - Palette adaptation: the style's neutral dark surfaces were mapped to deep-sea blues because the
   product is explicitly named and directed as “识海”.
 - Product face: a three-wave mark and an interactive knowledge-depth map.
+- Administrator screen: Taste `framed-sheet`, seed `619440299`, with the existing deep-sea palette
+  and Public Sans retained.
 - Signature element: the knowledge map treats automatic categories as depth layers and every node
   is a real search entry point.
 - Number style: tabular Public Sans. Monospace was removed after inspection to keep one typeface.
@@ -31,6 +33,8 @@ Open `http://127.0.0.1:8088/`.
 - Trash: restore or permanently remove deleted items.
 - Settings: manage AI service/content-type authorization, language, and retention.
 - Profile: view the current account, edit the display name, and review account boundaries.
+- Account management: search accounts, review point usage, disable/enable ordinary users, and grant
+  auditable points.
 
 ## Interactions
 
@@ -55,6 +59,8 @@ Open `http://127.0.0.1:8088/`.
 - Edit the display name and see the avatar initial and account menu update immediately.
 - Restore a trashed item.
 - Switch application views in the rail or mobile bottom navigation.
+- Administrator account management includes search and status filters, guarded state changes, and a
+  point grant dialog. The administrator account itself cannot be disabled or granted points.
 
 ## Sample Data
 
@@ -82,6 +88,8 @@ implementation.
   inspection both report `0 FAIL`.
 - Retained warnings: the compact form uses dense 11–12px helper text and a quiet lower page rest.
   These are intentional App Screen choices, not decorative empty space.
+- Administrator prototype inspection at 1440, 768, and 390 px: `0 FAIL`; one retained `tiny-text`
+  warning for navigation labels and account metadata at the App Screen-approved 11–12px sizes.
 
 ## Focused previews
 
@@ -95,6 +103,7 @@ http://127.0.0.1:8088/?view=capture&mode=screenshot&demoScreenshot=1
 http://127.0.0.1:8088/?view=capture&mode=document
 http://127.0.0.1:8088/?view=capture&mode=manual
 http://127.0.0.1:8088/?view=profile
+http://127.0.0.1:8088/admin.html
 ```
 
 `demoScreenshot=1` is a visual-review fixture only. Normal interaction uses a real ClipboardEvent;

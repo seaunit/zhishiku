@@ -12,6 +12,8 @@
 - Waffo 桥接：`http://127.0.0.1:8091/health`
 - 邮件：Spring `local` Profile 的模拟发送，不发真实邮件
 - 注册验证码：本地 API 直接返回调试码
+- 管理员：用户名 `a115846`；密码从 `.env.local-test` 的 `SHIHAI_ADMIN_PASSWORD` 读取，
+  未配置时使用仅限本机的占位开发密码
 - Waffo 支付：默认 `dry-run`，不会创建真实收银台或产生扣款
 - Waffo 测试回调：真实测试模式下自动创建临时 Cloudflare 隧道并更新识海专用 Webhook
 - 图片规范化：需要 `libvips`，通过 `APP_RICHTEXT_VIPSCOMMAND` 指向 `vips` 可执行文件
@@ -55,6 +57,7 @@ SHIHAI_WAFFO_STORE_ID=<测试店铺>
 SHIHAI_WAFFO_MERCHANT_ID=<测试商户>
 SHIHAI_WAFFO_PRODUCT_MAP=kb_pack_9=<测试商品>,kb_pack_29=<测试商品>,kb_pack_99=<测试商品>
 SHIHAI_WAFFO_PRIVATE_KEY_FILE=<测试私钥 PEM 的绝对路径>
+SHIHAI_ADMIN_PASSWORD=<本机管理员密码>
 ```
 
 脚本会把 PEM 文件临时编码到当前进程环境，不会复制或提交私钥。

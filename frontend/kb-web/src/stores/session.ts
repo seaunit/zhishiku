@@ -10,7 +10,7 @@ export const useSessionStore = defineStore('session', () => {
   const isAuthenticated = computed(() => session.value !== null)
 
   async function login(
-    email: string,
+    loginName: string,
     password: string,
     captchaId: string,
     captchaCode: string,
@@ -18,7 +18,7 @@ export const useSessionStore = defineStore('session', () => {
     submitting.value = true
     error.value = null
     try {
-      session.value = await api.login(email, password, captchaId, captchaCode)
+      session.value = await api.login(loginName, password, captchaId, captchaCode)
       return session.value
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : 'LOGIN_FAILED'

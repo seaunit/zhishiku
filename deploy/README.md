@@ -1,16 +1,17 @@
 # 识海部署脚本
 
-部署脚本从 GitHub 拉取指定 ref，不在服务器上使用本地工作树。首次部署和后续更新均支持
-重复执行。
+部署脚本默认从 GitHub 查询所有语义化版本标签，按版本号排序后自动部署最新版本，不在服务器上
+使用本地工作树。仍可通过 `--ref` 固定分支、tag 或 commit。首次部署和后续更新均支持重复执行。
 
 ## 首次部署
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/provision-ubuntu.sh \
-  | sudo bash -s -- --ref main
+  | sudo bash
 ```
 
-生产环境应将 `main` 替换为验收通过的 tag 或完整 commit SHA。
+脚本会自动选择形如 `v0.1.28-mvp` 的最高版本标签。需要固定发布版本或回滚时再显式传入
+`--ref v0.1.28-mvp`；没有任何合法版本标签时脚本会失败关闭，不会退回到 `main`。
 
 脚本会安装 Java 17、Node.js、pnpm、PostgreSQL 18、libvips 和必要工具，创建独立的
 `zhishiku` 用户、数据库、环境文件、systemd 服务、`/kb` Nginx 片段和双应用门户。初始登录信息
@@ -34,6 +35,8 @@ Vite 构建期间触发 OOM；可通过 `SHIHAI_SWAP_SIZE_MB=0` 禁用。
 
 首次执行会从 `/dev/tty` 隐藏读取以下值，因此可以通过 `curl | sudo bash` 执行：
 
+- `SHIHAI_ADMIN_PASSWORD`，用于首次初始化固定管理员账号 `a115846`；创建成功后脚本会从运行环境
+  文件移除该一次性密码
 - `SHIHAI_DEEPSEEK_API_KEY`
 - `SHIHAI_DEEPSEEK_SEARCH_API_KEY`，留空时复用主 AI Key
 - `SHIHAI_DEEPSEEK_FETCH_API_KEY`，留空时复用主 AI Key
@@ -45,11 +48,15 @@ Vite 构建期间触发 OOM；可通过 `SHIHAI_SWAP_SIZE_MB=0` 禁用。
 每项输入默认等待 60 秒，超时按回车处理；可通过 `SHIHAI_PROMPT_TIMEOUT=<秒数>` 调整。
 首次安装和其内部的部署步骤共享一次提示结果，因此同一轮部署只会输入一次。
 
+管理员用户名固定为 `a115846`，可在首次部署时通过同一提示设置密码。普通更新时直接回车会保留
+数据库中的 BCrypt 密码哈希；管理员账号不能通过账号管理页停用或赠送点数。管理员登录仍使用
+图形验证码，登录输入框同时接受普通用户邮箱和管理员用户名。
+
 常规更新部署：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/deploy.sh \
-  | sudo bash -s -- --ref v0.1.8-mvp
+  | sudo bash
 ```
 
 识海正式变量统一使用 `SHIHAI_` 前缀。迁移期部署脚本会把新名称和同值旧别名一起写入环境文件，
@@ -63,8 +70,17 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/deploy.sh \
-  | sudo bash -s -- --ref <tag-or-commit>
+  | sudo bash
 ```
+
+固定版本或回滚：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/deploy.sh \
+  | sudo bash -s -- --ref v0.1.28-mvp
+```
+
+也可通过 `SHIHAI_REF=<latest|branch|tag|commit>` 指定目标，默认值为 `latest`。
 
 ## Waffo 测试与生产配置
 

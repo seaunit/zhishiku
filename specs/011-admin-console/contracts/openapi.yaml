@@ -1,0 +1,304 @@
+openapi: 3.1.0
+info:
+  title: 识海管理员账号管理 API
+  version: 0.1.0
+  description: 仅管理员用户名 a115846 可访问的账号管理接口。
+servers:
+  - url: /kb/api/v1
+security:
+  - sessionCookie: []
+paths:
+  /admin/users:
+    get:
+      summary: 搜索并分页读取账号摘要
+      operationId: listAdminUsers
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [all, enabled, disabled]
+            default: all
+      responses:
+        "200":
+          description: 账号分页
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /admin/users/{ownerId}:
+    get:
+      summary: 读取单个账号摘要
+      operationId: getAdminUser
+      parameters:
+        - $ref: "#/components/parameters/OwnerId"
+      responses:
+        "200":
+          description: 账号摘要
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /admin/users/{ownerId}/status:
+    patch:
+      summary: 启用或禁用普通账号
+      operationId: updateAdminUserStatus
+      parameters:
+        - $ref: "#/components/parameters/OwnerId"
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [enabled, reason]
+              properties:
+                enabled:
+                  type: boolean
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+      responses:
+        "200":
+          description: 更新后的账号摘要
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Invalid"
+  /admin/users/{ownerId}/point-grants:
+    post:
+      summary: 向普通账号赠送点数
+      operationId: grantAdminUserPoints
+      parameters:
+        - $ref: "#/components/parameters/OwnerId"
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 16
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [points, reason]
+              properties:
+                points:
+                  type: integer
+                  minimum: 1
+                  maximum: 100000
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 300
+      responses:
+        "201":
+          description: 赠送成功后的账号摘要
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Invalid"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: zhishiku_session
+  parameters:
+    OwnerId:
+      name: ownerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AdminUser:
+      type: object
+      required:
+        [ownerId, loginName, email, displayName, role, status, createdAt,
+         knowledgeCount, availablePoints, reservedPoints, lifetimeGranted, lifetimeConsumed]
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+        loginName:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [USER, ADMIN]
+        status:
+          type: string
+          enum: [enabled, disabled]
+        createdAt:
+          type: string
+          format: date-time
+        knowledgeCount:
+          type: integer
+          format: int64
+          minimum: 0
+        availablePoints:
+          type: integer
+          minimum: 0
+        reservedPoints:
+          type: integer
+          minimum: 0
+        lifetimeGranted:
+          type: integer
+          minimum: 0
+        lifetimeConsumed:
+          type: integer
+          minimum: 0
+    AdminUserPage:
+      type: object
+      required:
+        [items, page, limit, totalItems, totalPages, enabledCount, disabledCount, totalConsumed]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUser"
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        totalItems:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        enabledCount:
+          type: integer
+          format: int64
+          minimum: 0
+        disabledCount:
+          type: integer
+          format: int64
+          minimum: 0
+        totalConsumed:
+          type: integer
+          format: int64
+          minimum: 0
+    Error:
+      type: object
+      required: [code, message, requestId, retryable]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+        retryable:
+          type: boolean
+  responses:
+    BadRequest:
+      description: 请求格式或参数不合法
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: 会话不存在、已过期或账号被禁用
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: 当前账号不是指定管理员
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: 账号不存在
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: 幂等冲突、重复操作或并发冲突
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Invalid:
+      description: 不允许的账号状态或点数操作
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

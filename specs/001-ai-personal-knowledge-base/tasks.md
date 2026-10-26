@@ -196,6 +196,11 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   排除导航、页头、页脚、侧栏、广告位、小图标和全屏背景；整页截图只用于 OCR，不作为来源图。
 - [x] T118 [P0] [US1] 新账号注册成功后在同一事务内初始化六条已整理示例知识，包含富文本正文、
   摘要、分类、标签、来源、修订和搜索投影，并覆盖重复初始化、失败回滚和真实注册验收。
+- [x] T119 [P0] 将 `provision-ubuntu.sh` 和 `deploy.sh` 的默认 ref 改为 `latest`：从官方 GitHub
+  仓库查询语义化版本标签，按版本排序选择最高版本；没有标签或查询失败时失败关闭，同时保留
+  `--ref <branch|tag|commit>` 固定版本能力。
+- [x] T120 [P0] 同步 README、部署指南、宪法和协作约定，更新一键部署和固定版本回滚命令；
+  使用远端 Bash 解析检查和实际 GitHub 标签查询验证自动版本选择结果。
 
 ## 依赖关系
 
@@ -229,6 +234,36 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
 证据路径、FR/SC 映射、风险和回滚。
 
 ## Completion Log
+
+### 完成记录：T119
+
+- 日期：2026-10-26
+- 状态：已完成，未提交
+- 摘要：部署脚本默认自动选择最新语义化发布标签，无需每次手工填写版本号。
+- 详情：`provision-ubuntu.sh` 和 `deploy.sh` 的默认 `REF` 改为 `latest`；脚本通过
+  `git ls-remote --tags --refs` 查询官方仓库，过滤形如 `v0.1.28-mvp` 的标签，使用版本排序
+  选择最高版本。查询失败或没有合法标签时失败关闭；`--ref` 和 `SHIHAI_REF` 仍支持固定 tag、
+  commit 或分支。
+- 验证：两套脚本通过远端 `bash -n` 和 `--help`；生产主机实际查询得到最高标签
+  `v0.1.28-mvp`。
+- 证据：`deploy/scripts/provision-ubuntu.sh`、`deploy/scripts/deploy.sh`。
+- 风险与回滚：最新标签不存在时部署会停止而不是退回 `main`；需要立即回滚时可显式传入
+  `--ref v0.1.28-mvp` 或对应 commit。
+
+### 完成记录：T120
+
+- 日期：2026-10-26
+- 状态：已完成，未提交
+- 摘要：同步最新版本部署方式、固定版本回滚方式和治理约束。
+- 详情：README、部署指南、部署设计、AGENTS 和宪法更新为默认 `latest`；命令示例不再要求
+  `--ref main`，同时保留固定版本命令。宪法版本更新为 4.6.0。
+- 验证：文档交叉检查；远端 Bash 语法、帮助入口和 GitHub 标签排序查询均通过；
+  `git diff --check` 通过。
+- 证据：`README.md`、`deploy/README.md`、
+  `specs/001-ai-personal-knowledge-base/deployment.md`、`AGENTS.md`、
+  `.specify/memory/constitution.md`。
+- 风险与回滚：文档不改变运行数据；如标签命名规则变化，必须同步更新两个部署脚本的标签过滤
+  表达式和本节记录。
 
 ### 完成记录：T067
 
@@ -267,6 +302,8 @@ Vitest/Vue Test Utils，端到端使用 Playwright 和 axe-core。
   `/kb/`、`/kb/login`、`/kb/api/actuator/health`、`/app` 和 `/` 均返回 HTTP 200，
   登录接口返回 HTTP 200，`zhishiku-api`、Nginx、`shuati.service` 和
   `shuati-payments.service` 均为 active。
+- 后续增强：2026-10-26 由 T119 将无参数部署默认目标升级为最高语义化版本标签，同时保留
+  本记录中的固定 ref 能力用于回滚和可复现发布。
 - 风险与回滚：脚本失败时切回上一 release 并恢复 Nginx 备份，数据库迁移保持向前兼容，
   不删除 PostgreSQL 数据或上传目录。首次部署生成了独立 2 GiB swap 和受限制的初始凭据文件。
 

@@ -13,6 +13,7 @@ public record AppProperties(
     ExternalSearch externalSearch,
     Ai ai,
     WebImport webImport,
+    Admin admin,
     Billing billing) {
   @ConstructorBinding
   public AppProperties {}
@@ -33,6 +34,7 @@ public record AppProperties(
         externalSearch,
         new Ai("https://api.deepseek.com/chat/completions", "", "deepseek-chat", 35),
         new WebImport("", "tesseract", 35, 30, 30_000, 20, false),
+        Admin.disabled(),
         Billing.disabled());
   }
 
@@ -54,6 +56,7 @@ public record AppProperties(
         externalSearch,
         ai,
         webImport,
+        Admin.disabled(),
         Billing.disabled());
   }
 
@@ -116,6 +119,12 @@ public record AppProperties(
           maxTextChars,
           maxItems,
           false);
+    }
+  }
+
+  public record Admin(String username, String password) {
+    public static Admin disabled() {
+      return new Admin("a115846", "");
     }
   }
 

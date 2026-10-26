@@ -16,8 +16,10 @@ class SessionResponseContractTest {
         new SessionResponse(
             UUID.fromString("11111111-1111-1111-1111-111111111111"),
             "alice@example.com",
+            "alice@example.com",
             "Alice",
             "zh-CN",
+            false,
             "csrf-token");
 
     String json = objectMapper.writeValueAsString(response);

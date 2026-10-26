@@ -39,11 +39,24 @@ public class OwnerService implements ApplicationRunner {
         && repository.count() == 0) {
       createOwner(properties.owner().email(), properties.owner().password(), "zh-CN");
     }
+    ensureAdministratorAccount();
   }
 
   @Transactional(readOnly = true)
   public Optional<OwnerAccountEntity> findByEmail(String email) {
     return repository.findByEmailNormalized(email.strip().toLowerCase());
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<OwnerAccountEntity> findByLoginName(String loginName) {
+    String normalized = loginName == null ? "" : loginName.strip();
+    if (normalized.isEmpty()) {
+      return Optional.empty();
+    }
+    if (normalized.contains("@")) {
+      return findByEmail(normalized);
+    }
+    return repository.findByUsernameIgnoreCase(normalized);
   }
 
   @Transactional(readOnly = true)
@@ -64,6 +77,43 @@ public class OwnerService implements ApplicationRunner {
     return repository.save(
         OwnerAccountEntity.create(
             normalizedEmail, passwordEncoder.encode(password), normalizedLocale));
+  }
+
+  @Transactional
+  public void ensureAdministratorAccount() {
+    String username = properties.admin().username();
+    String password = properties.admin().password();
+    if (username == null || username.isBlank()) {
+      return;
+    }
+    if (!OwnerAccountEntity.ADMIN_USERNAME.equalsIgnoreCase(username.strip())) {
+      throw new IllegalStateException("The administrator username must be a115846.");
+    }
+    Optional<OwnerAccountEntity> existing =
+        repository.findByUsernameIgnoreCase(OwnerAccountEntity.normalizeUsername(username));
+    if (existing.isPresent()) {
+      OwnerAccountEntity owner = existing.get();
+      if (!owner.isAdmin() || !owner.isEnabled()) {
+        throw new IllegalStateException(
+            "The configured administrator username belongs to an invalid account.");
+      }
+      return;
+    }
+    if (password == null || password.isBlank()) {
+      return;
+    }
+    if (password.length() < 8 || password.length() > 256) {
+      throw new IllegalStateException(
+          "Administrator password must be between 8 and 256 characters.");
+    }
+    String normalizedUsername = OwnerAccountEntity.normalizeUsername(username);
+    String email = normalizedUsername.toLowerCase() + "@admin.seaunit.local";
+    if (repository.existsByEmailNormalized(email)) {
+      throw new IllegalStateException("Administrator email identity is already in use.");
+    }
+    repository.save(
+        OwnerAccountEntity.createAdmin(
+            normalizedUsername, email, passwordEncoder.encode(password), "zh-CN"));
   }
 
   @Transactional

@@ -86,6 +86,7 @@ public class BillingService {
   private final CurrentOwnerService owners;
   private final BillingBridgeClient bridge;
   private final AppProperties.Billing config;
+  private final String configuredAdminUsername;
   private final Clock clock;
   private final Environment environment;
 
@@ -101,6 +102,10 @@ public class BillingService {
     this.owners = owners;
     this.bridge = bridge;
     this.config = properties.billing();
+    this.configuredAdminUsername =
+        properties.admin() == null || properties.admin().username() == null
+            ? "a115846"
+            : properties.admin().username().strip();
     this.clock = clock;
     this.environment = Environment.from(config.environment());
     if (environment == Environment.PRODUCTION && properties.webImport().allowUnbilledAi()) {
@@ -2292,7 +2297,11 @@ public class BillingService {
             .filter(value -> !value.isBlank())
             .map(value -> value.toLowerCase(Locale.ROOT))
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
-    if (!admins.contains(owner.getEmailNormalized())) {
+    boolean configuredAdminAccount =
+        owner.isAdmin()
+            && owner.getUsername() != null
+            && configuredAdminUsername.equalsIgnoreCase(owner.getUsername());
+    if (!admins.contains(owner.getEmailNormalized()) && !configuredAdminAccount) {
       throw new BillingException(
           HttpStatus.FORBIDDEN, "ADMIN_REQUIRED", "Administrator access is required.");
     }

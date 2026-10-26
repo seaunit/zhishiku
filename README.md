@@ -39,6 +39,10 @@ AI 整理成功后才入库，不会直接保存搜索摘要、整页截图或�
 聊天历史按账号持久化，刷新或重新登录后可以恢复；用户可以新建、切换和删除历史对话。
 用户与小识消息分别显示账号首字头像和固定品牌头像。
 
+管理员控制台仅允许固定用户名 `a115846` 的管理员账号访问。管理员可以搜索和分页查看账号状态、
+知识数量、可用点数、冻结点数与累计消耗，可带原因启用或禁用普通账号，也可通过可审计点数账本
+向普通账号赠送点数。管理员账号不可被该界面停用；禁用普通账号会使已有会话在后续请求中失效。
+
 已批准的实现技术栈为 Vue 3 + TypeScript、Java 17 + Spring Boot 3.x、PostgreSQL 18
 和 S3 兼容对象存储。当前 MVP 的图片保存在服务器的本地持久目录；Playwright Java 单页
 截图 worker 已实现。Waffo 桥接已按 `@waffo/pancake-ts@0.26.0` 收口；S3 适配器仍待完成。
@@ -90,6 +94,10 @@ AI 整理成功后才入库，不会直接保存搜索摘要、整页截图或�
 - [知识库聊天规格](specs/010-knowledge-chat/spec.md)
 - [知识库聊天计划](specs/010-knowledge-chat/plan.md)
 - [知识库聊天任务表](specs/010-knowledge-chat/tasks.md)
+- [管理员账号管理台规格](specs/011-admin-console/spec.md)
+- [管理员账号管理台计划](specs/011-admin-console/plan.md)
+- [管理员账号管理台数据模型](specs/011-admin-console/data-model.md)
+- [管理员账号管理台任务表](specs/011-admin-console/tasks.md)
 
 ## 交互原型
 
@@ -124,6 +132,8 @@ pnpm dev
 访问 `http://127.0.0.1:4173/kb/`。`local` profile 会使用开发占位账号
 `owner@zhishiku.local` 和密码 `local-dev-password-change-me` 初始化一个本地开发账号；生产环境
 必须通过环境变量覆盖并保持 `SHIHAI_AUTO_BOOTSTRAP=false`。占位账号只用于开发，不限制其他账号注册。
+本地测试环境的管理员用户名为 `a115846`，密码由 `.env.local-test` 的
+`SHIHAI_ADMIN_PASSWORD` 提供；未配置时启动脚本只使用本机占位开发密码。
 
 后端测试：
 
@@ -181,23 +191,25 @@ powershell -ExecutionPolicy Bypass -File .\deploy\local-test\stop.ps1
 
 ## GitHub 部署
 
-仓库公开后，可以从 GitHub 固定 tag、commit 或分支直接安装。首次部署：
+仓库公开后，默认会从 GitHub 自动选择最高语义化版本标签。首次部署：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/provision-ubuntu.sh \
-  | sudo bash -s -- --ref main
+  | sudo bash
 ```
 
 后续版本更新：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/scripts/deploy.sh \
-  | sudo bash -s -- --ref main
+  | sudo bash
 ```
 
-生产发布应把 `main` 替换为经过验收的 tag 或完整 commit SHA。脚本默认：
+需要固定版本或回滚时可追加 `--ref v0.1.28-mvp`、其他 tag、分支或完整 commit SHA。
+没有合法版本标签时脚本会失败关闭，不会自动部署 `main`。脚本默认：
 
-- 从 `https://github.com/seaunit/zhishiku.git` 拉取源码，不使用本地工作树。
+- 从 `https://github.com/seaunit/zhishiku.git` 自动解析最高语义化版本标签并拉取源码，
+  不使用本地工作树。
 - 使用 Java 17、PostgreSQL 18、Vue 构建和 Nginx 静态文件。
 - 服务只监听 `127.0.0.1:8082`，公开入口为 `/kb/`。
 - 部署安装 Playwright Chromium 和 Tesseract `chi_sim+eng`，把 worker 放入 release，
@@ -219,10 +231,10 @@ curl -fsSL https://raw.githubusercontent.com/seaunit/zhishiku/main/deploy/script
 - 不修改拾题进程、MySQL、Redis、支付 sidecar 或 `/app`、`/login`、`/api`、`/bank`、
   `/pay` 路由。
 
-首次执行部署脚本时会通过终端隐藏输入 DeepSeek AI、Search、Fetch API Key 和 SMTP
-密码/应用专用密钥。密钥只写入权限为 `600` 的 `/etc/zhishiku/kb.env`，不会进入 Git、
-命令行参数或部署日志。每次部署都会重新提示；直接回车保留现有值，输入新值才更新。
-首次安装脚本和内部部署共享同一轮提示，不会重复询问。
+首次执行部署脚本时会通过终端隐藏输入管理员首次密码、DeepSeek AI、Search、Fetch API Key
+和 SMTP 密码/应用专用密钥。密钥只写入权限为 `600` 的 `/etc/zhishiku/kb.env`，不会进入
+Git、命令行参数或部署日志。管理员账号创建成功后，一次性明文密码会从运行环境文件移除；
+后续部署直接回车保留数据库中的密码哈希。首次安装脚本和内部部署共享同一轮提示，不会重复询问。
 
 任何用户都可以在 `/kb/register` 通过 SMTP 邮箱验证码和密码确认创建账号，注册页不要求图形
 验证码；同一邮箱两次成功发码至少间隔 60 秒。新账号会自动获得六条状态为“已整理”的示例知识，

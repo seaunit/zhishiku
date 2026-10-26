@@ -1,5 +1,6 @@
 package site.seaunit.zhishiku.security;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -8,10 +9,20 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import site.seaunit.zhishiku.owner.OwnerService;
 
 @Configuration
 public class SecurityConfig {
+  private final OwnerSessionStatusFilter ownerSessionStatusFilter;
+
+  public SecurityConfig(ObjectProvider<OwnerService> ownerService) {
+    OwnerService resolved = ownerService.getIfAvailable();
+    this.ownerSessionStatusFilter =
+        resolved == null ? null : new OwnerSessionStatusFilter(resolved);
+  }
+
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     CookieCsrfTokenRepository csrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
@@ -55,6 +66,9 @@ public class SecurityConfig {
                         (request, response, error) ->
                             response.sendError(HttpStatus.FORBIDDEN.value())))
         .headers(headers -> headers.frameOptions(frame -> frame.deny()));
+    if (ownerSessionStatusFilter != null) {
+      http.addFilterAfter(ownerSessionStatusFilter, SecurityContextHolderFilter.class);
+    }
     return http.build();
   }
 

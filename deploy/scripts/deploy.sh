@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 REPO_URL="${SHIHAI_REPO_URL:-${KB_REPO_URL:-https://github.com/seaunit/zhishiku.git}}"
-REF="${SHIHAI_REF:-${KB_REF:-main}}"
+REF="${SHIHAI_REF:-${KB_REF:-latest}}"
 INSTALL_ROOT="${SHIHAI_INSTALL_ROOT:-${KB_INSTALL_ROOT:-/opt/zhishiku}}"
 PORTAL_ROOT="${SHIHAI_PORTAL_ROOT:-${KB_PORTAL_ROOT:-/opt/seaunit-portal}}"
 ENV_FILE="${SHIHAI_ENV_FILE:-${KB_ENV_FILE:-/etc/zhishiku/kb.env}}"
@@ -286,19 +286,25 @@ ensure_refund_support_url() {
 }
 
 ensure_secrets() {
-  local ai_key search_key fetch_key smtp_password
+  local admin_password ai_key search_key fetch_key smtp_password
+  admin_password="${SHIHAI_ADMIN_PASSWORD:-$(read_env_value SHIHAI_ADMIN_PASSWORD ADMIN_PASSWORD)}"
   ai_key="${SHIHAI_DEEPSEEK_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_API_KEY DEEPSEEK_API_KEY)}"
   search_key="${SHIHAI_DEEPSEEK_SEARCH_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_SEARCH_API_KEY DEEPSEEK_SEARCH_API_KEY)}"
   fetch_key="${SHIHAI_DEEPSEEK_FETCH_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_FETCH_API_KEY DEEPSEEK_FETCH_API_KEY)}"
   smtp_password="${SHIHAI_SMTP_PASSWORD:-$(read_env_value SHIHAI_SMTP_PASSWORD SMTP_PASSWORD)}"
 
   if [[ "$SECRETS_ALREADY_PROMPTED" != "1" ]]; then
+    admin_password="$(prompt_secret \
+      "识海管理员密码（首次部署必填，留空保留现有密码）" "$admin_password")"
     ai_key="$(prompt_secret "DeepSeek AI API Key" "$ai_key")"
     search_key="$(prompt_secret "DeepSeek Search API Key（留空复用主 AI Key）" "$search_key")"
     fetch_key="$(prompt_secret "DeepSeek Fetch API Key（留空复用主 AI Key）" "$fetch_key")"
     smtp_password="$(prompt_secret "SMTP 密码/应用专用密钥" "$smtp_password")"
   fi
 
+  if [[ -n "$admin_password" ]]; then
+    set_env_value SHIHAI_ADMIN_PASSWORD "$admin_password"
+  fi
   if [[ -z "$search_key" ]]; then
     search_key="$ai_key"
   fi
@@ -311,6 +317,8 @@ ensure_secrets() {
   set_env_value SHIHAI_DEEPSEEK_FETCH_API_KEY "$fetch_key"
   set_env_value SHIHAI_SMTP_PASSWORD "$smtp_password"
 
+  printf '[部署] 管理员首次密码：%s\n' \
+    "$([[ -n "$admin_password" ]] && printf 已输入 || printf 留空保留)"
   printf '[部署] DeepSeek AI 密钥：%s\n' \
     "$([[ -n "$ai_key" ]] && printf 已配置 || printf 未配置)"
   printf '[部署] SMTP 密钥：%s\n' \
@@ -377,11 +385,37 @@ ensure_waffo() {
 
 usage() {
   cat <<'EOF'
-Usage: deploy.sh [--ref <branch|tag|commit>]
+Usage: deploy.sh [--ref <latest|branch|tag|commit>]
 
-Fetches the requested GitHub ref, builds it, installs an immutable release,
-starts the systemd service, and enables the /kb Nginx routes.
+By default, resolves and deploys the highest semantic release tag. Pass --ref
+to pin a branch, tag, or commit. The selected source is built, installed as an
+immutable release, started through systemd, and exposed through the /kb routes.
 EOF
+}
+
+resolve_target_ref() {
+  [[ "$REF" == "latest" ]] || return 0
+
+  local tag_output latest
+  if ! tag_output="$(git ls-remote --tags --refs "$REPO_URL")"; then
+    printf 'Unable to query release tags from %s.\n' "$REPO_URL" >&2
+    exit 1
+  fi
+  latest="$(
+    printf '%s\n' "$tag_output" |
+      awk '{print $2}' |
+      sed 's#^refs/tags/##' |
+      grep -E '^v[0-9]+(\.[0-9]+)*(-[0-9A-Za-z][0-9A-Za-z.-]*)?$' |
+      sort -V |
+      tail -n 1 ||
+      true
+  )"
+  if [[ -z "$latest" ]]; then
+    printf 'No semantic release tag was found in %s; pass --ref explicitly.\n' "$REPO_URL" >&2
+    exit 1
+  fi
+  REF="$latest"
+  printf '[deploy] Automatically selected latest release: %s\n' "$REF"
 }
 
 while (($# > 0)); do
@@ -413,6 +447,7 @@ for command in curl git gzip java nginx node pg_dump pnpm psql python3 systemctl
     exit 1
   fi
 done
+resolve_target_ref
 tesseract_languages="$(tesseract --list-langs 2>/dev/null || true)"
 if [[ "$tesseract_languages" != *"chi_sim"* || "$tesseract_languages" != *"eng"* ]]; then
   printf 'Tesseract chi_sim and eng language data are required.\n' >&2
@@ -840,6 +875,32 @@ EOF
       printf '[deploy] API health check failed after owner initialization.\n' >&2
       exit 1
     fi
+  fi
+fi
+
+# The administrator password is only needed until its BCrypt hash is stored.
+ADMIN_USERNAME="$(read_env_value SHIHAI_ADMIN_USERNAME ADMIN_USERNAME)"
+ADMIN_PASSWORD="$(read_env_value SHIHAI_ADMIN_PASSWORD ADMIN_PASSWORD)"
+if [[ -n "$ADMIN_USERNAME" && -n "$ADMIN_PASSWORD" ]]; then
+  DATABASE_URL="$(read_env_value SHIHAI_DATABASE_URL DATABASE_URL)"
+  DATABASE_USERNAME="$(read_env_value SHIHAI_DATABASE_USERNAME DATABASE_USERNAME)"
+  DATABASE_PASSWORD="$(read_env_value SHIHAI_DATABASE_PASSWORD DATABASE_PASSWORD)"
+  admin_count="$(
+    PGPASSWORD="$DATABASE_PASSWORD" psql \
+      -h 127.0.0.1 \
+      -p "$(printf '%s' "$DATABASE_URL" | sed -E 's#.*127\.0\.0\.1:([0-9]+)/.*#\1#')" \
+      -U "$DATABASE_USERNAME" \
+      -d zhishiku \
+      -v username="$ADMIN_USERNAME" \
+      -tAc "SELECT count(*) FROM owner_account WHERE lower(username) = lower(:'username') AND account_role = 'ADMIN'" \
+      2>/dev/null || printf '0'
+  )"
+  if [[ "$admin_count" == "1" ]]; then
+    env_tmp="$(mktemp)"
+    grep -v -E '^(SHIHAI_ADMIN_PASSWORD|ADMIN_PASSWORD)=' "$ENV_FILE" > "$env_tmp" || true
+    chmod 0600 "$env_tmp"
+    mv "$env_tmp" "$ENV_FILE"
+    printf '[deploy] Administrator account is initialized; the one-time password was removed from runtime config.\n'
   fi
 fi
 

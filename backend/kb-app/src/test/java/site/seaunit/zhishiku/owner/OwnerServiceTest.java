@@ -59,6 +59,27 @@ class OwnerServiceTest {
         .isInstanceOf(IllegalArgumentException.class);
   }
 
+  @Test
+  void initializesTheConfiguredAdministratorOnceWithoutCreatingStarterUserData() {
+    OwnerService adminService =
+        new OwnerService(repository, passwordEncoder, propertiesWithAdmin("a115846", "password"));
+    when(repository.findByUsernameIgnoreCase("a115846")).thenReturn(java.util.Optional.empty());
+    when(repository.existsByEmailNormalized("a115846@admin.seaunit.local")).thenReturn(false);
+    when(passwordEncoder.encode("password")).thenReturn("admin-hash");
+    when(repository.save(any(OwnerAccountEntity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    adminService.ensureAdministratorAccount();
+
+    org.mockito.ArgumentCaptor<OwnerAccountEntity> captor =
+        org.mockito.ArgumentCaptor.forClass(OwnerAccountEntity.class);
+    org.mockito.Mockito.verify(repository).save(captor.capture());
+    assertThat(captor.getValue().getUsername()).isEqualTo("a115846");
+    assertThat(captor.getValue().isAdmin()).isTrue();
+    assertThat(captor.getValue().isEnabled()).isTrue();
+    assertThat(captor.getValue().getPasswordHash()).isEqualTo("admin-hash");
+  }
+
   private static AppProperties properties(boolean registrationEnabled) {
     return new AppProperties(
         new AppProperties.Owner("", "", "", false),
@@ -85,5 +106,20 @@ class OwnerServiceTest {
             20,
             8,
             900));
+  }
+
+  private static AppProperties propertiesWithAdmin(String username, String password) {
+    AppProperties base = properties(true);
+    return new AppProperties(
+        base.owner(),
+        base.storage(),
+        base.security(),
+        base.captcha(),
+        base.registration(),
+        base.externalSearch(),
+        base.ai(),
+        base.webImport(),
+        new AppProperties.Admin(username, password),
+        base.billing());
   }
 }

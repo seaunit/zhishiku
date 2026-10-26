@@ -3,12 +3,16 @@ set -Eeuo pipefail
 
 REPO_URL="${SHIHAI_REPO_URL:-${KB_REPO_URL:-https://github.com/seaunit/zhishiku.git}}"
 RAW_BASE="${SHIHAI_RAW_BASE:-${KB_RAW_BASE:-https://raw.githubusercontent.com/seaunit/zhishiku}}"
-REF="${SHIHAI_REF:-${KB_REF:-main}}"
+REF="${SHIHAI_REF:-${KB_REF:-latest}}"
 ENV_FILE="${SHIHAI_ENV_FILE:-${KB_ENV_FILE:-/etc/zhishiku/kb.env}}"
 WAFFO_ENV_FILE="${SHIHAI_WAFFO_ENV_FILE:-${WAFFO_ENV_FILE:-/etc/zhishiku/waffo.env}}"
 SWAP_SIZE_MB="${SHIHAI_SWAP_SIZE_MB:-${KB_SWAP_SIZE_MB:-2048}}"
 PROMPT_SECRETS="${SHIHAI_PROMPT_SECRETS:-${KB_PROMPT_SECRETS:-1}}"
 PROMPT_TIMEOUT="${SHIHAI_PROMPT_TIMEOUT:-${KB_PROMPT_TIMEOUT:-60}}"
+ENV_FILE_EXISTED="false"
+if [[ -f "$ENV_FILE" ]]; then
+  ENV_FILE_EXISTED="true"
+fi
 
 read_env_value() {
   local key="$1"
@@ -206,11 +210,37 @@ prompt_secret() {
 
 usage() {
   cat <<'EOF'
-Usage: provision-ubuntu.sh [--ref <branch|tag|commit>]
+Usage: provision-ubuntu.sh [--ref <latest|branch|tag|commit>]
 
 Installs the runtime dependencies, creates the independent PostgreSQL database and
-application environment, then calls the GitHub-hosted deployment script.
+application environment, resolves the latest semantic release tag by default, then
+calls the GitHub-hosted deployment script. Pass --ref to pin a branch, tag, or commit.
 EOF
+}
+
+resolve_target_ref() {
+  [[ "$REF" == "latest" ]] || return 0
+
+  local tag_output latest
+  if ! tag_output="$(git ls-remote --tags --refs "$REPO_URL")"; then
+    printf 'Unable to query release tags from %s.\n' "$REPO_URL" >&2
+    exit 1
+  fi
+  latest="$(
+    printf '%s\n' "$tag_output" |
+      awk '{print $2}' |
+      sed 's#^refs/tags/##' |
+      grep -E '^v[0-9]+(\.[0-9]+)*(-[0-9A-Za-z][0-9A-Za-z.-]*)?$' |
+      sort -V |
+      tail -n 1 ||
+      true
+  )"
+  if [[ -z "$latest" ]]; then
+    printf 'No semantic release tag was found in %s; pass --ref explicitly.\n' "$REPO_URL" >&2
+    exit 1
+  fi
+  REF="$latest"
+  printf '[provision] 已自动选择最新版本：%s\n' "$REF"
 }
 
 while (($# > 0)); do
@@ -308,6 +338,8 @@ apt-get install -y \
   tesseract-ocr \
   tesseract-ocr-chi-sim \
   tar
+
+resolve_target_ref
 
 echo "==> 2/8 检查 Java 17、Node.js 20+ 和 pnpm"
 if ! command -v java >/dev/null 2>&1 || ! java -version 2>&1 | grep -q 'version "17\.'; then
@@ -408,6 +440,9 @@ OWNER_EMAIL="${SHIHAI_OWNER_EMAIL:-$(read_env_value SHIHAI_OWNER_EMAIL KB_OWNER_
 OWNER_EMAIL="${OWNER_EMAIL:-owner@seaunit.site}"
 BOOTSTRAP_TOKEN="${SHIHAI_BOOTSTRAP_TOKEN:-$(read_env_value SHIHAI_BOOTSTRAP_TOKEN KB_BOOTSTRAP_TOKEN)}"
 BOOTSTRAP_TOKEN="${BOOTSTRAP_TOKEN:-$(openssl rand -hex 32)}"
+ADMIN_USERNAME="${SHIHAI_ADMIN_USERNAME:-$(read_env_value SHIHAI_ADMIN_USERNAME ADMIN_USERNAME)}"
+ADMIN_USERNAME="${ADMIN_USERNAME:-a115846}"
+ADMIN_PASSWORD="${SHIHAI_ADMIN_PASSWORD:-$(read_env_value SHIHAI_ADMIN_PASSWORD ADMIN_PASSWORD)}"
 
 DEEPSEEK_API_KEY="${SHIHAI_DEEPSEEK_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_API_KEY DEEPSEEK_API_KEY)}"
 DEEPSEEK_SEARCH_API_KEY="${SHIHAI_DEEPSEEK_SEARCH_API_KEY:-$(read_env_value SHIHAI_DEEPSEEK_SEARCH_API_KEY DEEPSEEK_SEARCH_API_KEY)}"
@@ -415,6 +450,11 @@ DEEPSEEK_FETCH_API_KEY="${SHIHAI_DEEPSEEK_FETCH_API_KEY:-$(read_env_value SHIHAI
 SMTP_PASSWORD="${SHIHAI_SMTP_PASSWORD:-$(read_env_value SHIHAI_SMTP_PASSWORD SMTP_PASSWORD)}"
 
 echo "==> 6/8 交互配置 AI/SMTP 密钥并写入受限环境文件"
+ADMIN_PASSWORD="$(prompt_secret "识海管理员密码（首次部署必填，留空保留现有密码）" "$ADMIN_PASSWORD")"
+if [[ "$ENV_FILE_EXISTED" != "true" && -z "$ADMIN_PASSWORD" ]]; then
+  printf '首次部署必须输入识海管理员密码，不能留空。\n' >&2
+  exit 1
+fi
 DEEPSEEK_API_KEY="$(prompt_secret "DeepSeek AI API Key" "$DEEPSEEK_API_KEY")"
 DEEPSEEK_SEARCH_API_KEY="$(prompt_secret "DeepSeek Search API Key（留空复用主 AI Key）" "$DEEPSEEK_SEARCH_API_KEY")"
 DEEPSEEK_FETCH_API_KEY="$(prompt_secret "DeepSeek Fetch API Key（留空复用主 AI Key）" "$DEEPSEEK_FETCH_API_KEY")"
@@ -487,6 +527,10 @@ set_env_pair SHIHAI_REFUND_RESPONSE_TARGET REFUND_RESPONSE_TARGET "3 个工作�
 set_env_pair SHIHAI_AUTO_BOOTSTRAP KB_AUTO_BOOTSTRAP "$auto_bootstrap"
 set_env_pair SHIHAI_OWNER_EMAIL KB_OWNER_EMAIL "$OWNER_EMAIL"
 set_env_pair SHIHAI_BOOTSTRAP_TOKEN KB_BOOTSTRAP_TOKEN "$BOOTSTRAP_TOKEN"
+set_env_pair SHIHAI_ADMIN_USERNAME ADMIN_USERNAME "$ADMIN_USERNAME"
+if [[ -n "$ADMIN_PASSWORD" ]]; then
+  set_env_pair SHIHAI_ADMIN_PASSWORD ADMIN_PASSWORD "$ADMIN_PASSWORD"
+fi
 set_env_pair SHIHAI_DEEPSEEK_API_KEY DEEPSEEK_API_KEY "$DEEPSEEK_API_KEY"
 set_env_pair \
   SHIHAI_DEEPSEEK_SEARCH_API_KEY DEEPSEEK_SEARCH_API_KEY "$DEEPSEEK_SEARCH_API_KEY"

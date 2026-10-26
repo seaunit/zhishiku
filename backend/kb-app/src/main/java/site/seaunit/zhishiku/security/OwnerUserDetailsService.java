@@ -19,11 +19,12 @@ public class OwnerUserDetailsService implements UserDetailsService {
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
     var owner =
         ownerService
-            .findByEmail(username)
+            .findByLoginName(username)
             .orElseThrow(() -> new UsernameNotFoundException("Owner not found."));
-    return User.withUsername(owner.getEmailNormalized())
+    return User.withUsername(owner.getLoginName())
         .password(owner.getPasswordHash())
-        .roles("OWNER")
+        .roles(owner.getAccountRole())
+        .disabled(!owner.isEnabled())
         .build();
   }
 }

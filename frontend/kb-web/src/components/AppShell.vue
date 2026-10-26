@@ -80,7 +80,7 @@
           <LocaleSwitch />
           <AccountMenu
             :display-name="accountDisplayName"
-            :email="session.session?.email || ''"
+            :email="accountIdentifier"
             :initial="accountInitial"
             @request-logout="openLogout"
           />
@@ -115,6 +115,7 @@ import {
   MessageCircleMore,
   Plus,
   Settings,
+  ShieldCheck,
   Trash2,
 } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -148,6 +149,9 @@ const primaryItems = computed(() => [
   { name: 'capture', to: '/capture', label: t('nav.capture'), icon: Plus },
   { name: 'processing', to: '/processing', label: t('nav.processing'), icon: Inbox },
   { name: 'billing', to: '/billing', label: t('nav.billing'), icon: CreditCard },
+  ...(session.session?.admin
+    ? [{ name: 'admin', to: '/admin/users', label: t('nav.admin'), icon: ShieldCheck }]
+    : []),
   { name: 'trash', to: '/trash', label: t('nav.trash'), icon: Trash2 },
 ])
 
@@ -155,6 +159,12 @@ const accountDisplayName = computed(
   () => session.session?.displayName || session.session?.email.split('@')[0] || t('account.defaultName'),
 )
 const accountInitial = computed(() => firstCharacter(accountDisplayName.value))
+const accountIdentifier = computed(
+  () =>
+    session.session?.loginName && session.session.loginName !== session.session.email
+      ? session.session.loginName
+      : session.session?.email || '',
+)
 
 async function signOut() {
   if (signingOut.value) {

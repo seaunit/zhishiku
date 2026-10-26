@@ -15,10 +15,13 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import site.seaunit.zhishiku.auth.captcha.CaptchaChallenge;
 import site.seaunit.zhishiku.auth.captcha.CaptchaService;
 import site.seaunit.zhishiku.auth.registration.RegistrationService;
+import site.seaunit.zhishiku.owner.OwnerAccountEntity;
 import site.seaunit.zhishiku.owner.OwnerService;
 import site.seaunit.zhishiku.security.SecurityConfig;
 
@@ -66,5 +69,57 @@ class AuthControllerCaptchaTest {
         .andExpect(jsonPath("$.code").value("CAPTCHA_INVALID"));
 
     verifyNoInteractions(authenticationManager);
+  }
+
+  @Test
+  void acceptsTheAdministratorUsernameAfterCaptchaValidation() throws Exception {
+    OwnerAccountEntity admin =
+        OwnerAccountEntity.createAdmin("a115846", "a115846@admin.seaunit.local", "hash", "zh-CN");
+    UsernamePasswordAuthenticationToken authenticated =
+        UsernamePasswordAuthenticationToken.authenticated("a115846", "hash", java.util.List.of());
+    when(captchaService.consume("captcha-1", "A1B2C")).thenReturn(true);
+    when(authenticationManager.authenticate(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(authenticated);
+    when(ownerService.findByLoginName("a115846")).thenReturn(java.util.Optional.of(admin));
+
+    mvc.perform(
+            post("/api/v1/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "a115846",
+                      "password": "password",
+                      "captchaId": "captcha-1",
+                      "captchaCode": "A1B2C"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.loginName").value("a115846"))
+        .andExpect(jsonPath("$.admin").value(true));
+  }
+
+  @Test
+  void rejectsADisabledAccountAfterCaptchaValidation() throws Exception {
+    when(captchaService.consume("captcha-1", "A1B2C")).thenReturn(true);
+    when(authenticationManager.authenticate(org.mockito.ArgumentMatchers.any()))
+        .thenThrow(new DisabledException("Account is disabled."));
+
+    mvc.perform(
+            post("/api/v1/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "disabled@example.com",
+                      "password": "password",
+                      "captchaId": "captcha-1",
+                      "captchaCode": "A1B2C"
+                    }
+                    """))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
   }
 }

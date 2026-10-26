@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { watch } from 'vue'
 import { i18n } from '@/i18n'
+import { useSessionStore } from '@/stores/session'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -86,6 +87,12 @@ export const router = createRouter({
           meta: { titleKey: 'route.profile' },
         },
         {
+          path: 'admin/users',
+          name: 'admin-users',
+          component: () => import('@/views/AdminUsersView.vue'),
+          meta: { titleKey: 'route.adminUsers', requiresAdmin: true },
+        },
+        {
           path: 'library/:id',
           name: 'detail',
           component: () => import('@/views/DetailView.vue'),
@@ -109,6 +116,25 @@ export const router = createRouter({
   scrollBehavior() {
     return { top: 0 }
   },
+})
+
+router.beforeEach(async (to) => {
+  if (!to.meta.requiresAdmin) {
+    return true
+  }
+  const session = useSessionStore()
+  try {
+    await session.restore()
+  } catch {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath },
+    }
+  }
+  if (!session.session?.admin) {
+    return { name: 'home', query: { admin: 'forbidden' } }
+  }
+  return true
 })
 
 function updateTitle() {

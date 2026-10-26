@@ -6,10 +6,12 @@ import java.util.Map;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import site.seaunit.zhishiku.admin.AdminAccountException;
 import site.seaunit.zhishiku.auth.CaptchaValidationException;
 import site.seaunit.zhishiku.auth.registration.EmailAlreadyRegisteredException;
 import site.seaunit.zhishiku.auth.registration.EmailCodeInvalidException;
@@ -40,6 +42,22 @@ import site.seaunit.zhishiku.webimport.WebPageUrlException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+  @ExceptionHandler(AuthenticationException.class)
+  ResponseEntity<ErrorResponse> authentication(
+      AuthenticationException error, HttpServletRequest request) {
+    return response(
+        HttpStatus.UNAUTHORIZED,
+        "AUTHENTICATION_FAILED",
+        "The account or password is invalid, or the account is disabled.",
+        request);
+  }
+
+  @ExceptionHandler(AdminAccountException.class)
+  ResponseEntity<ErrorResponse> adminAccount(
+      AdminAccountException error, HttpServletRequest request) {
+    return response(error.getStatus(), error.getCode(), error.getMessage(), request);
+  }
+
   @ExceptionHandler(IdempotencyException.class)
   ResponseEntity<ErrorResponse> idempotency(
       IdempotencyException error, HttpServletRequest request) {
@@ -193,7 +211,10 @@ public class ApiExceptionHandler {
   ResponseEntity<ErrorResponse> externalSourceUnavailable(
       ExternalSourceUnavailableException error, HttpServletRequest request) {
     return response(
-        HttpStatus.UNPROCESSABLE_ENTITY, "EXTERNAL_SOURCE_UNAVAILABLE", error.getMessage(), request);
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        "EXTERNAL_SOURCE_UNAVAILABLE",
+        error.getMessage(),
+        request);
   }
 
   @ExceptionHandler(DuplicateKnowledgeException.class)

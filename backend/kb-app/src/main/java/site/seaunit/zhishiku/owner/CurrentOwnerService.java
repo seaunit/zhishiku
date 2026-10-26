@@ -16,7 +16,8 @@ public class CurrentOwnerService {
       throw new IllegalStateException("Authentication is required.");
     }
     return ownerService
-        .findByEmail(authentication.getName())
+        .findByLoginName(authentication.getName())
+        .filter(OwnerAccountEntity::isEnabled)
         .orElseThrow(() -> new IllegalStateException("Owner account is unavailable."));
   }
 }

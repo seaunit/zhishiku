@@ -28,6 +28,9 @@ app:
     expose-code: true
     from-address: no-reply@mail.seaunit.site
     from-name: 识海
+  admin:
+    username: ${SHIHAI_ADMIN_USERNAME:a115846}
+    password: ${SHIHAI_ADMIN_PASSWORD:}
 
 logging:
   level:

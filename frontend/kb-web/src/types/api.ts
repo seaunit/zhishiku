@@ -37,9 +37,11 @@ export interface RegistrationResponse {
 
 export interface SessionResponse {
   ownerId: string
+  loginName: string
   email: string
   displayName: string
   locale: 'zh-CN' | 'en'
+  admin: boolean
   csrfToken: string
 }
 
@@ -438,5 +440,31 @@ export interface BillingRefundCase {
   resolution: string | null
   createdAt: string
   resolvedAt: string | null
+}
+
+export interface AdminUser {
+  ownerId: string
+  loginName: string
+  email: string
+  displayName: string
+  role: 'USER' | 'ADMIN'
+  status: 'enabled' | 'disabled'
+  createdAt: string
+  knowledgeCount: number
+  availablePoints: number
+  reservedPoints: number
+  lifetimeGranted: number
+  lifetimeConsumed: number
+}
+
+export interface AdminUserPage {
+  items: AdminUser[]
+  page: number
+  limit: number
+  totalItems: number
+  totalPages: number
+  enabledCount: number
+  disabledCount: number
+  totalConsumed: number
 }
 

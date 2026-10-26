@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="识海管理员账号管理原型" />
+    <title>账号管理 · 识海</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./admin.css" />
+  </head>
+  <body class="admin-prototype-page">
+    <div class="app-shell">
+      <aside class="rail" aria-label="主导航">
+        <a class="rail-brand" href="./index.html" aria-label="识海首页">
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <path d="M3 11c5-4 10-4 15 0s10 4 15 0" />
+            <path d="M3 18c5-4 10-4 15 0s10 4 15 0" />
+            <path d="M3 25c5-4 10-4 15 0s10 4 15 0" />
+          </svg>
+        </a>
+        <nav class="rail-nav">
+          <div class="rail-main">
+            <a class="rail-item" href="./index.html" aria-label="首页" title="首页">
+              <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5M5 9.5V21h14V9.5M9 21v-6h6v6" /></svg>
+              <span>首页</span>
+            </a>
+            <a class="rail-item" href="./index.html#library" aria-label="知识库" title="知识库">
+              <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /></svg>
+              <span>知识库</span>
+            </a>
+            <a class="rail-item" href="./index.html#chat" aria-label="聊天" title="聊天">
+              <svg viewBox="0 0 24 24"><path d="M5 6h14v10H9l-4 3zM9 10h6M9 13h4" /></svg>
+              <span>聊天</span>
+            </a>
+            <a class="rail-item" href="./index.html#capture" aria-label="采集" title="采集">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+              <span>采集</span>
+            </a>
+            <a class="rail-item" href="./admin.html" aria-label="账号管理" title="账号管理">
+              <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0M16 8h5M18.5 5.5v5" /></svg>
+              <span>账号</span>
+            </a>
+          </div>
+          <div class="rail-bottom">
+            <a class="rail-item" href="./login.html" aria-label="退出登录" title="退出登录">
+              <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /></svg>
+              <span>退出</span>
+            </a>
+          </div>
+        </nav>
+      </aside>
+
+      <div class="workspace">
+        <div class="ocean-chart-backdrop" aria-hidden="true">
+          <svg viewBox="0 0 1600 1100" preserveAspectRatio="xMidYMid slice">
+            <g class="ocean-contours ocean-contours--far">
+              <path d="M-120 112C108 67 253 145 430 122S740 31 925 89s330 86 795 -4" />
+              <path d="M-140 176C88 118 268 210 454 178S760 72 956 137s346 97 792 4" />
+              <path d="M-110 246C113 178 305 274 508 234S816 126 1006 194s322 110 742 36" />
+              <path d="M-150 326C96 246 286 356 514 304S824 205 1034 268s306 126 744 36" />
+              <path d="M-100 406C127 336 335 428 533 392S858 286 1050 350s282 122 682 54" />
+              <path d="M-130 492C122 405 338 522 562 462S876 363 1073 427s280 130 674 48" />
+              <path d="M-120 588C133 495 362 604 574 554S908 450 1100 516s258 128 640 50" />
+            </g>
+            <g class="ocean-contours ocean-contours--near">
+              <path d="M-180 368C118 276 298 424 538 364S904 192 1154 286s356 142 740 14" />
+              <path d="M-150 462C156 360 338 516 594 446S950 284 1206 372s306 142 694 12" />
+              <path d="M-170 566C140 454 342 622 608 544S978 382 1236 470s272 138 648 12" />
+              <path d="M-160 684C154 566 356 742 628 655S1002 486 1264 578s260 142 620 14" />
+            </g>
+          </svg>
+        </div>
+
+        <header class="topbar">
+          <div class="scope-line">
+            <span class="scope-mark" aria-hidden="true">S</span>
+            <div>
+              <p class="scope-label">管理控制台</p>
+              <p class="scope-name">识海</p>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <span class="sync-state"><i aria-hidden="true"></i>账号数据已同步</span>
+            <button class="language-toggle" type="button" aria-label="切换语言">EN</button>
+            <button class="avatar-button" type="button" aria-label="打开管理员账户菜单">管</button>
+          </div>
+        </header>
+
+        <main class="canvas admin-canvas">
+          <div class="title-row admin-title-row">
+            <div>
+              <h1>账号管理</h1>
+              <p class="title-subtitle">查看账号状态与点数使用，处理停用和点数赠送。</p>
+            </div>
+            <button class="ghost-button" type="button" id="refreshButton">刷新数据</button>
+          </div>
+
+          <section class="admin-summary" aria-label="账号概况">
+            <div>
+              <span>全部账号</span>
+              <strong class="num">286</strong>
+            </div>
+            <div>
+              <span>已启用</span>
+              <strong class="num">279</strong>
+            </div>
+            <div>
+              <span>已停用</span>
+              <strong class="num">7</strong>
+            </div>
+            <div>
+              <span>累计消耗点数</span>
+              <strong class="num">12,840</strong>
+            </div>
+          </section>
+
+          <section class="admin-sheet" aria-labelledby="accountListTitle">
+            <div class="admin-sheet-head">
+              <div>
+                <h2 id="accountListTitle">用户账号</h2>
+                <p id="accountCount">第 1 页 · 共 286 个账号</p>
+              </div>
+            </div>
+
+            <div class="admin-toolbar">
+              <label class="admin-search">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+                <input id="accountSearch" type="search" placeholder="搜索邮箱、用户名或显示名称" aria-label="搜索账号" autocomplete="off" />
+              </label>
+              <div class="admin-filter-tabs" role="tablist" aria-label="账号状态">
+                <button class="is-active" type="button" data-filter="all" role="tab" aria-selected="true">全部</button>
+                <button type="button" data-filter="enabled" role="tab" aria-selected="false">已启用</button>
+                <button type="button" data-filter="disabled" role="tab" aria-selected="false">已停用</button>
+              </div>
+            </div>
+
+            <div class="admin-table-head" aria-hidden="true">
+              <span>账号</span>
+              <span>状态</span>
+              <span>可用</span>
+              <span>冻结</span>
+              <span>累计消耗</span>
+              <span>操作</span>
+            </div>
+            <div class="admin-account-list" id="accountList">
+              <article class="admin-account-row" data-status="enabled" data-role="ADMIN">
+                <div class="admin-identity">
+                  <span class="admin-avatar is-admin">管</span>
+                  <span>
+                    <strong>a115846</strong>
+                    <small>a115846@admin.seaunit.local</small>
+                  </span>
+                </div>
+                <span class="admin-status is-enabled"><i></i>已启用</span>
+                <span class="admin-number"><strong>0</strong><small>点</small></span>
+                <span class="admin-number"><strong>0</strong><small>点</small></span>
+                <span class="admin-number"><strong>0</strong><small>点</small></span>
+                <span class="admin-role-tag">管理员</span>
+              </article>
+
+              <article class="admin-account-row" data-status="enabled" data-role="USER">
+                <div class="admin-identity">
+                  <span class="admin-avatar">林</span>
+                  <span>
+                    <strong>林舟</strong>
+                    <small>linzhou@seaunit.site · 2026-10-18 注册</small>
+                  </span>
+                </div>
+                <span class="admin-status is-enabled"><i></i>已启用</span>
+                <span class="admin-number"><strong>94</strong><small>点</small></span>
+                <span class="admin-number"><strong>0</strong><small>点</small></span>
+                <span class="admin-number"><strong>126</strong><small>点</small></span>
+                <span class="admin-actions">
+                  <button type="button" data-action="status">停用</button>
+                  <button type="button" data-action="gift">赠送</button>
+                </span>
+              </article>
+
+              <article class="admin-account-row" data-status="disabled" data-role="USER">
+                <div class="admin-identity">
+                  <span class="admin-avatar is-muted">周</span>
+                  <span>
+                    <strong>周远</strong>
+                    <small>zhouyuan@oceanmail.cn · 2026-10-16 注册</small>
+                  </span>
+                </div>
+                <span class="admin-status is-disabled"><i></i>已停用</span>
+                <span class="admin-number"><strong>0</strong><small>点</small></span>
+                <span class="admin-number"><strong>0</strong><small>点</small></span>
+                <span class="admin-number"><strong>39</strong><small>点</small></span>
+                <span class="admin-actions">
+                  <button type="button" data-action="status">启用</button>
+                  <button type="button" data-action="gift">赠送</button>
+                </span>
+              </article>
+
+              <article class="admin-account-row" data-status="enabled" data-role="USER">
+                <div class="admin-identity">
+                  <span class="admin-avatar is-teal">陈</span>
+                  <span>
+                    <strong>陈序</strong>
+                    <small>chenxu@studiosea.cn · 2026-10-14 注册</small>
+                  </span>
+                </div>
+                <span class="admin-status is-enabled"><i></i>已启用</span>
+                <span class="admin-number"><strong>1,286</strong><small>点</small></span>
+                <span class="admin-number"><strong>15</strong><small>点</small></span>
+                <span class="admin-number"><strong>2,940</strong><small>点</small></span>
+                <span class="admin-actions">
+                  <button type="button" data-action="status">停用</button>
+                  <button type="button" data-action="gift">赠送</button>
+                </span>
+              </article>
+
+              <article class="admin-account-row" data-status="enabled" data-role="USER">
+                <div class="admin-identity">
+                  <span class="admin-avatar is-warm">许</span>
+                  <span>
+                    <strong>许知微</strong>
+                    <small>xuzhiwei@notebook.cn · 2026-10-12 注册</small>
+                  </span>
+                </div>
+                <span class="admin-status is-enabled"><i></i>已启用</span>
+                <span class="admin-number"><strong>37</strong><small>点</small></span>
+                <span class="admin-number"><strong>2</strong><small>点</small></span>
+                <span class="admin-number"><strong>19</strong><small>点</small></span>
+                <span class="admin-actions">
+                  <button type="button" data-action="status">停用</button>
+                  <button type="button" data-action="gift">赠送</button>
+                </span>
+              </article>
+
+              <article class="admin-account-row" data-status="enabled" data-role="USER">
+                <div class="admin-identity">
+                  <span class="admin-avatar is-cool">沈</span>
+                  <span>
+                    <strong>沈岸</strong>
+                    <small>shenan@seawork.cn · 2026-10-09 注册</small>
+                  </span>
+                </div>
+                <span class="admin-status is-enabled"><i></i>已启用</span>
+                <span class="admin-number"><strong>410</strong><small>点</small></span>
+                <span class="admin-number"><strong>0</strong><small>点</small></span>
+                <span class="admin-number"><strong>782</strong><small>点</small></span>
+                <span class="admin-actions">
+                  <button type="button" data-action="status">停用</button>
+                  <button type="button" data-action="gift">赠送</button>
+                </span>
+              </article>
+            </div>
+            <div class="admin-empty" id="accountEmpty" hidden>
+              <strong>没有匹配的账号</strong>
+              <span>换一个邮箱、用户名或显示名称。</span>
+            </div>
+
+            <footer class="admin-pagination">
+              <span>每页 20 条</span>
+              <div>
+                <button type="button" disabled>上一页</button>
+                <strong>1</strong>
+                <button type="button">下一页</button>
+              </div>
+            </footer>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <dialog class="admin-dialog" id="statusDialog" aria-labelledby="statusDialogTitle">
+      <form method="dialog" id="statusForm">
+        <header>
+          <div>
+            <h2 id="statusDialogTitle">停用账号</h2>
+            <p id="statusDialogTarget">林舟 · linzhou@seaunit.site</p>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button>
+        </header>
+        <p class="admin-dialog-note" id="statusDialogNote">停用后，该账号将无法登录，已有会话也会失效。知识、点数和历史记录不会删除。</p>
+        <label class="field">
+          <span>操作原因</span>
+          <textarea class="input" id="statusReason" rows="3" maxlength="300" placeholder="说明本次状态变更原因"></textarea>
+        </label>
+        <div class="admin-dialog-actions">
+          <button class="ghost-button" type="button" data-close-dialog>取消</button>
+          <button class="primary-button" type="submit">确认停用</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="admin-dialog" id="giftDialog" aria-labelledby="giftDialogTitle">
+      <form method="dialog" id="giftForm">
+        <header>
+          <div>
+            <h2 id="giftDialogTitle">赠送点数</h2>
+            <p id="giftDialogTarget">林舟 · linzhou@seaunit.site</p>
+          </div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button>
+        </header>
+        <label class="field">
+          <span>赠送点数</span>
+          <input class="input num" id="giftPoints" type="number" min="1" max="100000" inputmode="numeric" placeholder="1–100000" />
+        </label>
+        <label class="field">
+          <span>操作原因</span>
+          <textarea class="input" id="giftReason" rows="3" maxlength="300" placeholder="例如：服务补偿"></textarea>
+        </label>
+        <p class="admin-dialog-note">赠送会写入点数账本，重复提交不会重复到账。</p>
+        <div class="admin-dialog-actions">
+          <button class="ghost-button" type="button" data-close-dialog>取消</button>
+          <button class="primary-button" type="submit">确认赠送</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="adminToast" role="status" aria-live="polite"></div>
+    <script>
+      const rows = () => Array.from(document.querySelectorAll('.admin-account-row'))
+      const search = document.querySelector('#accountSearch')
+      const empty = document.querySelector('#accountEmpty')
+      const count = document.querySelector('#accountCount')
+      let activeFilter = 'all'
+      let selectedRow = null
+
+      function filterRows() {
+        const query = search.value.trim().toLowerCase()
+        let visible = 0
+        rows().forEach((row) => {
+          const matchesQuery = !query || row.textContent.toLowerCase().includes(query)
+          const matchesStatus = activeFilter === 'all' || row.dataset.status === activeFilter
+          row.hidden = !(matchesQuery && matchesStatus)
+          if (!row.hidden) visible += 1
+        })
+        empty.hidden = visible > 0
+        count.textContent = query || activeFilter !== 'all'
+          ? `匹配 ${visible} 个账号`
+          : '第 1 页 · 共 286 个账号'
+      }
+
+      function openStatus(row) {
+        selectedRow = row
+        const disabling = row.dataset.status === 'enabled'
+        document.querySelector('#statusDialogTitle').textContent = disabling ? '停用账号' : '启用账号'
+        document.querySelector('#statusDialogTarget').textContent =
+          row.querySelector('.admin-identity strong').textContent + ' · ' +
+          row.querySelector('.admin-identity small').textContent.split(' · ')[0]
+        document.querySelector('#statusDialogNote').textContent = disabling
+          ? '停用后，该账号将无法登录，已有会话也会失效。知识、点数和历史记录不会删除。'
+          : '启用后，该账号可以重新登录，原有知识、点数和历史记录保持可用。'
+        document.querySelector('#statusForm .primary-button').textContent =
+          disabling ? '确认停用' : '确认启用'
+        document.querySelector('#statusReason').value = ''
+        document.querySelector('#statusDialog').showModal()
+      }
+
+      function openGift(row) {
+        selectedRow = row
+        document.querySelector('#giftDialogTarget').textContent =
+          row.querySelector('.admin-identity strong').textContent + ' · ' +
+          row.querySelector('.admin-identity small').textContent.split(' · ')[0]
+        document.querySelector('#giftPoints').value = ''
+        document.querySelector('#giftReason').value = ''
+        document.querySelector('#giftDialog').showModal()
+      }
+
+      function toast(message) {
+        const node = document.querySelector('#adminToast')
+        node.textContent = message
+        node.classList.add('is-visible')
+        window.setTimeout(() => node.classList.remove('is-visible'), 2600)
+      }
+
+      search.addEventListener('input', filterRows)
+      document.querySelectorAll('[data-filter]').forEach((button) => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('[data-filter]').forEach((item) => {
+            item.classList.toggle('is-active', item === button)
+            item.setAttribute('aria-selected', String(item === button))
+          })
+          activeFilter = button.dataset.filter
+          filterRows()
+        })
+      })
+
+      document.querySelector('#accountList').addEventListener('click', (event) => {
+        const action = event.target.closest('[data-action]')
+        if (!action) return
+        const row = action.closest('.admin-account-row')
+        if (action.dataset.action === 'status') openStatus(row)
+        if (action.dataset.action === 'gift') openGift(row)
+      })
+
+      document.querySelectorAll('[data-close-dialog]').forEach((button) => {
+        button.addEventListener('click', () => button.closest('dialog').close())
+      })
+
+      document.querySelector('#statusForm').addEventListener('submit', (event) => {
+        event.preventDefault()
+        if (!selectedRow || !document.querySelector('#statusReason').value.trim()) {
+          document.querySelector('#statusReason').focus()
+          return
+        }
+        const nextStatus = selectedRow.dataset.status === 'enabled' ? 'disabled' : 'enabled'
+        selectedRow.dataset.status = nextStatus
+        const status = selectedRow.querySelector('.admin-status')
+        status.className = `admin-status is-${nextStatus}`
+        status.innerHTML = `<i></i>${nextStatus === 'enabled' ? '已启用' : '已停用'}`
+        const action = selectedRow.querySelector('[data-action="status"]')
+        action.textContent = nextStatus === 'enabled' ? '停用' : '启用'
+        selectedRow.querySelector('.admin-avatar').classList.toggle('is-muted', nextStatus === 'disabled')
+        document.querySelector('#statusDialog').close()
+        filterRows()
+        toast(nextStatus === 'enabled' ? '账号已启用' : '账号已停用')
+      })
+
+      document.querySelector('#giftForm').addEventListener('submit', (event) => {
+        event.preventDefault()
+        const points = Number(document.querySelector('#giftPoints').value)
+        const reason = document.querySelector('#giftReason').value.trim()
+        if (!selectedRow || !Number.isInteger(points) || points < 1 || points > 100000 || !reason) {
+          ;(document.querySelector('#giftPoints').value ? document.querySelector('#giftReason') : document.querySelector('#giftPoints')).focus()
+          return
+        }
+        const available = selectedRow.querySelector('.admin-number strong')
+        available.textContent = (Number(available.textContent.replaceAll(',', '')) + points).toLocaleString('zh-CN')
+        document.querySelector('#giftDialog').close()
+        toast(`已向该账号赠送 ${points.toLocaleString('zh-CN')} 点`)
+      })
+
+      document.querySelector('#refreshButton').addEventListener('click', () => {
+        toast('账号数据已刷新')
+      })
+    </script>
+  </body>
+</html>

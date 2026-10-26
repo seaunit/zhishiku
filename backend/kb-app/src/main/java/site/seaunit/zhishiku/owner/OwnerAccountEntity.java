@@ -12,10 +12,14 @@ import site.seaunit.zhishiku.persistence.AuditedEntity;
 @Entity
 @Table(name = "owner_account")
 public class OwnerAccountEntity extends AuditedEntity {
+  public static final String ADMIN_USERNAME = "a115846";
+
   @Id private UUID id;
 
   @Column(name = "email_normalized", nullable = false, unique = true)
   private String emailNormalized;
+
+  @Column private String username;
 
   @Column(name = "display_name", nullable = false)
   private String displayName;
@@ -28,6 +32,12 @@ public class OwnerAccountEntity extends AuditedEntity {
 
   @Column(name = "email_verified_at", nullable = false)
   private Instant emailVerifiedAt;
+
+  @Column(name = "account_role", nullable = false)
+  private String accountRole;
+
+  @Column(name = "account_status", nullable = false)
+  private String accountStatus;
 
   @Version
   @Column(nullable = false)
@@ -43,6 +53,18 @@ public class OwnerAccountEntity extends AuditedEntity {
     owner.passwordHash = passwordHash;
     owner.locale = locale;
     owner.emailVerifiedAt = Instant.now();
+    owner.accountRole = "USER";
+    owner.accountStatus = "enabled";
+    return owner;
+  }
+
+  public static OwnerAccountEntity createAdmin(
+      String username, String email, String passwordHash, String locale) {
+    OwnerAccountEntity owner = create(email, passwordHash, locale);
+    owner.username = normalizeUsername(username);
+    owner.displayName = "识海管理员";
+    owner.accountRole = "ADMIN";
+    owner.accountStatus = "enabled";
     return owner;
   }
 
@@ -52,6 +74,14 @@ public class OwnerAccountEntity extends AuditedEntity {
 
   public String getEmailNormalized() {
     return emailNormalized;
+  }
+
+  public String getUsername() {
+    return username;
+  }
+
+  public String getLoginName() {
+    return username == null || username.isBlank() ? emailNormalized : username;
   }
 
   public String getDisplayName() {
@@ -72,6 +102,46 @@ public class OwnerAccountEntity extends AuditedEntity {
 
   public Instant getEmailVerifiedAt() {
     return emailVerifiedAt;
+  }
+
+  public String getAccountRole() {
+    return accountRole;
+  }
+
+  public String getAccountStatus() {
+    return accountStatus;
+  }
+
+  public boolean isAdmin() {
+    return "ADMIN".equals(accountRole);
+  }
+
+  public boolean isEnabled() {
+    return "enabled".equals(accountStatus);
+  }
+
+  public void updateEnabled(boolean enabled) {
+    this.accountStatus = enabled ? "enabled" : "disabled";
+  }
+
+  public void updatePasswordHash(String passwordHash) {
+    this.passwordHash = passwordHash;
+  }
+
+  public void ensureAdministrator() {
+    this.accountRole = "ADMIN";
+    this.accountStatus = "enabled";
+  }
+
+  public static String normalizeUsername(String username) {
+    if (username == null) {
+      throw new IllegalArgumentException("Username is required.");
+    }
+    String normalized = username.strip();
+    if (!normalized.matches("^[A-Za-z0-9]{1,64}$")) {
+      throw new IllegalArgumentException("Username must contain 1 to 64 letters or digits.");
+    }
+    return normalized;
   }
 
   private static String defaultDisplayName(String emailNormalized) {

@@ -4,18 +4,21 @@ import {
   API_BASE,
   confirmKnowledgeReview,
   createBillingOrder,
+  grantAdminUserPoints,
   getCaptcha,
   getRegistrationStatus,
   importDocument,
   importScreenshot,
   importText,
   login,
+  listAdminUsers,
   registerAccount,
   resetCsrfToken,
   searchKnowledge,
   sendRegistrationEmailCode,
   streamKnowledgeChat,
   uploadRichImage,
+  updateAdminUserStatus,
 } from './client'
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -351,6 +354,69 @@ describe('captcha login', () => {
       password: 'correct-horse-battery',
       captchaId: 'captcha-123',
       captchaCode: 'A1B2C',
+    })
+  })
+})
+
+describe('administrator account management', () => {
+  it('lists accounts with search, status, and pagination parameters', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        items: [],
+        page: 2,
+        limit: 20,
+        totalItems: 0,
+        totalPages: 0,
+        enabledCount: 8,
+        disabledCount: 1,
+        totalConsumed: 220,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await listAdminUsers('lin zhou', 2, 20, 'enabled')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API_BASE}/admin/users?query=lin+zhou&page=2&limit=20&status=enabled`,
+      expect.objectContaining({ credentials: 'include' }),
+    )
+  })
+
+  it('uses CSRF and an idempotency key for status and point changes', async () => {
+    const account = {
+      ownerId: '123e4567-e89b-42d3-a456-426614174123',
+      loginName: 'linzhou@seaunit.site',
+      email: 'linzhou@seaunit.site',
+      displayName: '林舟',
+      role: 'USER',
+      status: 'enabled',
+      createdAt: '2026-10-18T08:00:00Z',
+      knowledgeCount: 8,
+      availablePoints: 94,
+      reservedPoints: 0,
+      lifetimeGranted: 220,
+      lifetimeConsumed: 126,
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ token: 'csrf-admin', headerName: 'X-XSRF-TOKEN' }))
+      .mockResolvedValueOnce(jsonResponse(account))
+      .mockResolvedValueOnce(jsonResponse(account, 201))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await updateAdminUserStatus(account.ownerId, false, 'Policy review', 'status-key-000001')
+    await grantAdminUserPoints(account.ownerId, 12, 'Compensation', 'points-key-000001')
+
+    const statusRequest = fetchMock.mock.calls[1]
+    expect(statusRequest[0]).toBe(`${API_BASE}/admin/users/${account.ownerId}/status`)
+    expect(statusRequest[1].headers.get('X-XSRF-TOKEN')).toBe('csrf-admin')
+    expect(statusRequest[1].headers.get('Idempotency-Key')).toBe('status-key-000001')
+
+    const grantRequest = fetchMock.mock.calls[2]
+    expect(grantRequest[0]).toBe(`${API_BASE}/admin/users/${account.ownerId}/point-grants`)
+    expect(JSON.parse(String(grantRequest[1].body))).toEqual({
+      points: 12,
+      reason: 'Compensation',
     })
   })
 })

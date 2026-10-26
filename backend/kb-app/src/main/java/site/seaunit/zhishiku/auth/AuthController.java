@@ -156,13 +156,16 @@ public class AuthController {
   private SessionResponse response(CsrfToken token, Authentication authentication) {
     OwnerAccountEntity owner =
         ownerService
-            .findByEmail(authentication.getName())
+            .findByLoginName(authentication.getName())
+            .filter(OwnerAccountEntity::isEnabled)
             .orElseThrow(() -> new IllegalStateException("Account is unavailable."));
     return new SessionResponse(
         owner.getId(),
+        owner.getLoginName(),
         owner.getEmailNormalized(),
         owner.getDisplayName(),
         owner.getLocale(),
+        owner.isAdmin(),
         token.getToken());
   }
 }

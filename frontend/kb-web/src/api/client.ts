@@ -1,5 +1,7 @@
 import { createIdempotencyKey } from '@/lib/id'
 import type {
+  AdminUser,
+  AdminUserPage,
   ApiErrorPayload,
   AiConsent,
   AiConsentScope,
@@ -193,18 +195,59 @@ export function registerAccount(
 }
 
 export async function login(
-  email: string,
+  loginName: string,
   password: string,
   captchaId: string,
   captchaCode: string,
 ): Promise<SessionResponse> {
   const session = await request<SessionResponse>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password, captchaId, captchaCode }),
+    body: JSON.stringify({ email: loginName, password, captchaId, captchaCode }),
     skipAuthRedirect: true,
   })
   setCsrfToken(session.csrfToken)
   return session
+}
+
+export function listAdminUsers(
+  query = '',
+  page = 1,
+  limit = 20,
+  status: 'all' | 'enabled' | 'disabled' = 'all',
+): Promise<AdminUserPage> {
+  const params = new URLSearchParams({
+    query,
+    page: String(page),
+    limit: String(limit),
+    status,
+  })
+  return request<AdminUserPage>(`/admin/users?${params.toString()}`)
+}
+
+export function updateAdminUserStatus(
+  ownerId: string,
+  enabled: boolean,
+  reason: string,
+  idempotencyKey = createIdempotencyKey('admin-status'),
+): Promise<AdminUser> {
+  return request<AdminUser>(`/admin/users/${encodeURIComponent(ownerId)}/status`, {
+    method: 'PATCH',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({ enabled, reason }),
+  })
+}
+
+export function grantAdminUserPoints(
+  ownerId: string,
+  points: number,
+  reason: string,
+  idempotencyKey = createIdempotencyKey('admin-points'),
+): Promise<AdminUser> {
+  return request<AdminUser>(`/admin/users/${encodeURIComponent(ownerId)}/point-grants`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({ points, reason }),
+  })
 }
 
 export async function getCurrentSession(): Promise<SessionResponse> {

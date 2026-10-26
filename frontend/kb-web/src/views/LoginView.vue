@@ -49,16 +49,15 @@
         </div>
 
         <div class="field">
-          <label for="login-email">{{ t('login.email') }}</label>
+          <label for="login-email">{{ t('login.loginName') }}</label>
           <input
             id="login-email"
-            v-model.trim="email"
+            v-model.trim="loginName"
             class="input"
-            type="email"
+            type="text"
             name="email"
             autocomplete="username"
-            inputmode="email"
-            :placeholder="t('login.emailPlaceholder')"
+            :placeholder="t('login.loginNamePlaceholder')"
             required
             @input="clearError"
           />
@@ -145,7 +144,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
-const email = ref('')
+const loginName = ref('')
 const password = ref('')
 const captchaId = ref('')
 const captchaCode = ref('')
@@ -187,7 +186,7 @@ async function loadCaptcha(preserveError = false) {
 
 async function submit() {
   clearError()
-  if (!email.value || !password.value) {
+  if (!loginName.value || !password.value) {
     formError.value = t('login.required')
     return
   }
@@ -201,15 +200,17 @@ async function submit() {
   }
 
   try {
-    await session.login(email.value, password.value, captchaId.value, captchaCode.value)
+    await session.login(loginName.value, password.value, captchaId.value, captchaCode.value)
     await router.replace(nextPath())
   } catch (caught) {
     formError.value =
       caught instanceof ApiError && caught.code === 'CAPTCHA_INVALID'
         ? t('login.captchaInvalid')
-        : caught instanceof Error
-          ? caught.message
-          : t('errors.generic')
+        : caught instanceof ApiError && caught.code === 'AUTHENTICATION_FAILED'
+          ? t('login.authenticationFailed')
+          : caught instanceof Error
+            ? caught.message
+            : t('errors.generic')
     await loadCaptcha(true)
   }
 }

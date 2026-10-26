@@ -266,21 +266,24 @@ Apache POI 打入 `kb-app.jar`，因此发布包会明显增大，但部署步�
 
 ## 一键部署
 
-入口脚本必须支持固定 ref，执行：
+入口脚本默认从官方 GitHub 仓库查询语义化版本标签并选择最高版本，同时必须支持通过
+`--ref` 固定 tag、commit 或分支。标签查询失败或没有合法标签时必须失败关闭，不得静默
+退回 `main`。执行：
 
 1. 验证 GitHub 官方 HTTPS 地址。
-2. 记录现有应用健康基线。
-3. 检查磁盘、内存、端口、数据库和 Nginx 冲突。
-4. 备份当前 release、Nginx、环境文件映射和数据库。
-5. 从 GitHub 拉取指定 commit/tag。
-6. Maven 构建 Java 与 browser worker、安装 Chromium、验证 Tesseract 语言包、pnpm 构建 Vue，
+2. 解析最新语义化版本标签，输出标签和实际 commit SHA。
+3. 记录现有应用健康基线。
+4. 检查磁盘、内存、端口、数据库和 Nginx 冲突。
+5. 备份当前 release、Nginx、环境文件映射和数据库。
+6. 从 GitHub 拉取自动选择的 tag，或拉取手动指定的 ref。
+7. Maven 构建 Java 与 browser worker、安装 Chromium、验证 Tesseract 语言包、pnpm 构建 Vue，
    并安装或验证 Node 桥接依赖。
-7. Flyway 迁移。
-8. 原子切换 release symlink。
-9. 启动/重启识海 unit。
-10. 健康检查 `/kb/api/actuator/health`、`/kb/`、桥接本地健康和数据库。
-11. 运行原有应用零影响检查。
-12. 任一步失败则恢复上一 release、Nginx 和数据库备份。
+8. Flyway 迁移。
+9. 原子切换 release symlink。
+10. 启动/重启识海 unit。
+11. 健康检查 `/kb/api/actuator/health`、`/kb/`、桥接本地健康和数据库。
+12. 运行原有应用零影响检查。
+13. 任一步失败则恢复上一 release、Nginx 和数据库备份。
 
 ## 回滚
 
