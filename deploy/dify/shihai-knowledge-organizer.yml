@@ -132,7 +132,8 @@ workflow:
             size: 50
         model:
           completion_params:
-            max_tokens: 8000
+            max_tokens: 24000
+            reasoning_effort: low
             temperature: 0.2
           mode: chat
           name: deepseek-flash
@@ -150,11 +151,13 @@ workflow:
 
             输出要求：
             - 只输出一个 JSON 对象，不要输出 Markdown 代码围栏或解释。
+            - 不要输出 `<think>`、内部推理过程或分析草稿。
+            - 无论输入多长，都必须返回完整、闭合、可直接解析的 JSON。若内容较多，优先合并相近主题、减少条目并压缩正文，绝不能截断 JSON 字符串或对象。
             - JSON 结构必须是：
               {"items":[{"title":"...","body":"...","summary":"...","category":"...","tags":["..."]}]}
-            - 生成 1 到 20 条知识。只有在文本包含明显不同主题时才拆分。
+            - 生成 1 到 12 条知识。只有在文本包含明显不同主题时才拆分；长文应合并相近主题，优先保留最重要的知识。
             - title 为 1 到 300 字符，同一结果中不得重复。
-            - body 使用精炼 Markdown，至少包含有效正文，不得只放 URL、裸域名或图片链接。
+            - body 使用精炼 Markdown，每条约 150 到 600 个中文字符，至少包含有效正文，不得只放 URL、裸域名或图片链接。
             - body 可使用 ##/### 标题、段落、列表、引用和代码块；不得包含 HTML、脚本、表单、iframe、远程图片或 Markdown 图片 URL。
             - summary 为 1 到 500 字符；category 为 1 到 100 字符；tags 为 1 到 8 个短标签。
             - 正文应像可阅读的学习笔记，而不是聊天式摘要。

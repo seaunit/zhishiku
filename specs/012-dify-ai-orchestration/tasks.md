@@ -93,6 +93,7 @@
 - [x] T033 [P0] 在生产服务器内部直连 Dify，验证知识整理和通用聊天工作流
 - [x] T034 [P0] 提交并推送 GitHub、合并正式分支、创建新语义化版本标签并执行生产部署
 - [x] T035 [P0] 部署后验证 `/`、`/app`、`/kb/`、`/kb/api/actuator/health`、Dify 和支付桥接健康及无重复服务
+- [x] T036 [P0] 修复长文本整理时 Dify 输出达到 8,000 token 后截断 JSON、导致“AI 整理后收入”返回 422 且不入库的问题
 
 ---
 
@@ -148,3 +149,4 @@
 | T033 | 2026-10-27 | 完成 | 生产 Dify 知识整理返回 1 条有效知识，通用聊天返回有效回答。 | `organizer_status=succeeded`、`chat_status=succeeded`、`keys_configured=True`。 | 未提交 |
 | T034 | 2026-10-27 | 完成 | 功能分支与 `main` 已同步到 `849f8ec`，创建 `v0.1.33-mvp`，并使用该标签在生产环境跳过重复全量测试完成发布；release 为 `/opt/zhishiku/releases/849f8ec04a47-20261027000621`。 | GitHub 分支、`main` 和标签均指向 `849f8ec`；部署日志确认选择 `v0.1.33-mvp` 并发布成功；数据库备份为 `/var/backups/zhishiku/predeploy-849f8ec04a47-20261027000621.sql.gz`。 | `849f8ec` |
 | T035 | 2026-10-27 | 完成 | 生产门户、拾题、识海、支付桥接、Dify 和 Nginx 均正常；识海与门户 release 指向同一版本，systemd 仅运行一个 `zhishiku-api` Java 主进程。 | `/`、`/app`、`/kb/`、`/kb/api/actuator/health`、`/login`、`/bank/1` 均返回 200；未登录新接口返回 401；`nginx -t` 通过；`zhishiku-api`、`zhishiku-waffo-bridge`、Dify 四项服务和拾题两项服务均为 active。 | `849f8ec` |
+| T036 | 2026-10-27 | 完成 | 定位到模型输出达到 8,000 token 后 JSON 被截断，而 Dify 仍报告 `SUCCESS`；将整理工作流调整为 `max_tokens=24000`、`reasoning_effort=low`，并要求长文合并主题、压缩正文、优先保证完整 JSON。生产工作流已发布为 `v0.1.34`。 | 使用触发失败的同一份 23,618 字输入回归，Dify 返回 6 条完整知识，正文、摘要、分类和标签校验通过；`ExternalSearchServiceTest` 与 `DifyKnowledgeOrganizerTest` 共 12 项通过。 | Dify `v0.1.34` |
